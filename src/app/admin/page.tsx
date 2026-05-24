@@ -46,7 +46,12 @@ export default async function AdminPage() {
                 key={fragment.id}
               >
                 <div>
-                  <div className="font-medium text-slate-950">{fragment.title}</div>
+                  <a
+                    className="font-medium text-slate-950 underline-offset-4 hover:underline"
+                    href={`/63fz/admin/fragments/${fragment.id}`}
+                  >
+                    {fragment.title}
+                  </a>
                   <div className="mt-1 text-slate-500">{fragment.stableId}</div>
                 </div>
                 <div className="text-slate-600">{fragment.type}</div>

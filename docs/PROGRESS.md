@@ -82,3 +82,21 @@ Next safe step: implement minimal admin authentication and protected admin shell
   - unauthenticated `/63fz/admin` redirects to `/63fz/admin/login`
 
 Next safe step: add protected edit pages and CRUD server actions for explanations, expert comments, issues, and proposed revisions.
+
+## Step 4. Fragment CRUD Forms
+
+- Added protected `/63fz/admin/fragments/[id]` page.
+- Added read-only original text display for a fragment.
+- Added protected server actions for create, update, and delete operations on:
+  - plain explanations
+  - expert comments
+  - issues / disputed places
+  - proposed revisions
+- Every write action checks admin authentication and refuses to run without `DATABASE_URL`.
+- Verified:
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run build`
+  - unauthenticated fragment edit URL redirects to `/63fz/admin/login`
+
+Next safe step: run the database migration and seed in an environment with PostgreSQL, then verify the full admin create/update/delete flow against real database rows.
