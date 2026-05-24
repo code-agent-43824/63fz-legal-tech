@@ -107,3 +107,24 @@ Next safe step: run the database migration and seed in an environment with Postg
 - Installing Docker plus pulling images is risky on this disk size.
 - Existing `/home/openclaw/runtime/node/bin/node` is available, so the first safe deployment path is a Next.js standalone build behind a systemd user service and Caddy `/63fz` proxy.
 - This first deployment can expose the public DEMO DATA reader and protected admin shell, but database-backed writes still require PostgreSQL provisioning.
+
+## First Production Deploy
+
+- Built a Next.js standalone artifact from commit `b6ac34c`.
+- Deployed it to VDSina under `/home/openclaw/services/63fz-legal-tech/releases/b6ac34c`.
+- Added and started user service `63fz-legal-tech.service` on `127.0.0.1:3011`.
+- Backed up Caddy config before editing:
+  - `/home/openclaw/backups/63fz-legal-tech/20260524T201644Z/mescheryakov.pro.caddy`
+  - `/home/openclaw/backups/63fz-legal-tech/20260524T201739Z-fix-63fz-route/mescheryakov.pro.caddy`
+- Added Caddy proxy handles for `/63fz` and `/63fz/*`.
+- Verified:
+  - `https://mescheryakov.pro/63fz` returns 200 and renders the DEMO DATA reader.
+  - `/63fz/_next/static/...` assets return 200.
+  - unauthenticated `https://mescheryakov.pro/63fz/admin` redirects to `/63fz/admin/login`.
+  - existing root `https://mescheryakov.pro/` still returns 200 and contains the original site title.
+  - existing `https://mescheryakov.pro/pdf-signing/` still returns 200.
+  - `63fz-legal-tech.service` is active with `NRestarts=0`.
+
+Remaining deployment gap:
+
+- This is a public scaffold deployment without PostgreSQL connected. Database-backed admin writes, migrations, seed, search, and export are still pending.
