@@ -148,3 +148,11 @@ Remaining deployment gap:
 Follow-up fix:
 
 - Updated the public reader to display all published plain explanations for a fragment, not only the first one, so admin-created explanations are visible.
+- Redeployed commit `9fea551` to VDSina and restarted `63fz-legal-tech.service`.
+- Verified public HTTPS page shows a published explanation created through the admin form.
+- Current production state:
+  - `https://mescheryakov.pro/63fz` returns 200.
+  - `https://mescheryakov.pro/63fz/admin` redirects to login when unauthenticated.
+  - existing root site and `/pdf-signing/` still return 200.
+  - PostgreSQL is active; current DEMO DATA counts are 3 law fragments and 2 plain explanations.
+  - root filesystem is tight at about 94% used after PostgreSQL installation.
