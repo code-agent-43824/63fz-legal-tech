@@ -67,3 +67,18 @@ Next safe step: connect the public reader to seeded database content instead of 
   - local HTTP check at `/63fz`
 
 Next safe step: implement minimal admin authentication and protected admin shell before adding write forms.
+
+## Step 4. Admin Authentication Shell
+
+- Added password-based admin login at `/63fz/admin/login`.
+- Added signed httpOnly cookie session scoped to `/63fz`.
+- Added protected `/63fz/admin` shell with fragment list and content counters.
+- Added `ADMIN_PASSWORD` guard: login is blocked when the password is unset or left as the example value.
+- Did not add write endpoints yet.
+- Verified:
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run build`
+  - unauthenticated `/63fz/admin` redirects to `/63fz/admin/login`
+
+Next safe step: add protected edit pages and CRUD server actions for explanations, expert comments, issues, and proposed revisions.
