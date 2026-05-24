@@ -68,7 +68,7 @@ export async function getReaderData(): Promise<ReaderData> {
       blocks: [
         {
           title: "Простыми словами",
-          text: fragment.plainExplanations[0]?.text ?? "Пояснение пока не добавлено.",
+          text: formatPlainExplanations(fragment.plainExplanations),
         },
         {
           title: "Комментарии экспертов",
@@ -119,6 +119,14 @@ function getDemoReaderData(): ReaderData {
 
 function formatFragmentTitle(title: string | null, stableId: string) {
   return title?.trim() || stableId;
+}
+
+function formatPlainExplanations(explanations: Array<{ text: string }>) {
+  if (explanations.length === 0) {
+    return "Пояснение пока не добавлено.";
+  }
+
+  return explanations.map((explanation) => explanation.text).join("\n\n");
 }
 
 function formatExpertComments(

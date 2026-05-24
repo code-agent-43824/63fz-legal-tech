@@ -128,3 +128,23 @@ Next safe step: run the database migration and seed in an environment with Postg
 Remaining deployment gap:
 
 - This is a public scaffold deployment without PostgreSQL connected. Database-backed admin writes, migrations, seed, search, and export are still pending.
+
+## Database Production Connection
+
+- Installed minimal PostgreSQL 18 on VDSina without Docker.
+- Created database `fz63_legal_tech` and app role `fz63_app`.
+- Applied the initial SQL migration.
+- Loaded idempotent DEMO DATA seed into PostgreSQL.
+- Stored app secrets in `/home/openclaw/services/63fz-legal-tech/.env.production` with mode `600`.
+- Updated `63fz-legal-tech.service` to load `EnvironmentFile=/home/openclaw/services/63fz-legal-tech/.env.production`.
+- Granted the app role access to the migrated tables and restarted the service.
+- Verified:
+  - public `/63fz` reads DEMO DATA from PostgreSQL;
+  - `/63fz/admin` login works with the generated admin password;
+  - authenticated admin fragment list loads database rows;
+  - protected server action created a published plain explanation in the database;
+  - service remains active with `NRestarts=0`.
+
+Follow-up fix:
+
+- Updated the public reader to display all published plain explanations for a fragment, not only the first one, so admin-created explanations are visible.
