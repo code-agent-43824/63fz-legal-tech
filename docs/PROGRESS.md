@@ -26,3 +26,29 @@ Known issue:
 - `npm audit` reports a moderate transitive `postcss` advisory through current stable Next.js `16.2.6`. The suggested npm fix downgrades Next to `9.3.3`, so it is not acceptable. Revisit when a stable patched Next.js release is available.
 
 Next safe step: add database, Prisma schema, migrations, and idempotent DEMO DATA seed.
+
+## Step 2. Database And Prisma
+
+- Added Docker Compose definition for local PostgreSQL on `127.0.0.1:5439`.
+- Added Prisma 6 schema for:
+  - `Law`
+  - `LawVersion`
+  - `LawFragment`
+  - `PlainExplanation`
+  - `ExpertComment`
+  - `Issue`
+  - `ProposedRevision`
+- Added generated initial SQL migration.
+- Added idempotent seed script with explicit DEMO DATA only.
+- Verified:
+  - `npx prisma format`
+  - `npx prisma generate`
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run build`
+
+Local limitation:
+
+- Docker is not installed on the current OpenClaw host, so the PostgreSQL container and migration execution could not be run locally here. The schema was validated and the SQL migration was generated with Prisma. Full migration/seed execution must be verified on the deployment host or another environment with Docker/PostgreSQL.
+
+Next safe step: connect the public reader to seeded database content instead of hard-coded demo fragments.

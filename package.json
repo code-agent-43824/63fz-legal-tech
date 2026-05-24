@@ -7,12 +7,19 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.3",
     "next": "^16.0.5",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.17",
@@ -21,7 +28,9 @@
     "@types/react-dom": "^19.2.3",
     "eslint": "^9.39.1",
     "eslint-config-next": "^16.0.5",
+    "prisma": "^6.19.3",
     "tailwindcss": "^4.1.17",
+    "tsx": "^4.22.3",
     "typescript": "^5.9.3"
   }
 }

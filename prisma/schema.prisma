@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum LawVersionStatus {
+  draft
+  published
+  archived
+}
+
+enum FragmentType {
+  law
+  chapter
+  article
+  part
+  point
+  paragraph
+}
+
+enum PublicationStatus {
+  draft
+  published
+}
+
+enum IssueType {
+  typo
+  contradiction
+  ambiguity
+  outdated_norm
+  technical_error
+  enforcement_problem
+  other
+}
+
+enum IssueSeverity {
+  low
+  medium
+  high
+}
+
+enum IssueStatus {
+  hypothesis
+  confirmed
+  rejected
+  fixed_in_proposal
+}
+
+enum ProposedRevisionStatus {
+  draft
+  proposed
+  accepted
+  rejected
+}
+
+model Law {
+  id               String   @id @default(cuid())
+  slug             String   @unique
+  title            String
+  number           String
+  currentVersionId String?  @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  currentVersion LawVersion?  @relation("CurrentLawVersion", fields: [currentVersionId], references: [id])
+  versions       LawVersion[] @relation("LawVersions")
+}
+
+model LawVersion {
+  id            String           @id @default(cuid())
+  lawId         String
+  title         String
+  effectiveDate DateTime?
+  sourceUrl     String?
+  status        LawVersionStatus @default(draft)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  law           Law           @relation("LawVersions", fields: [lawId], references: [id], onDelete: Cascade)
+  currentForLaw Law?          @relation("CurrentLawVersion")
+  fragments     LawFragment[]
+
+  @@index([lawId, status])
+}
+
+model LawFragment {
+  id           String       @id @default(cuid())
+  lawVersionId String
+  stableId     String
+  parentId     String?
+  type         FragmentType
+  number       String?
+  title        String?
+  text         String
+  order        Int
+  anchor       String
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  lawVersion        LawVersion         @relation(fields: [lawVersionId], references: [id], onDelete: Cascade)
+  parent            LawFragment?       @relation("FragmentTree", fields: [parentId], references: [id])
+  children          LawFragment[]      @relation("FragmentTree")
+  plainExplanations PlainExplanation[]
+  expertComments    ExpertComment[]
+  issues            Issue[]
+  proposedRevisions ProposedRevision[]
+
+  @@unique([lawVersionId, stableId])
+  @@unique([lawVersionId, anchor])
+  @@index([lawVersionId, parentId, order])
+  @@index([anchor])
+}
+
+model PlainExplanation {
+  id         String            @id @default(cuid())
+  fragmentId String
+  text       String
+  status     PublicationStatus @default(draft)
+  authorName String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  fragment LawFragment @relation(fields: [fragmentId], references: [id], onDelete: Cascade)
+
+  @@index([fragmentId, status])
+}
+
+model ExpertComment {
+  id          String            @id @default(cuid())
+  fragmentId  String
+  expertName  String
+  expertTitle String?
+  text        String
+  status      PublicationStatus @default(draft)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  fragment LawFragment @relation(fields: [fragmentId], references: [id], onDelete: Cascade)
+
+  @@index([fragmentId, status])
+}
+
+model Issue {
+  id          String        @id @default(cuid())
+  fragmentId  String
+  type        IssueType
+  title       String
+  description String
+  severity    IssueSeverity @default(low)
+  status      IssueStatus   @default(hypothesis)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  fragment LawFragment @relation(fields: [fragmentId], references: [id], onDelete: Cascade)
+
+  @@index([fragmentId, status])
+}
+
+model ProposedRevision {
+  id           String                 @id @default(cuid())
+  fragmentId   String
+  originalText String
+  proposedText String
+  rationale    String
+  status       ProposedRevisionStatus @default(draft)
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  fragment LawFragment @relation(fields: [fragmentId], references: [id], onDelete: Cascade)
+
+  @@index([fragmentId, status])
+}
