@@ -79,3 +79,6 @@ Main risks:
 - Add Caddy route for `/63fz`.
 - Verify public URL, assets, admin protection, logs, persistence, and existing site routes.
 
+Deployment note:
+
+- The VDSina host currently has very limited free disk space and no Docker installation. If Docker installation is unsafe, deploy the first build as an isolated systemd Node service on loopback and keep Docker Compose as the reproducible target once the host has enough free space.

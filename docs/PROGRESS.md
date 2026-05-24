@@ -100,3 +100,10 @@ Next safe step: add protected edit pages and CRUD server actions for explanation
   - unauthenticated fragment edit URL redirects to `/63fz/admin/login`
 
 Next safe step: run the database migration and seed in an environment with PostgreSQL, then verify the full admin create/update/delete flow against real database rows.
+
+## Deployment Constraint
+
+- VDSina host has about 853 MiB free on `/` and no Docker/Podman in PATH.
+- Installing Docker plus pulling images is risky on this disk size.
+- Existing `/home/openclaw/runtime/node/bin/node` is available, so the first safe deployment path is a Next.js standalone build behind a systemd user service and Caddy `/63fz` proxy.
+- This first deployment can expose the public DEMO DATA reader and protected admin shell, but database-backed writes still require PostgreSQL provisioning.
