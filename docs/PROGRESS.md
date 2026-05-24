@@ -52,3 +52,18 @@ Local limitation:
 - Docker is not installed on the current OpenClaw host, so the PostgreSQL container and migration execution could not be run locally here. The schema was validated and the SQL migration was generated with Prisma. Full migration/seed execution must be verified on the deployment host or another environment with Docker/PostgreSQL.
 
 Next safe step: connect the public reader to seeded database content instead of hard-coded demo fragments.
+
+## Step 3. Public Reader Data Source
+
+- Moved reader content loading into `src/lib/law-data.ts`.
+- Added Prisma-backed loading for the current `63fz` law version, including published explanations, expert comments, active issues, and proposed revisions.
+- Kept a DEMO DATA fallback when `DATABASE_URL` is absent, so local builds remain deterministic before database provisioning.
+- Marked the page as dynamic because production reader data is database-backed.
+- Disabled generated typed route imports in `next.config.ts` to prevent `next-env.d.ts` from flipping between dev and build output.
+- Verified:
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run build`
+  - local HTTP check at `/63fz`
+
+Next safe step: implement minimal admin authentication and protected admin shell before adding write forms.
