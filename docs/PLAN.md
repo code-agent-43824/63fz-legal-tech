@@ -60,18 +60,28 @@ Main risks:
 - Generate stable IDs and anchors.
 - Avoid fragile parsing that silently damages law structure.
 
-## Step 6. Search
+## Step 6. Version Timeline And Change History
+
+- Support multiple effective versions of the same law, not only the current text.
+- Add a public timeline/version switcher so readers can open an older law version.
+- Preserve stable fragment identity across versions where the legal fragment did not change.
+- Show explanations and expert comments from unchanged fragments when viewing an older version.
+- Keep changed/deleted/reworded fragments version-specific so obsolete commentary is not shown against a different norm by accident.
+- Highlight the fragment text that differs from the current version when an older version is selected.
+- Import and dry-run reports must show which fragments were added, removed, changed, or matched unchanged between versions.
+
+## Step 7. Search
 
 - Add simple database-backed search over original text, explanations, and expert comments.
 - Link results to exact fragments.
 
-## Step 7. Markdown Export
+## Step 8. Markdown Export
 
 - Add protected `/63fz/export/improved.md`.
 - Use accepted proposed revisions where present.
 - Include a change rationale section.
 
-## Step 8. Production Deploy
+## Step 9. Production Deploy
 
 - Add Docker Compose deployment files.
 - Keep env files out of git.
