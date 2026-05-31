@@ -71,14 +71,18 @@ model Law {
 }
 
 model LawVersion {
-  id            String           @id @default(cuid())
-  lawId         String
-  title         String
-  effectiveDate DateTime?
-  sourceUrl     String?
-  status        LawVersionStatus @default(draft)
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  id                String           @id @default(cuid())
+  lawId             String
+  title             String
+  effectiveDate     DateTime?
+  sourceUrl         String?
+  sourceName        String?
+  sourceRetrievedAt DateTime?
+  sourceHtmlSha256  String?
+  sourceTextSha256  String?
+  status            LawVersionStatus @default(draft)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   law           Law           @relation("LawVersions", fields: [lawId], references: [id], onDelete: Cascade)
   currentForLaw Law?          @relation("CurrentLawVersion")
