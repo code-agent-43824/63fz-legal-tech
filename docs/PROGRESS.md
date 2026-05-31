@@ -156,3 +156,23 @@ Follow-up fix:
   - existing root site and `/pdf-signing/` still return 200.
   - PostgreSQL is active; current DEMO DATA counts are 3 law fragments and 2 plain explanations.
   - root filesystem is tight at about 94% used after PostgreSQL installation.
+
+## 2026-05-31. Build Hygiene And Status Docs
+
+- Added automatic Prisma Client generation to the package lifecycle:
+  - `postinstall` runs `prisma generate`;
+  - `build` runs `prisma generate` before `next build`.
+- Updated README current status from the initial planning/scaffolding note to the deployed database-backed DEMO DATA scaffold state.
+
+Why:
+
+- A clean dependency install can leave generated Prisma Client types unavailable until `prisma generate` runs.
+- The production build should be reproducible from a clean checkout without a hidden manual Prisma step.
+
+Verified:
+
+- `pnpm run typecheck`
+- `pnpm run lint`
+- `pnpm run build`
+
+Next safe step: implement the verified current 63-FZ import pipeline with source metadata, stable fragment IDs, checksums, dry-run reporting, and change-match data needed for the future version timeline.
