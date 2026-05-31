@@ -275,7 +275,7 @@ function cleanElementText(element: HTMLElement) {
     return "";
   }
 
-  for (const editorialNote of clone.querySelectorAll("span.dt-r")) {
+  for (const editorialNote of clone.querySelectorAll(".dt-r, .dt-rc")) {
     editorialNote.remove();
   }
 
