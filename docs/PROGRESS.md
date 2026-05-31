@@ -176,3 +176,40 @@ Verified:
 - `pnpm run build`
 
 Next safe step: implement the verified current 63-FZ import pipeline with source metadata, stable fragment IDs, checksums, dry-run reporting, and change-match data needed for the future version timeline.
+
+## 2026-05-31. Current 63-FZ Text Import
+
+- Added `scripts/import-63fz.ts` for reproducible import of the current consolidated 63-FZ text from a recorded source.
+- Added `pnpm law:import:63fz` command.
+- Added source-audit fields to `LawVersion`:
+  - `sourceName`
+  - `sourceRetrievedAt`
+  - `sourceHtmlSha256`
+  - `sourceTextSha256`
+- Generated and reviewed a dry-run report before writing production data:
+  - source: `Контур.Норматив`
+  - source URL: `https://normativ.kontur.ru/document?documentId=504436&moduleId=1`
+  - revision date: `2025-07-31`
+  - effective date: `2026-03-01`
+  - normalized law text SHA-256: `5b21431aed777c7c7e337e7fd3e391a7e8b40055373932dfb8a5bc9981e20840`
+  - parsed fragments: 30 total, including preamble and 29 articles
+  - article sequence: `1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 16.1, 17, 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 18, 18.1, 18.2, 19, 20`
+  - parser warnings: none
+- Backed up the production PostgreSQL database before import:
+  - `/home/openclaw/backups/63fz-legal-tech/20260531T155524Z/fz63_legal_tech_before_import.sql`
+- Applied the source-audit migration on production PostgreSQL.
+- Imported the current version into production database as `63fz-current-2025-07-31` and set it as `Law.currentVersionId`.
+
+Verified:
+
+- `pnpm run typecheck`
+- `pnpm run lint`
+- `pnpm run build`
+- production DB current version has 30 imported fragments and the expected normalized text checksum
+- `https://mescheryakov.pro/63fz` returns 200 and renders the imported law text; `DEMO DATA` is no longer present in the public HTML
+- existing `https://mescheryakov.pro/` and `https://mescheryakov.pro/pdf-signing/` still return 200
+- `63fz-legal-tech.service` remains active/running with `NRestarts=0`
+
+Current limitation:
+
+- The imported production fragments are preamble + article-level fragments. The article text is exact consolidated text from the source after removing editorial amendment notes, but deeper part/point/paragraph splitting remains the next parser refinement before timeline-aware comment inheritance.

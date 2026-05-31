@@ -1,11 +1,11 @@
-# 63-FZ Current Text Import Dry Run
+# 63-FZ Current Text Import Write Report
 
 - Source: Контур.Норматив
 - Source URL: https://normativ.kontur.ru/document?documentId=504436&moduleId=1
 - Revision date: 2025-07-31
 - Effective date: 2026-03-01
-- Retrieved at: 2026-05-31T15:52:14.582Z
-- Source HTML SHA-256: 97f6fffb6c2117b0bf6a421391979247324adb0b834fcd3b5a8fb5844990f6fa
+- Retrieved at: 2026-05-31T15:56:18.763Z
+- Source HTML SHA-256: dee0e7f323ca00ef25026542795d56d0a5d85cc404df85488aec7789f14cbe65
 - Normalized law text SHA-256: 5b21431aed777c7c7e337e7fd3e391a7e8b40055373932dfb8a5bc9981e20840
 - Fragment count: 30
 - Article count: 29
