@@ -328,7 +328,7 @@ function createArticleBlock(title: string, articleIndex: number): ParsedBlock {
     number,
     title,
     text: "",
-    order: articleIndex * 10,
+    order: articleIndex * 1000,
   };
 }
 
@@ -714,7 +714,7 @@ async function writeParsedLaw(
           ? (fragmentIdsByStableId.get(fragment.parentStableId) ?? null)
           : null;
 
-        await tx.lawFragment.upsert({
+        const fragmentRecord = await tx.lawFragment.upsert({
           where: {
             lawVersionId_stableId: {
               lawVersionId: version.id,
@@ -743,16 +743,7 @@ async function writeParsedLaw(
           },
         });
         writtenStableIds.push(fragment.stableId);
-        const createdFragment = await tx.lawFragment.findUniqueOrThrow({
-          where: {
-            lawVersionId_stableId: {
-              lawVersionId: version.id,
-              stableId: fragment.stableId,
-            },
-          },
-          select: { id: true },
-        });
-        fragmentIdsByStableId.set(fragment.stableId, createdFragment.id);
+        fragmentIdsByStableId.set(fragment.stableId, fragmentRecord.id);
       }
 
       await tx.lawFragment.deleteMany({
@@ -766,7 +757,7 @@ async function writeParsedLaw(
         where: { id: law.id },
         data: { currentVersionId: version.id },
       });
-    });
+    }, { timeout: 60_000 });
   } finally {
     await prisma.$disconnect();
   }
