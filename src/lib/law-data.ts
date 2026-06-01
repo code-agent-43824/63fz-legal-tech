@@ -7,13 +7,22 @@ export type ReaderCommentBlock = {
 
 export type ReaderFragment = {
   id: string;
+  stableId: string;
+  type: string;
   title: string;
   text: string;
   blocks: ReaderCommentBlock[];
 };
 
+export type ReaderTocItem = {
+  id: string;
+  title: string;
+  type: string;
+};
+
 export type ReaderData = {
   isDemo: boolean;
+  toc: ReaderTocItem[];
   fragments: ReaderFragment[];
 };
 
@@ -74,8 +83,11 @@ export async function getReaderData(): Promise<ReaderData> {
 
   return {
     isDemo: law?.title.includes("DEMO DATA") ?? false,
+    toc: buildToc(fragments, displayFragments),
     fragments: displayFragments.map((fragment) => ({
       id: fragment.anchor,
+      stableId: fragment.stableId,
+      type: fragment.type,
       title: formatFragmentTitle(fragment.title, fragment.stableId),
       text: fragment.text,
       blocks: [
@@ -103,9 +115,15 @@ export async function getReaderData(): Promise<ReaderData> {
 function getDemoReaderData(): ReaderData {
   return {
     isDemo: true,
+    toc: [
+      { id: "63fz.article_1", title: "Статья 1. Сфера действия", type: "article" },
+      { id: "63fz.article_2.part_1", title: "Статья 2, часть 1. Основные понятия", type: "part" },
+    ],
     fragments: [
       {
         id: "63fz.article_1",
+        stableId: "63fz.article_1",
+        type: "article",
         title: "Статья 1. Сфера действия",
         text: "DEMO DATA: здесь будет неизменяемый официальный текст выбранной версии закона.",
         blocks: [
@@ -117,6 +135,8 @@ function getDemoReaderData(): ReaderData {
       },
       {
         id: "63fz.article_2.part_1",
+        stableId: "63fz.article_2.part_1",
+        type: "part",
         title: "Статья 2, часть 1. Основные понятия",
         text: "DEMO DATA: фрагмент нужен только для проверки структуры, якорей и двухколоночного интерфейса.",
         blocks: [
@@ -128,6 +148,47 @@ function getDemoReaderData(): ReaderData {
       },
     ],
   };
+}
+
+function buildToc(
+  fragments: Array<{ anchor: string; id: string; parentId: string | null; stableId: string; title: string | null; type: string }>,
+  displayFragments: Array<{ anchor: string; parentId: string | null; stableId: string; title: string | null; type: string }>,
+): ReaderTocItem[] {
+  const firstDisplayedByArticle = new Map<string, string>();
+  for (const fragment of displayFragments) {
+    const articleKey = getArticleKey(fragment.stableId);
+    if (articleKey && !firstDisplayedByArticle.has(articleKey)) {
+      firstDisplayedByArticle.set(articleKey, fragment.anchor);
+    }
+  }
+
+  return fragments
+    .filter((fragment) => fragment.type === "law" || fragment.type === "article" || fragment.type === "part")
+    .map((fragment) => {
+      const articleKey = getArticleKey(fragment.stableId);
+      const id =
+        fragment.type === "article" && articleKey
+          ? (firstDisplayedByArticle.get(articleKey) ?? fragment.anchor)
+          : fragment.anchor;
+      return {
+        id,
+        title: formatTocTitle(fragment.title, fragment.stableId, fragment.type),
+        type: fragment.type,
+      };
+    });
+}
+
+function getArticleKey(stableId: string) {
+  return stableId.match(/^(63fz\.article_\d+(?:_\d+)?)(?:\.|$)/)?.[1] ?? null;
+}
+
+function formatTocTitle(title: string | null, stableId: string, type: string) {
+  const value = formatFragmentTitle(title, stableId);
+  if (type === "part") {
+    return value.replace(/^Статья\s+([\d.]+)\.\s+.+?,\s+часть\s+/i, "Ст. $1, ч. ");
+  }
+
+  return value;
 }
 
 function formatFragmentTitle(title: string | null, stableId: string) {

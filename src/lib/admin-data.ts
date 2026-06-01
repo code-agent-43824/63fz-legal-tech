@@ -3,9 +3,12 @@ import { prisma } from "@/lib/prisma";
 export type AdminFragmentListItem = {
   id: string;
   stableId: string;
+  parentId: string | null;
   title: string;
   type: string;
+  number: string | null;
   anchor: string;
+  text: string;
   explanationCount: number;
   expertCommentCount: number;
   issueCount: number;
@@ -50,9 +53,12 @@ export async function getAdminFragments(): Promise<AdminFragmentListItem[]> {
       {
         id: "demo-fragment-1",
         stableId: "63fz.article_1",
+        parentId: null,
         title: "DEMO DATA: Статья 1. Сфера действия",
         type: "article",
+        number: "1",
         anchor: "63fz.article_1",
+        text: "DEMO DATA: база не подключена.",
         explanationCount: 0,
         expertCommentCount: 0,
         issueCount: 0,
@@ -88,9 +94,12 @@ export async function getAdminFragments(): Promise<AdminFragmentListItem[]> {
   return fragments.map((fragment) => ({
     id: fragment.id,
     stableId: fragment.stableId,
+    parentId: fragment.parentId,
     title: fragment.title ?? fragment.stableId,
     type: fragment.type,
+    number: fragment.number,
     anchor: fragment.anchor,
+    text: fragment.text,
     explanationCount: fragment._count.plainExplanations,
     expertCommentCount: fragment._count.expertComments,
     issueCount: fragment._count.issues,
@@ -109,9 +118,12 @@ export async function getAdminFragmentDetails(
     return {
       id: "demo-fragment-1",
       stableId: "63fz.article_1",
+      parentId: null,
       title: "DEMO DATA: Статья 1. Сфера действия",
       type: "article",
+      number: "1",
       anchor: "63fz.article_1",
+      text: "DEMO DATA: база не подключена.",
       originalText: "DEMO DATA: база не подключена, поэтому это read-only fallback.",
       explanationCount: 0,
       expertCommentCount: 0,
@@ -149,9 +161,12 @@ export async function getAdminFragmentDetails(
   return {
     id: fragment.id,
     stableId: fragment.stableId,
+    parentId: fragment.parentId,
     title: fragment.title ?? fragment.stableId,
     type: fragment.type,
+    number: fragment.number,
     anchor: fragment.anchor,
+    text: fragment.text,
     originalText: fragment.text,
     explanationCount: fragment._count.plainExplanations,
     expertCommentCount: fragment._count.expertComments,
