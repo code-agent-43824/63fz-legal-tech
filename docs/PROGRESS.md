@@ -242,3 +242,21 @@ Verified locally:
 - `pnpm run typecheck`
 - `pnpm run lint`
 - `pnpm run build`
+
+Production update:
+
+- Backed up PostgreSQL before the detailed import:
+  - `/home/openclaw/backups/63fz-legal-tech/20260601T094719Z/fz63_legal_tech_before_detailed_import.sql`
+- Imported the detailed current version into production with the same normalized text checksum.
+- Deployed standalone release `81689a6` to `/home/openclaw/services/63fz-legal-tech/releases/81689a6`.
+- Restarted `63fz-legal-tech.service`.
+
+Production verification:
+
+- production DB has 381 fragments for `63fz-current-2025-07-31`
+- production type counts: law 1, article 29, part 126, point 204, paragraph 21
+- `sourceTextSha256` remains `d2ff78b2b0d56f835238fd92dfd891fe247d24ca0fc09103f96b855d6cffa291`
+- sample order is correct: article 1 paragraph at 1001, article 2 paragraph at 2001, article 2 point 1 at 2002
+- `https://mescheryakov.pro/63fz` returns HTTP 200, contains detailed fragment anchors, and does not contain `DEMO DATA`
+- existing `https://mescheryakov.pro/` and `https://mescheryakov.pro/pdf-signing/` still return HTTP 200
+- `63fz-legal-tech.service` is active with `NRestarts=0`
