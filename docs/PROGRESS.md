@@ -260,3 +260,31 @@ Production verification:
 - `https://mescheryakov.pro/63fz` returns HTTP 200, contains detailed fragment anchors, and does not contain `DEMO DATA`
 - existing `https://mescheryakov.pro/` and `https://mescheryakov.pro/pdf-signing/` still return HTTP 200
 - `63fz-legal-tech.service` is active with `NRestarts=0`
+
+## 2026-06-01. Fragment Navigation And Admin Filters
+
+- Reworked `/63fz/admin` for the detailed 381-fragment import:
+  - article filter
+  - fragment type filter
+  - text/title/stableId search
+  - article-grouped list instead of one long flat table
+  - indentation by stable fragment depth
+  - text snippets for faster editor scanning
+- Added per-fragment metadata to admin list loading so the UI can search and group without a schema change.
+- Made the public table of contents more compact:
+  - sticky/scrollable desktop TOC
+  - article-level entries link to the first visible detailed fragment
+  - part entries are shown compactly
+  - point-level entries are hidden from the TOC to avoid a 381-line navigation wall
+
+Verified:
+
+- `pnpm run typecheck`
+- `pnpm run lint`
+- `pnpm run build`
+- deployed standalone release `089051d`
+- `63fz-legal-tech.service` is active with `NRestarts=0`
+- `https://mescheryakov.pro/63fz` returns HTTP 200, keeps detailed anchors, has compact part labels, and does not contain `DEMO DATA`
+- unauthenticated `https://mescheryakov.pro/63fz/admin` redirects to `/63fz/admin/login`
+- existing root site and `/pdf-signing/` still return HTTP 200
+- temporary published explanation on `63fz.article_2.point_1` appeared on the public page, then was deleted and verified absent
