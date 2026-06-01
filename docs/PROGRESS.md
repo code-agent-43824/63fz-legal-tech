@@ -310,3 +310,16 @@ Verified locally:
 - `pnpm run lint`
 - `pnpm run build`
 - local `next start` smoke check for `/63fz`, confirming the rendered page includes `Лента`, `Фокус`, `Раскрыть всё`, and the tree reader text.
+
+Production update:
+
+- Deployed standalone release `d21d42e`.
+- `63fz-legal-tech.service` is active/running with `NRestarts=0`.
+- `https://mescheryakov.pro/63fz` returns HTTP 200, includes the tree reader UI, keeps detailed fragment anchors, and does not contain `DEMO DATA`.
+- Focus URL check passed for `https://mescheryakov.pro/63fz?mode=focus&node=63fz.article_2`.
+- Browser automation check confirmed:
+  - expanding article 2 reveals its child paragraph/point nodes
+  - switching to focus mode updates the URL
+  - selecting article 2 in focus mode renders only `63fz.article_2...` fragments
+- Existing root site and `/pdf-signing/` still return HTTP 200.
+- Unauthenticated `/63fz/admin` still redirects to `/63fz/admin/login`.
