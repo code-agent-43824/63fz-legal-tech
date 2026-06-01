@@ -27,6 +27,7 @@ type CliOptions = {
 
 type ParsedBlock = {
   stableId: string;
+  parentStableId: string | null;
   type: FragmentType;
   number: string | null;
   title: string;
@@ -37,6 +38,7 @@ type ParsedBlock = {
 type ParsedLaw = {
   preamble: ParsedBlock;
   articles: ParsedBlock[];
+  fragments: ParsedBlock[];
   fullText: string;
   revisionDate: string;
   effectiveDate: string;
@@ -52,7 +54,10 @@ type ImportReport = {
   textSha256: string;
   fragmentCount: number;
   articleCount: number;
+  typeCounts: Record<FragmentType, number>;
   articleNumbers: string[];
+  reconstructionSha256: string;
+  reconstructionMatchesFullText: boolean;
   warnings: string[];
 };
 
@@ -71,6 +76,8 @@ async function main() {
   const parsed = parseLawHtml(html);
   const htmlSha256 = sha256(html);
   const textSha256 = sha256(parsed.fullText);
+  const reconstructedFullText = reconstructFullTextFromDetailedFragments(parsed);
+  const reconstructionSha256 = sha256(reconstructedFullText);
   const warnings = validateParsedLaw(parsed);
   const report: ImportReport = {
     sourceName: SOURCE_NAME,
@@ -80,9 +87,12 @@ async function main() {
     retrievedAt,
     htmlSha256,
     textSha256,
-    fragmentCount: parsed.articles.length + 1,
+    fragmentCount: parsed.fragments.length,
     articleCount: parsed.articles.length,
+    typeCounts: countFragmentTypes(parsed.fragments),
     articleNumbers: parsed.articles.map((article) => article.number ?? article.stableId),
+    reconstructionSha256,
+    reconstructionMatchesFullText: reconstructedFullText === parsed.fullText,
     warnings,
   };
 
@@ -198,7 +208,11 @@ function parseLawHtml(html: string): ParsedLaw {
 
   const preambleLines: string[] = [];
   const articles: ParsedBlock[] = [];
+  const detailedFragments: ParsedBlock[] = [];
   let currentArticle: ParsedBlock | null = null;
+  let currentPart: ParsedBlock | null = null;
+  let paragraphIndex = 0;
+  let articleChildIndex = 0;
 
   for (const node of content.childNodes) {
     if (!(node instanceof HTMLElement)) {
@@ -214,6 +228,10 @@ function parseLawHtml(html: string): ParsedLaw {
     if (tagName === "h3" && /^Статья\s+\d+(?:\.\d+)?\./.test(text)) {
       currentArticle = createArticleBlock(text, articles.length + 1);
       articles.push(currentArticle);
+      detailedFragments.push(currentArticle);
+      currentPart = null;
+      paragraphIndex = 0;
+      articleChildIndex = 0;
       continue;
     }
 
@@ -226,12 +244,55 @@ function parseLawHtml(html: string): ParsedLaw {
 
     if (tagName === "p" || tagName === "h2") {
       currentArticle.text = appendParagraph(currentArticle.text, text);
+      articleChildIndex += 1;
+
+      const marker = extractMarker(node);
+      const childOrder = currentArticle.order + articleChildIndex;
+      if (node.classNames.includes("dt-m1") && marker) {
+        currentPart = createChildBlock({
+          article: currentArticle,
+          marker,
+          text,
+          type: "part",
+          order: childOrder,
+        });
+        detailedFragments.push(currentPart);
+        continue;
+      }
+
+      if (node.classNames.includes("dt-m2") && marker) {
+        detailedFragments.push(
+          createChildBlock({
+            article: currentArticle,
+            marker,
+            text,
+            type: "point",
+            order: childOrder,
+            parentStableId: currentPart?.stableId ?? currentArticle.stableId,
+          }),
+        );
+        continue;
+      }
+
+      paragraphIndex += 1;
+      detailedFragments.push(
+        createChildBlock({
+          article: currentArticle,
+          marker: `${paragraphIndex}`,
+          text,
+          type: "paragraph",
+          order: childOrder,
+          parentStableId: currentPart?.stableId ?? currentArticle.stableId,
+          title: `${currentArticle.title}. Абзац ${paragraphIndex}`,
+        }),
+      );
     }
   }
 
   const preambleText = preambleLines.join("\n");
   const preamble: ParsedBlock = {
     stableId: "63fz.document",
+    parentStableId: null,
     type: "law",
     number: LAW_NUMBER,
     title: LAW_TITLE,
@@ -246,6 +307,7 @@ function parseLawHtml(html: string): ParsedLaw {
   return {
     preamble,
     articles,
+    fragments: [preamble, ...detailedFragments],
     fullText,
     revisionDate: REVISION_DATE,
     effectiveDate: EFFECTIVE_DATE,
@@ -261,12 +323,78 @@ function createArticleBlock(title: string, articleIndex: number): ParsedBlock {
   const number = match[1];
   return {
     stableId: `63fz.article_${number.replace(".", "_")}`,
+    parentStableId: "63fz.document",
     type: "article",
     number,
     title,
     text: "",
     order: articleIndex * 10,
   };
+}
+
+function createChildBlock({
+  article,
+  marker,
+  text,
+  type,
+  order,
+  parentStableId,
+  title,
+}: {
+  article: ParsedBlock;
+  marker: string;
+  text: string;
+  type: Extract<FragmentType, "part" | "point" | "paragraph">;
+  order: number;
+  parentStableId?: string;
+  title?: string;
+}): ParsedBlock {
+  const markerSlug = slugifyMarker(marker);
+  const stableBase = parentStableId ?? article.stableId;
+  const stableType = type === "paragraph" ? "paragraph" : type;
+  const defaultTitle = formatChildTitle(article.title, type, marker);
+
+  return {
+    stableId: `${stableBase}.${stableType}_${markerSlug}`,
+    parentStableId: stableBase,
+    type,
+    number: marker,
+    title: title ?? defaultTitle,
+    text,
+    order,
+  };
+}
+
+function formatChildTitle(articleTitle: string, type: FragmentType, marker: string) {
+  if (type === "part") {
+    return `${articleTitle}, часть ${trimMarker(marker)}`;
+  }
+
+  if (type === "point") {
+    return `${articleTitle}, пункт ${trimMarker(marker)}`;
+  }
+
+  return `${articleTitle}, абзац ${trimMarker(marker)}`;
+}
+
+function trimMarker(marker: string) {
+  return marker.replace(/[.)]+$/, "");
+}
+
+function slugifyMarker(marker: string) {
+  return trimMarker(marker)
+    .toLowerCase()
+    .replace(/[а-я]/g, (letter) => {
+      const alphabet = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
+      const index = alphabet.indexOf(letter);
+      return index >= 0 ? `ru${index + 1}` : letter;
+    })
+    .replace(/[^a-z0-9]+/gi, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function extractMarker(element: HTMLElement) {
+  return normalizeText(element.querySelector(".dt-m")?.innerText ?? "");
 }
 
 function cleanElementText(element: HTMLElement) {
@@ -353,6 +481,23 @@ function validateParsedLaw(parsed: ParsedLaw) {
     }
   }
 
+  const reconstructedFullText = reconstructFullTextFromDetailedFragments(parsed);
+  if (reconstructedFullText !== parsed.fullText) {
+    warnings.push("Detailed fragments do not reconstruct the normalized full law text.");
+  }
+
+  const stableIds = new Set<string>();
+  for (const fragment of parsed.fragments) {
+    if (stableIds.has(fragment.stableId)) {
+      warnings.push(`Duplicate stableId detected: ${fragment.stableId}`);
+    }
+    stableIds.add(fragment.stableId);
+
+    if (fragment.parentStableId && !parsed.fragments.some((item) => item.stableId === fragment.parentStableId)) {
+      warnings.push(`Missing parent ${fragment.parentStableId} for ${fragment.stableId}.`);
+    }
+  }
+
   if (!parsed.preamble.text.includes("ОБ ЭЛЕКТРОННОЙ ПОДПИСИ")) {
     warnings.push("Preamble does not contain the law title.");
   }
@@ -362,6 +507,45 @@ function validateParsedLaw(parsed: ParsedLaw) {
   }
 
   return warnings;
+}
+
+function reconstructFullTextFromDetailedFragments(parsed: ParsedLaw) {
+  const articleTexts = parsed.articles.map((article) => {
+    const articleChildren = parsed.fragments
+      .filter((fragment) => isDetailedArticleChild(fragment, article.stableId))
+      .sort((left, right) => left.order - right.order)
+      .map((fragment) => fragment.text)
+      .join("\n\n");
+
+    return [article.title, articleChildren].filter(Boolean).join("\n");
+  });
+
+  return [parsed.preamble.text, ...articleTexts].filter(Boolean).join("\n\n");
+}
+
+function isDetailedArticleChild(fragment: ParsedBlock, articleStableId: string) {
+  if (fragment.stableId === articleStableId) {
+    return false;
+  }
+
+  return fragment.stableId.startsWith(`${articleStableId}.`);
+}
+
+function countFragmentTypes(fragments: ParsedBlock[]) {
+  return fragments.reduce<Record<FragmentType, number>>(
+    (counts, fragment) => {
+      counts[fragment.type] += 1;
+      return counts;
+    },
+    {
+      law: 0,
+      chapter: 0,
+      article: 0,
+      part: 0,
+      point: 0,
+      paragraph: 0,
+    },
+  );
 }
 
 function formatReport(report: ImportReport, writeMode: boolean) {
@@ -379,14 +563,24 @@ function formatReport(report: ImportReport, writeMode: boolean) {
 - Retrieved at: ${report.retrievedAt}
 - Source HTML SHA-256: ${report.htmlSha256}
 - Normalized law text SHA-256: ${report.textSha256}
+- Detailed reconstruction SHA-256: ${report.reconstructionSha256}
+- Detailed reconstruction matches normalized text: ${report.reconstructionMatchesFullText ? "yes" : "no"}
 - Fragment count: ${report.fragmentCount}
 - Article count: ${report.articleCount}
+- Type counts: ${formatTypeCounts(report.typeCounts)}
 - Article sequence: ${report.articleNumbers.join(", ")}
 
 Warnings:
 
 ${warningLines}
 `;
+}
+
+function formatTypeCounts(typeCounts: Record<FragmentType, number>) {
+  return Object.entries(typeCounts)
+    .filter(([, count]) => count > 0)
+    .map(([type, count]) => `${type} ${count}`)
+    .join(", ");
 }
 
 async function writeParsedLaw(
@@ -445,12 +639,26 @@ async function writeParsedLaw(
         },
       });
 
-      await tx.lawFragment.deleteMany({
-        where: { lawVersionId: version.id },
-      });
+      const writtenStableIds: string[] = [];
+      const fragmentIdsByStableId = new Map<string, string>();
 
-      await tx.lawFragment.create({
-        data: {
+      const preambleRecord = await tx.lawFragment.upsert({
+        where: {
+          lawVersionId_stableId: {
+            lawVersionId: version.id,
+            stableId: parsed.preamble.stableId,
+          },
+        },
+        update: {
+          parentId: null,
+          type: parsed.preamble.type,
+          number: parsed.preamble.number,
+          title: parsed.preamble.title,
+          text: parsed.preamble.text,
+          order: parsed.preamble.order,
+          anchor: parsed.preamble.stableId,
+        },
+        create: {
           lawVersionId: version.id,
           stableId: parsed.preamble.stableId,
           type: parsed.preamble.type,
@@ -461,12 +669,30 @@ async function writeParsedLaw(
           anchor: parsed.preamble.stableId,
         },
       });
+      writtenStableIds.push(parsed.preamble.stableId);
+      fragmentIdsByStableId.set(parsed.preamble.stableId, preambleRecord.id);
 
       for (const article of parsed.articles) {
-        await tx.lawFragment.create({
-          data: {
+        const articleRecord = await tx.lawFragment.upsert({
+          where: {
+            lawVersionId_stableId: {
+              lawVersionId: version.id,
+              stableId: article.stableId,
+            },
+          },
+          update: {
+            parentId: fragmentIdsByStableId.get("63fz.document") ?? null,
+            type: article.type,
+            number: article.number,
+            title: article.title,
+            text: article.text,
+            order: article.order,
+            anchor: article.stableId,
+          },
+          create: {
             lawVersionId: version.id,
             stableId: article.stableId,
+            parentId: fragmentIdsByStableId.get("63fz.document") ?? null,
             type: article.type,
             number: article.number,
             title: article.title,
@@ -475,7 +701,66 @@ async function writeParsedLaw(
             anchor: article.stableId,
           },
         });
+        writtenStableIds.push(article.stableId);
+        fragmentIdsByStableId.set(article.stableId, articleRecord.id);
       }
+
+      const detailedChildren = parsed.fragments.filter(
+        (fragment) => fragment.type !== "law" && fragment.type !== "article",
+      );
+
+      for (const fragment of detailedChildren) {
+        const parentId = fragment.parentStableId
+          ? (fragmentIdsByStableId.get(fragment.parentStableId) ?? null)
+          : null;
+
+        await tx.lawFragment.upsert({
+          where: {
+            lawVersionId_stableId: {
+              lawVersionId: version.id,
+              stableId: fragment.stableId,
+            },
+          },
+          update: {
+            parentId,
+            type: fragment.type,
+            number: fragment.number,
+            title: fragment.title,
+            text: fragment.text,
+            order: fragment.order,
+            anchor: fragment.stableId,
+          },
+          create: {
+            lawVersionId: version.id,
+            stableId: fragment.stableId,
+            parentId,
+            type: fragment.type,
+            number: fragment.number,
+            title: fragment.title,
+            text: fragment.text,
+            order: fragment.order,
+            anchor: fragment.stableId,
+          },
+        });
+        writtenStableIds.push(fragment.stableId);
+        const createdFragment = await tx.lawFragment.findUniqueOrThrow({
+          where: {
+            lawVersionId_stableId: {
+              lawVersionId: version.id,
+              stableId: fragment.stableId,
+            },
+          },
+          select: { id: true },
+        });
+        fragmentIdsByStableId.set(fragment.stableId, createdFragment.id);
+      }
+
+      await tx.lawFragment.deleteMany({
+        where: {
+          lawVersionId: version.id,
+          stableId: { notIn: writtenStableIds },
+        },
+      });
 
       await tx.law.update({
         where: { id: law.id },

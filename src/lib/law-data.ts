@@ -59,9 +59,22 @@ export async function getReaderData(): Promise<ReaderData> {
     return getDemoReaderData();
   }
 
+  const parentIds = new Set(
+    fragments
+      .map((fragment) => fragment.parentId)
+      .filter((parentId): parentId is string => Boolean(parentId)),
+  );
+  const displayFragments = fragments.filter((fragment) => {
+    if (!fragment.text.trim()) {
+      return false;
+    }
+
+    return fragment.type !== "article" || !parentIds.has(fragment.id);
+  });
+
   return {
     isDemo: law?.title.includes("DEMO DATA") ?? false,
-    fragments: fragments.map((fragment) => ({
+    fragments: displayFragments.map((fragment) => ({
       id: fragment.anchor,
       title: formatFragmentTitle(fragment.title, fragment.stableId),
       text: fragment.text,

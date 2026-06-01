@@ -213,3 +213,32 @@ Verified:
 Current limitation:
 
 - The imported production fragments are preamble + article-level fragments. The article text is exact consolidated text from the source after removing editorial amendment notes, but deeper part/point/paragraph splitting remains the next parser refinement before timeline-aware comment inheritance.
+
+## 2026-06-01. Detailed Fragment Import
+
+- Refined `scripts/import-63fz.ts` to parse the current source into a hierarchy:
+  - law preamble/root
+  - articles
+  - numbered parts
+  - points
+  - unnumbered paragraphs
+- The importer now records parent stable IDs, preserves existing fragment rows through upsert where stable IDs match, and deletes only obsolete fragments for the imported version.
+- Added dry-run verification that detailed fragments reconstruct exactly the same normalized law text as the article-level import.
+- Updated the public reader to hide aggregate article rows when detailed child fragments exist, avoiding duplicated article text on the public page.
+
+Verified dry-run from the recorded source:
+
+- normalized law text SHA-256: `d2ff78b2b0d56f835238fd92dfd891fe247d24ca0fc09103f96b855d6cffa291`
+- detailed reconstruction SHA-256: `d2ff78b2b0d56f835238fd92dfd891fe247d24ca0fc09103f96b855d6cffa291`
+- detailed reconstruction matches normalized text: yes
+- fragment count: 381
+- article count: 29
+- type counts: law 1, article 29, part 126, point 204, paragraph 21
+- warnings: none
+
+Verified locally:
+
+- `pnpm law:import:63fz -- --source-file .import/63fz-current/source.html --dry-run`
+- `pnpm run typecheck`
+- `pnpm run lint`
+- `pnpm run build`
