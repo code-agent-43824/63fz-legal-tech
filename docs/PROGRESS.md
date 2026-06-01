@@ -288,3 +288,25 @@ Verified:
 - unauthenticated `https://mescheryakov.pro/63fz/admin` redirects to `/63fz/admin/login`
 - existing root site and `/pdf-signing/` still return HTTP 200
 - temporary published explanation on `63fz.article_2.point_1` appeared on the public page, then was deleted and verified absent
+
+## 2026-06-01. Tree TOC And Reader Modes
+
+- Replaced the flat public reader navigation with a client-side tree:
+  - law root
+  - articles
+  - parts
+  - points
+  - paragraphs where present
+- Added expand/collapse controls for the public table of contents.
+- Added two public reading modes:
+  - `Лента`: keeps the full law on one page and scrolls to the selected fragment.
+  - `Фокус`: shows only the selected tree node and its descendants.
+- Stores focus mode state in the URL through `mode=focus&node=...`, so focused views can be shared by link.
+- Extended reader data with `stableId` and `parentStableId` metadata for fragments and TOC items without changing the database schema.
+
+Verified locally:
+
+- `pnpm run typecheck`
+- `pnpm run lint`
+- `pnpm run build`
+- local `next start` smoke check for `/63fz`, confirming the rendered page includes `Лента`, `Фокус`, `Раскрыть всё`, and the tree reader text.
