@@ -364,6 +364,22 @@ Verified locally:
 
 Note:
 
-- No older 63-FZ revision has been imported yet. The site now has the public and importer mechanics
-  needed for that, but production still contains only the current imported version until a verified
-  older source is loaded.
+- 2026-06-11 follow-up: imported the previous Контур.Норматив revision as a separate non-current
+  version:
+  - source URL: `https://normativ.kontur.ru/document?moduleId=1&documentId=501137`
+  - version id: `63fz-revision-2025-04-21`
+  - revision date: `2025-04-21`
+  - effective date: `2025-09-01`
+  - source HTML SHA-256: `94c2226875581f9559c03e44492cb35f9abb5d87ff55a291829566ec356f24a7`
+  - normalized text SHA-256: `71ad9c2c760cf159b6c84c71ce981eab5cbe0f1e90a860fa8be0113129ac9274`
+  - fragment count: 381
+  - comparison with current: unchanged 375, changed 6, added 0, deleted 0
+  - warnings: none
+- Backup before production write:
+  `/home/openclaw/backups/63fz-legal-tech/20260611T135349Z-before-previous-version-import/fz63_legal_tech_before_previous_version.sql`
+- Current version remained `63fz-current-2025-07-31`.
+- Public verification after import:
+  - version selector shows both real revisions and no `DEMO DATA`;
+  - `https://mescheryakov.pro/63fz?version=63fz-revision-2025-04-21` renders the previous revision;
+  - visible reader fragments show `без изменений` and `изменено` badges;
+  - `63fz-legal-tech.service` did not need a restart for this data-only import.

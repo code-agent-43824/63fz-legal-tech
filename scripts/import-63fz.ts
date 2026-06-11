@@ -240,7 +240,7 @@ function parseLawHtml(
   const revisionStatus = normalizeText(
     root.querySelector("#js-revisions-status")?.innerText ?? "",
   );
-  if (!revisionStatus.includes("31.07.2025") || !revisionStatus.includes("01.03.2026")) {
+  if (!revisionStatus.includes(formatRuDate(metadata.revisionDate))) {
     throw new Error(`Unexpected revision status: ${revisionStatus || "(empty)"}`);
   }
 
