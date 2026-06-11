@@ -116,7 +116,7 @@ export async function getReaderData(requestedVersionId?: string): Promise<Reader
   });
 
   const currentVersion = law?.currentVersion ?? null;
-  const versions = law?.versions ?? [];
+  const versions = (law?.versions ?? []).filter((version) => !isDemoVersion(version.title));
   const selectedVersion =
     versions.find((version) => version.id === requestedVersionId) ??
     currentVersion ??
@@ -172,6 +172,10 @@ export async function getReaderData(requestedVersionId?: string): Promise<Reader
       selectedVersionId: selectedVersion?.id ?? null,
     }),
   };
+}
+
+function isDemoVersion(title: string) {
+  return title.toUpperCase().includes("DEMO DATA");
 }
 
 function getDemoReaderData(): ReaderData {

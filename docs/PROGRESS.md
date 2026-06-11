@@ -329,6 +329,7 @@ Production update:
 - Started the version-history layer without a schema migration; the existing `Law` and `LawVersion`
   models already support multiple law versions.
 - Added a public version selector to the left reader panel.
+- Demo versions are filtered out of the public version selector after the real law import.
 - The reader can now load a requested version through the `version` URL parameter while preserving
   `mode` and `node`.
 - Added fragment comparison against the current version:
