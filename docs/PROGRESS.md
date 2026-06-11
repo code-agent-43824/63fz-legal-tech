@@ -323,3 +323,46 @@ Production update:
   - selecting article 2 in focus mode renders only `63fz.article_2...` fragments
 - Existing root site and `/pdf-signing/` still return HTTP 200.
 - Unauthenticated `/63fz/admin` still redirects to `/63fz/admin/login`.
+
+## 2026-06-11. Version Switcher And Safer TOC Controls
+
+- Started the version-history layer without a schema migration; the existing `Law` and `LawVersion`
+  models already support multiple law versions.
+- Added a public version selector to the left reader panel.
+- The reader can now load a requested version through the `version` URL parameter while preserving
+  `mode` and `node`.
+- Added fragment comparison against the current version:
+  - unchanged fragments can reuse current-version commentary;
+  - changed fragments are marked and do not inherit current commentary automatically;
+  - fragments missing from the current version are marked as deleted in the current version.
+- Added change summary counters for non-current selected versions.
+- Reworked the public left panel controls:
+  - version choice, reader mode, expand/collapse actions, and the tree are visually separated;
+  - expand/collapse buttons have larger hit targets;
+  - the expand/collapse button only toggles a branch;
+  - the branch label only selects or scrolls to that fragment.
+- Extended the importer so old revisions can be imported as separate versions:
+  - `--version-id`
+  - `--revision-date`
+  - `--effective-date`
+  - `--no-set-current`
+- Dry-run reports now include a comparison summary against the current database version when
+  `DATABASE_URL` is available.
+
+Verified locally:
+
+- `pnpm run typecheck`
+- `pnpm run lint`
+- `pnpm run build`
+- local production smoke check for `/63fz?mode=focus&node=63fz.article_1&version=test`, confirming
+  the page renders the version selector, reader modes, and expand/collapse controls.
+- importer dry-run against the saved current source HTML:
+  - 381 fragments
+  - detailed reconstruction SHA-256 matches the normalized law text SHA-256
+  - warnings: none
+
+Note:
+
+- No older 63-FZ revision has been imported yet. The site now has the public and importer mechanics
+  needed for that, but production still contains only the current imported version until a verified
+  older source is loaded.
