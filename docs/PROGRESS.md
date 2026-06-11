@@ -383,3 +383,22 @@ Note:
   - `https://mescheryakov.pro/63fz?version=63fz-revision-2025-04-21` renders the previous revision;
   - visible reader fragments show `без изменений` and `изменено` badges;
   - `63fz-legal-tech.service` did not need a restart for this data-only import.
+
+## 2026-06-11. Fragment Change History Placeholders
+
+- Added computed per-fragment change history across all loaded non-demo law versions.
+- The history layer uses stable fragment IDs and compares consecutive version texts in effective-date order.
+- For changed transitions, the reader now shows:
+  - the previous and new revision labels;
+  - short `Было` / `Стало` snippets around the first changed text area;
+  - a placeholder for the reason of the change;
+  - a placeholder for the purpose and practical meaning of the change.
+- Unchanged transitions are not rendered per fragment to keep the 381-fragment feed readable.
+- No schema migration was added yet; editor-written change rationale can be modeled later once the
+  placeholder wording and workflow are validated.
+
+Verified:
+
+- `pnpm run typecheck`
+- `pnpm run lint`
+- `pnpm run build`

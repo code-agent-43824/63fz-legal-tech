@@ -4,6 +4,17 @@ import { prisma } from "@/lib/prisma";
 type FragmentChangeStatus = "current" | "unchanged" | "changed" | "deleted";
 type CommentarySource = "selected" | "current" | "none";
 
+export type ReaderChangeHistoryEntry = {
+  status: "introduced" | "changed";
+  versionId: string;
+  versionLabel: string;
+  previousVersionLabel: string | null;
+  beforeSnippet: string | null;
+  afterSnippet: string;
+  explanationPlaceholder: string;
+  purposePlaceholder: string;
+};
+
 export type ReaderCommentBlock = {
   title: string;
   text: string;
@@ -18,6 +29,7 @@ export type ReaderFragment = {
   text: string;
   changeStatus: FragmentChangeStatus;
   commentarySource: CommentarySource;
+  changeHistory: ReaderChangeHistoryEntry[];
   blocks: ReaderCommentBlock[];
 };
 
@@ -134,6 +146,7 @@ export async function getReaderData(requestedVersionId?: string): Promise<Reader
   const currentFragmentsByStableId = new Map(
     currentFragments.map((fragment) => [fragment.stableId, fragment]),
   );
+  const changeHistoriesByStableId = buildChangeHistoriesByStableId(versions);
   const displayFragments = fragments.filter((fragment) => {
     if (!fragment.text.trim()) {
       return false;
@@ -163,6 +176,7 @@ export async function getReaderData(requestedVersionId?: string): Promise<Reader
         currentFragment: currentFragmentsByStableId.get(fragment.stableId) ?? null,
         currentVersionId: currentVersion?.id ?? null,
         fragment,
+        changeHistory: changeHistoriesByStableId.get(fragment.stableId) ?? [],
         selectedVersionId: selectedVersion?.id ?? null,
         stableIdsById,
       }),
@@ -211,6 +225,7 @@ function getDemoReaderData(): ReaderData {
         text: "DEMO DATA: здесь будет неизменяемый официальный текст выбранной версии закона.",
         changeStatus: "current",
         commentarySource: "selected",
+        changeHistory: [],
         blocks: [
           { title: "Простыми словами", text: "Пояснение пока не добавлено." },
           { title: "Комментарии экспертов", text: "Пока не добавлено." },
@@ -227,6 +242,7 @@ function getDemoReaderData(): ReaderData {
         text: "DEMO DATA: фрагмент нужен только для проверки структуры, якорей и двухколоночного интерфейса.",
         changeStatus: "current",
         commentarySource: "selected",
+        changeHistory: [],
         blocks: [
           { title: "Простыми словами", text: "Комментариев экспертов пока нет." },
           { title: "Комментарии экспертов", text: "Пока не добавлено." },
@@ -246,12 +262,14 @@ function getDemoReaderData(): ReaderData {
 function mapReaderFragment({
   currentFragment,
   currentVersionId,
+  changeHistory,
   fragment,
   selectedVersionId,
   stableIdsById,
 }: {
   currentFragment: ReaderDbFragment | null;
   currentVersionId: string | null;
+  changeHistory: ReaderChangeHistoryEntry[];
   fragment: ReaderDbFragment;
   selectedVersionId: string | null;
   stableIdsById: Map<string, string>;
@@ -270,8 +288,107 @@ function mapReaderFragment({
     text: fragment.text,
     changeStatus,
     commentarySource,
+    changeHistory,
     blocks: buildCommentBlocks(commentaryFragment),
   };
+}
+
+function buildChangeHistoriesByStableId(
+  versions: Array<{
+    effectiveDate: Date | null;
+    fragments: ReaderDbFragment[];
+    id: string;
+    title: string;
+  }>,
+) {
+  const histories = new Map<string, ReaderChangeHistoryEntry[]>();
+  const chronologicalVersions = [...versions].sort(compareVersionsAscending);
+  const previousFragmentsByStableId = new Map<string, { fragment: ReaderDbFragment; versionLabel: string }>();
+
+  for (const version of chronologicalVersions) {
+    const versionLabel = formatVersionLabel(version.title, version.effectiveDate);
+
+    for (const fragment of version.fragments) {
+      const previous = previousFragmentsByStableId.get(fragment.stableId) ?? null;
+      if (!previous) {
+        previousFragmentsByStableId.set(fragment.stableId, { fragment, versionLabel });
+        continue;
+      }
+
+      if (normalizeForComparison(previous.fragment.text) !== normalizeForComparison(fragment.text)) {
+        const snippets = summarizeTextChange(previous.fragment.text, fragment.text);
+        const entries = histories.get(fragment.stableId) ?? [];
+        entries.push({
+          status: "changed",
+          versionId: version.id,
+          versionLabel,
+          previousVersionLabel: previous.versionLabel,
+          beforeSnippet: snippets.before,
+          afterSnippet: snippets.after,
+          explanationPlaceholder: "Пояснение причины изменения: пока не заполнено.",
+          purposePlaceholder: "Цель изменения и практический смысл: пока не заполнено.",
+        });
+        histories.set(fragment.stableId, entries);
+      }
+
+      previousFragmentsByStableId.set(fragment.stableId, { fragment, versionLabel });
+    }
+  }
+
+  return histories;
+}
+
+function compareVersionsAscending(
+  left: { effectiveDate: Date | null; id: string },
+  right: { effectiveDate: Date | null; id: string },
+) {
+  const leftTime = left.effectiveDate?.getTime() ?? 0;
+  const rightTime = right.effectiveDate?.getTime() ?? 0;
+  if (leftTime !== rightTime) {
+    return leftTime - rightTime;
+  }
+  return left.id.localeCompare(right.id);
+}
+
+function summarizeTextChange(before: string, after: string) {
+  const beforeWords = normalizeForComparison(before).split(" ").filter(Boolean);
+  const afterWords = normalizeForComparison(after).split(" ").filter(Boolean);
+  let start = 0;
+  while (
+    start < beforeWords.length &&
+    start < afterWords.length &&
+    beforeWords[start] === afterWords[start]
+  ) {
+    start += 1;
+  }
+
+  let beforeEnd = beforeWords.length - 1;
+  let afterEnd = afterWords.length - 1;
+  while (
+    beforeEnd >= start &&
+    afterEnd >= start &&
+    beforeWords[beforeEnd] === afterWords[afterEnd]
+  ) {
+    beforeEnd -= 1;
+    afterEnd -= 1;
+  }
+
+  return {
+    before: excerptWords(beforeWords, start, beforeEnd),
+    after: excerptWords(afterWords, start, afterEnd),
+  };
+}
+
+function excerptWords(words: string[], start: number, end: number) {
+  if (words.length === 0) {
+    return "";
+  }
+
+  const safeStart = Math.max(0, Math.min(start, words.length - 1) - 8);
+  const safeEnd = Math.min(words.length - 1, Math.max(end, start) + 8);
+  const prefix = safeStart > 0 ? "..." : "";
+  const suffix = safeEnd < words.length - 1 ? "..." : "";
+  return `${prefix}${words.slice(safeStart, safeEnd + 1).join(" ")}${suffix}`;
 }
 
 function buildCommentBlocks(fragment: ReaderDbFragment): ReaderCommentBlock[] {

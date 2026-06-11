@@ -398,6 +398,7 @@ function FragmentArticle({ fragment }: { fragment: ReaderFragment }) {
       </section>
 
       <section className="bg-slate-50 p-5">
+        <ChangeHistory entries={fragment.changeHistory} />
         {fragment.commentarySource === "current" ? (
           <p className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-900">
             Текст этого фрагмента совпадает с текущей редакцией, поэтому показаны действующие
@@ -416,6 +417,50 @@ function FragmentArticle({ fragment }: { fragment: ReaderFragment }) {
         </div>
       </section>
     </article>
+  );
+}
+
+function ChangeHistory({ entries }: { entries: ReaderFragment["changeHistory"] }) {
+  if (entries.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mb-4 rounded-md border border-slate-200 bg-white p-4">
+      <h3 className="text-sm font-semibold text-slate-900">История изменений фрагмента</h3>
+      <div className="mt-3 space-y-3">
+        {entries.map((entry) => (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-3" key={`${entry.versionId}-${entry.versionLabel}`}>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-amber-300 bg-white px-2 py-1 text-xs font-medium text-amber-900">
+                изменено
+              </span>
+              <p className="text-sm font-medium text-slate-950">
+                {entry.previousVersionLabel
+                  ? `${entry.previousVersionLabel} → ${entry.versionLabel}`
+                  : entry.versionLabel}
+              </p>
+            </div>
+            {entry.beforeSnippet ? (
+              <div className="mt-3 grid gap-2 text-xs leading-5 text-slate-700">
+                <p>
+                  <span className="font-semibold text-slate-900">Было: </span>
+                  {entry.beforeSnippet}
+                </p>
+                <p>
+                  <span className="font-semibold text-slate-900">Стало: </span>
+                  {entry.afterSnippet}
+                </p>
+              </div>
+            ) : null}
+            <div className="mt-3 grid gap-2 text-xs leading-5 text-slate-600">
+              <p>{entry.explanationPlaceholder}</p>
+              <p>{entry.purposePlaceholder}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
