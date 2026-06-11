@@ -121,6 +121,18 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   }
 
+  function updateVersion(versionId: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (versionId === readerData.currentVersionId) {
+      params.delete("version");
+    } else {
+      params.set("version", versionId);
+    }
+
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
+
   function toggleNode(stableId: string) {
     setExpandedStableIds((current) => {
       const next = new Set(current);
@@ -142,8 +154,42 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
   }
 
   return (
-    <section className="mx-auto grid w-full max-w-6xl gap-6 px-5 py-8 lg:grid-cols-[320px_minmax(0,1fr)]">
-      <aside className="rounded-md border border-slate-200 bg-white p-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-auto">
+    <section className="mx-auto grid w-full max-w-6xl gap-6 px-5 py-8 lg:grid-cols-[340px_minmax(0,1fr)]">
+      <aside className="rounded-md border border-slate-200 bg-white lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-auto">
+        <div className="border-b border-slate-200 p-4">
+          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500" htmlFor="version-select">
+            Редакция
+          </label>
+          <select
+            className="mt-2 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900"
+            disabled={readerData.versions.length <= 1}
+            id="version-select"
+            onChange={(event) => updateVersion(event.target.value)}
+            value={readerData.selectedVersionId ?? ""}
+          >
+            {readerData.versions.length > 0 ? (
+              readerData.versions.map((version) => (
+                <option key={version.id} value={version.id}>
+                  {version.label}
+                  {version.isCurrent ? " · текущая" : ""}
+                </option>
+              ))
+            ) : (
+              <option value="">Текущая редакция</option>
+            )}
+          </select>
+          {readerData.currentVersionId &&
+          readerData.selectedVersionId &&
+          readerData.selectedVersionId !== readerData.currentVersionId ? (
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[11px] text-slate-600">
+              <VersionStat label="Без изменений" value={readerData.changeSummary.unchanged} />
+              <VersionStat label="Изменено" value={readerData.changeSummary.changed} />
+              <VersionStat label="Удалено" value={readerData.changeSummary.deleted} />
+            </div>
+          ) : null}
+        </div>
+
+        <div className="p-4">
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
             Оглавление
@@ -186,8 +232,9 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
             Свернуть
           </button>
         </div>
+        </div>
 
-        <nav aria-label="Оглавление закона" className="mt-4 space-y-1">
+        <nav aria-label="Оглавление закона" className="border-t border-slate-200 p-3">
           {tree.map((node) => (
             <TocTreeNode
               activeStableId={tocActiveStableId}
@@ -207,7 +254,8 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {mode === "focus" ? "Режим фокуса" : "Режим ленты"}
+                {readerData.selectedVersionLabel ?? "Текущая редакция"} ·{" "}
+                {mode === "focus" ? "режим фокуса" : "режим ленты"}
               </p>
               <h2 className="mt-1 text-lg font-semibold text-slate-950">
                 {mode === "focus"
@@ -249,6 +297,15 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
   );
 }
 
+function VersionStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-2">
+      <div className="text-sm font-semibold text-slate-950">{value}</div>
+      <div>{label}</div>
+    </div>
+  );
+}
+
 function TocTreeNode({
   activeStableId,
   expandedStableIds,
@@ -272,25 +329,33 @@ function TocTreeNode({
   return (
     <div>
       <div className={treeRowClass(node.type, isSelected, isActive)}>
+        {hasChildren ? (
+          <button
+            aria-expanded={isExpanded}
+            aria-label={isExpanded ? "Свернуть раздел" : "Раскрыть раздел"}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-transparent text-base font-semibold text-slate-500 hover:border-slate-200 hover:bg-white hover:text-slate-950"
+            onClick={() => onToggle(node.stableId)}
+            type="button"
+          >
+            {isExpanded ? "−" : "+"}
+          </button>
+        ) : (
+          <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center text-slate-300">
+            •
+          </span>
+        )}
         <button
-          aria-label={isExpanded ? "Свернуть" : "Раскрыть"}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 disabled:text-transparent disabled:hover:bg-transparent"
-          disabled={!hasChildren}
-          onClick={() => onToggle(node.stableId)}
-          type="button"
-        >
-          {hasChildren ? (isExpanded ? "−" : "+") : "•"}
-        </button>
-        <button
-          className="min-w-0 flex-1 truncate text-left"
+          className="min-h-9 min-w-0 flex-1 rounded-md px-2 text-left hover:bg-white/80"
           onClick={() => onSelect(node)}
           title={node.title}
           type="button"
         >
-          <span className="mr-2 text-[11px] font-semibold uppercase text-slate-400">
-            {TYPE_LABELS[node.type] ?? node.type}
+          <span className="block truncate">
+            <span className="mr-2 text-[11px] font-semibold uppercase text-slate-400">
+              {TYPE_LABELS[node.type] ?? node.type}
+            </span>
+            {node.title}
           </span>
-          {node.title}
         </button>
       </div>
       {hasChildren && isExpanded ? (
@@ -315,13 +380,14 @@ function TocTreeNode({
 function FragmentArticle({ fragment }: { fragment: ReaderFragment }) {
   return (
     <article
-      className="scroll-mt-6 grid gap-0 overflow-hidden rounded-md border border-slate-200 bg-white lg:grid-cols-2"
+      className={fragmentArticleClass(fragment.changeStatus)}
       data-stable-id={fragment.stableId}
       id={fragment.id}
     >
       <section className="border-b border-slate-200 p-5 lg:border-b-0 lg:border-r">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="text-xl font-semibold">{fragment.title}</h2>
+          <ChangeBadge status={fragment.changeStatus} />
           <a className="text-sm text-blue-700 underline-offset-4 hover:underline" href={`#${fragment.id}`}>
             #{fragment.id}
           </a>
@@ -332,6 +398,17 @@ function FragmentArticle({ fragment }: { fragment: ReaderFragment }) {
       </section>
 
       <section className="bg-slate-50 p-5">
+        {fragment.commentarySource === "current" ? (
+          <p className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-900">
+            Текст этого фрагмента совпадает с текущей редакцией, поэтому показаны действующие
+            комментарии.
+          </p>
+        ) : fragment.changeStatus === "changed" || fragment.changeStatus === "deleted" ? (
+          <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
+            Фрагмент отличается от текущей редакции. Комментарии текущего текста здесь не
+            подставляются автоматически.
+          </p>
+        ) : null}
         <div className="grid gap-4">
           {fragment.blocks.map((block) => (
             <CommentBlock key={block.title} title={block.title} text={block.text} />
@@ -339,6 +416,31 @@ function FragmentArticle({ fragment }: { fragment: ReaderFragment }) {
         </div>
       </section>
     </article>
+  );
+}
+
+function ChangeBadge({ status }: { status: ReaderFragment["changeStatus"] }) {
+  if (status === "current") {
+    return null;
+  }
+
+  const labels: Record<ReaderFragment["changeStatus"], string> = {
+    changed: "изменено",
+    current: "",
+    deleted: "удалено в текущей",
+    unchanged: "без изменений",
+  };
+  const classes: Record<ReaderFragment["changeStatus"], string> = {
+    changed: "border-amber-300 bg-amber-50 text-amber-900",
+    current: "",
+    deleted: "border-rose-300 bg-rose-50 text-rose-900",
+    unchanged: "border-emerald-300 bg-emerald-50 text-emerald-900",
+  };
+
+  return (
+    <span className={`rounded-full border px-2 py-1 text-xs font-medium ${classes[status]}`}>
+      {labels[status]}
+    </span>
   );
 }
 
@@ -416,14 +518,28 @@ function modeButtonClass(isActive: boolean) {
 }
 
 function treeRowClass(type: string, isSelected: boolean, isActive: boolean) {
-  const base = "my-1 flex min-w-0 items-center gap-1 rounded-md py-1 pr-2 text-sm text-slate-700";
+  const base = "my-1 flex min-w-0 items-center gap-1 rounded-md py-1 pr-1 text-sm text-slate-700";
   const depth =
     type === "part" ? "text-xs" : type === "point" || type === "paragraph" ? "text-xs text-slate-600" : "";
   if (isSelected) {
-    return `${base} ${depth} bg-slate-950 text-white`;
+    return `${base} ${depth} bg-slate-950 text-white [&_span]:text-white`;
   }
   if (isActive) {
     return `${base} ${depth} bg-blue-50 text-blue-900`;
   }
   return `${base} ${depth} hover:bg-slate-50`;
+}
+
+function fragmentArticleClass(status: ReaderFragment["changeStatus"]) {
+  const base = "scroll-mt-6 grid gap-0 overflow-hidden rounded-md border bg-white lg:grid-cols-2";
+  if (status === "changed") {
+    return `${base} border-amber-300`;
+  }
+  if (status === "deleted") {
+    return `${base} border-rose-300`;
+  }
+  if (status === "unchanged") {
+    return `${base} border-emerald-200`;
+  }
+  return `${base} border-slate-200`;
 }

@@ -1,4 +1,8 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+
+type FragmentChangeStatus = "current" | "unchanged" | "changed" | "deleted";
+type CommentarySource = "selected" | "current" | "none";
 
 export type ReaderCommentBlock = {
   title: string;
@@ -12,6 +16,8 @@ export type ReaderFragment = {
   type: string;
   title: string;
   text: string;
+  changeStatus: FragmentChangeStatus;
+  commentarySource: CommentarySource;
   blocks: ReaderCommentBlock[];
 };
 
@@ -23,13 +29,64 @@ export type ReaderTocItem = {
   type: string;
 };
 
-export type ReaderData = {
-  isDemo: boolean;
-  toc: ReaderTocItem[];
-  fragments: ReaderFragment[];
+export type ReaderVersion = {
+  id: string;
+  title: string;
+  label: string;
+  effectiveDate: string | null;
+  status: string;
+  isCurrent: boolean;
 };
 
-export async function getReaderData(): Promise<ReaderData> {
+export type ReaderData = {
+  isDemo: boolean;
+  versions: ReaderVersion[];
+  selectedVersionId: string | null;
+  currentVersionId: string | null;
+  selectedVersionLabel: string | null;
+  toc: ReaderTocItem[];
+  fragments: ReaderFragment[];
+  changeSummary: {
+    unchanged: number;
+    changed: number;
+    deleted: number;
+  };
+};
+
+type ReaderDbFragment = {
+  anchor: string;
+  expertComments: Array<{ expertName: string; expertTitle: string | null; text: string }>;
+  id: string;
+  issues: Array<{ severity: string; title: string; description: string }>;
+  parentId: string | null;
+  plainExplanations: Array<{ text: string }>;
+  proposedRevisions: Array<{ proposedText: string }>;
+  stableId: string;
+  text: string;
+  title: string | null;
+  type: string;
+};
+
+const fragmentInclude = Prisma.validator<Prisma.LawFragmentInclude>()({
+  plainExplanations: {
+    where: { status: "published" },
+    orderBy: { updatedAt: "desc" },
+  },
+  expertComments: {
+    where: { status: "published" },
+    orderBy: { updatedAt: "desc" },
+  },
+  issues: {
+    where: { status: { in: ["hypothesis", "confirmed"] } },
+    orderBy: [{ severity: "desc" }, { updatedAt: "desc" }],
+  },
+  proposedRevisions: {
+    where: { status: { in: ["draft", "proposed", "accepted"] } },
+    orderBy: { updatedAt: "desc" },
+  },
+});
+
+export async function getReaderData(requestedVersionId?: string): Promise<ReaderData> {
   if (!process.env.DATABASE_URL) {
     return getDemoReaderData();
   }
@@ -41,42 +98,42 @@ export async function getReaderData(): Promise<ReaderData> {
         include: {
           fragments: {
             orderBy: { order: "asc" },
-            include: {
-              plainExplanations: {
-                where: { status: "published" },
-                orderBy: { updatedAt: "desc" },
-              },
-              expertComments: {
-                where: { status: "published" },
-                orderBy: { updatedAt: "desc" },
-              },
-              issues: {
-                where: { status: { in: ["hypothesis", "confirmed"] } },
-                orderBy: [{ severity: "desc" }, { updatedAt: "desc" }],
-              },
-              proposedRevisions: {
-                where: { status: { in: ["draft", "proposed", "accepted"] } },
-                orderBy: { updatedAt: "desc" },
-              },
-            },
+            include: fragmentInclude,
+          },
+        },
+      },
+      versions: {
+        where: { status: { in: ["published", "archived"] } },
+        orderBy: [{ effectiveDate: "desc" }, { createdAt: "desc" }],
+        include: {
+          fragments: {
+            orderBy: { order: "asc" },
+            include: fragmentInclude,
           },
         },
       },
     },
   });
 
-  const fragments = law?.currentVersion?.fragments ?? [];
+  const currentVersion = law?.currentVersion ?? null;
+  const versions = law?.versions ?? [];
+  const selectedVersion =
+    versions.find((version) => version.id === requestedVersionId) ??
+    currentVersion ??
+    versions[0] ??
+    null;
+  const fragments = selectedVersion?.fragments ?? [];
+  const currentFragments = currentVersion?.fragments ?? [];
 
   if (fragments.length === 0) {
     return getDemoReaderData();
   }
 
-  const parentIds = new Set(
-    fragments
-      .map((fragment) => fragment.parentId)
-      .filter((parentId): parentId is string => Boolean(parentId)),
-  );
+  const parentIds = getParentIds(fragments);
   const stableIdsById = new Map(fragments.map((fragment) => [fragment.id, fragment.stableId]));
+  const currentFragmentsByStableId = new Map(
+    currentFragments.map((fragment) => [fragment.stableId, fragment]),
+  );
   const displayFragments = fragments.filter((fragment) => {
     if (!fragment.text.trim()) {
       return false;
@@ -87,39 +144,43 @@ export async function getReaderData(): Promise<ReaderData> {
 
   return {
     isDemo: law?.title.includes("DEMO DATA") ?? false,
-    toc: buildToc(fragments, displayFragments),
-    fragments: displayFragments.map((fragment) => ({
-      id: fragment.anchor,
-      stableId: fragment.stableId,
-      parentStableId: fragment.parentId ? (stableIdsById.get(fragment.parentId) ?? null) : null,
-      type: fragment.type,
-      title: formatFragmentTitle(fragment.title, fragment.stableId),
-      text: fragment.text,
-      blocks: [
-        {
-          title: "Простыми словами",
-          text: formatPlainExplanations(fragment.plainExplanations),
-        },
-        {
-          title: "Комментарии экспертов",
-          text: formatExpertComments(fragment.expertComments),
-        },
-        {
-          title: "Ошибки и спорные места",
-          text: formatIssues(fragment.issues),
-        },
-        {
-          title: "Предложенная редакция",
-          text: fragment.proposedRevisions[0]?.proposedText ?? "Пока не добавлено.",
-        },
-      ],
+    versions: versions.map((version) => ({
+      id: version.id,
+      title: version.title,
+      label: formatVersionLabel(version.title, version.effectiveDate),
+      effectiveDate: version.effectiveDate?.toISOString() ?? null,
+      status: version.status,
+      isCurrent: version.id === currentVersion?.id,
     })),
+    selectedVersionId: selectedVersion?.id ?? null,
+    currentVersionId: currentVersion?.id ?? null,
+    selectedVersionLabel: selectedVersion
+      ? formatVersionLabel(selectedVersion.title, selectedVersion.effectiveDate)
+      : null,
+    toc: buildToc(fragments, displayFragments),
+    fragments: displayFragments.map((fragment) =>
+      mapReaderFragment({
+        currentFragment: currentFragmentsByStableId.get(fragment.stableId) ?? null,
+        currentVersionId: currentVersion?.id ?? null,
+        fragment,
+        selectedVersionId: selectedVersion?.id ?? null,
+        stableIdsById,
+      }),
+    ),
+    changeSummary: summarizeChanges(displayFragments, currentFragmentsByStableId, {
+      currentVersionId: currentVersion?.id ?? null,
+      selectedVersionId: selectedVersion?.id ?? null,
+    }),
   };
 }
 
 function getDemoReaderData(): ReaderData {
   return {
     isDemo: true,
+    versions: [],
+    selectedVersionId: null,
+    currentVersionId: null,
+    selectedVersionLabel: "DEMO DATA",
     toc: [
       {
         id: "63fz.article_1",
@@ -144,6 +205,8 @@ function getDemoReaderData(): ReaderData {
         type: "article",
         title: "Статья 1. Сфера действия",
         text: "DEMO DATA: здесь будет неизменяемый официальный текст выбранной версии закона.",
+        changeStatus: "current",
+        commentarySource: "selected",
         blocks: [
           { title: "Простыми словами", text: "Пояснение пока не добавлено." },
           { title: "Комментарии экспертов", text: "Пока не добавлено." },
@@ -158,6 +221,8 @@ function getDemoReaderData(): ReaderData {
         type: "part",
         title: "Статья 2, часть 1. Основные понятия",
         text: "DEMO DATA: фрагмент нужен только для проверки структуры, якорей и двухколоночного интерфейса.",
+        changeStatus: "current",
+        commentarySource: "selected",
         blocks: [
           { title: "Простыми словами", text: "Комментариев экспертов пока нет." },
           { title: "Комментарии экспертов", text: "Пока не добавлено." },
@@ -166,7 +231,160 @@ function getDemoReaderData(): ReaderData {
         ],
       },
     ],
+    changeSummary: {
+      unchanged: 0,
+      changed: 0,
+      deleted: 0,
+    },
   };
+}
+
+function mapReaderFragment({
+  currentFragment,
+  currentVersionId,
+  fragment,
+  selectedVersionId,
+  stableIdsById,
+}: {
+  currentFragment: ReaderDbFragment | null;
+  currentVersionId: string | null;
+  fragment: ReaderDbFragment;
+  selectedVersionId: string | null;
+  stableIdsById: Map<string, string>;
+}): ReaderFragment {
+  const isCurrentVersion = Boolean(currentVersionId && selectedVersionId === currentVersionId);
+  const changeStatus = getFragmentChangeStatus(fragment, currentFragment, isCurrentVersion);
+  const commentaryFragment = changeStatus === "unchanged" && currentFragment ? currentFragment : fragment;
+  const commentarySource = getCommentarySource(fragment, commentaryFragment, changeStatus);
+
+  return {
+    id: fragment.anchor,
+    stableId: fragment.stableId,
+    parentStableId: fragment.parentId ? (stableIdsById.get(fragment.parentId) ?? null) : null,
+    type: fragment.type,
+    title: formatFragmentTitle(fragment.title, fragment.stableId),
+    text: fragment.text,
+    changeStatus,
+    commentarySource,
+    blocks: buildCommentBlocks(commentaryFragment),
+  };
+}
+
+function buildCommentBlocks(fragment: ReaderDbFragment): ReaderCommentBlock[] {
+  return [
+    {
+      title: "Простыми словами",
+      text: formatPlainExplanations(fragment.plainExplanations),
+    },
+    {
+      title: "Комментарии экспертов",
+      text: formatExpertComments(fragment.expertComments),
+    },
+    {
+      title: "Ошибки и спорные места",
+      text: formatIssues(fragment.issues),
+    },
+    {
+      title: "Предложенная редакция",
+      text: fragment.proposedRevisions[0]?.proposedText ?? "Пока не добавлено.",
+    },
+  ];
+}
+
+function getFragmentChangeStatus(
+  fragment: ReaderDbFragment,
+  currentFragment: ReaderDbFragment | null,
+  isCurrentVersion: boolean,
+): FragmentChangeStatus {
+  if (isCurrentVersion) {
+    return "current";
+  }
+
+  if (!currentFragment) {
+    return "deleted";
+  }
+
+  return normalizeForComparison(fragment.text) === normalizeForComparison(currentFragment.text)
+    ? "unchanged"
+    : "changed";
+}
+
+function getCommentarySource(
+  fragment: ReaderDbFragment,
+  commentaryFragment: ReaderDbFragment,
+  changeStatus: FragmentChangeStatus,
+): CommentarySource {
+  if (changeStatus === "unchanged" && commentaryFragment.id !== fragment.id) {
+    return "current";
+  }
+
+  if (hasAnyCommentary(commentaryFragment)) {
+    return "selected";
+  }
+
+  return "none";
+}
+
+function hasAnyCommentary(fragment: ReaderDbFragment) {
+  return (
+    fragment.plainExplanations.length > 0 ||
+    fragment.expertComments.length > 0 ||
+    fragment.issues.length > 0 ||
+    fragment.proposedRevisions.length > 0
+  );
+}
+
+function summarizeChanges(
+  fragments: ReaderDbFragment[],
+  currentFragmentsByStableId: Map<string, ReaderDbFragment>,
+  versions: { currentVersionId: string | null; selectedVersionId: string | null },
+) {
+  if (!versions.currentVersionId || versions.selectedVersionId === versions.currentVersionId) {
+    return {
+      unchanged: 0,
+      changed: 0,
+      deleted: 0,
+    };
+  }
+
+  return fragments.reduce(
+    (summary, fragment) => {
+      const currentFragment = currentFragmentsByStableId.get(fragment.stableId) ?? null;
+      const status = getFragmentChangeStatus(fragment, currentFragment, false);
+      if (status === "unchanged" || status === "changed" || status === "deleted") {
+        summary[status] += 1;
+      }
+      return summary;
+    },
+    { unchanged: 0, changed: 0, deleted: 0 },
+  );
+}
+
+function getParentIds(fragments: Array<{ parentId: string | null }>) {
+  return new Set(
+    fragments
+      .map((fragment) => fragment.parentId)
+      .filter((parentId): parentId is string => Boolean(parentId)),
+  );
+}
+
+function formatVersionLabel(title: string, effectiveDate: Date | null) {
+  const titleDate = title.match(/ред\.\s+от\s+([^)]+)/i)?.[1];
+  const effective = effectiveDate ? `, действует с ${formatShortDate(effectiveDate)}` : "";
+  return titleDate ? `Ред. от ${titleDate}${effective}` : `${title}${effective}`;
+}
+
+function formatShortDate(date: Date) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
+function normalizeForComparison(value: string) {
+  return value.replace(/\s+/g, " ").trim();
 }
 
 function buildToc(

@@ -23,6 +23,10 @@ type CliOptions = {
   sourceFile?: string;
   importDir: string;
   reportFile?: string;
+  versionId?: string;
+  revisionDate: string;
+  effectiveDate: string;
+  setCurrent: boolean;
 };
 
 type ParsedBlock = {
@@ -59,6 +63,12 @@ type ImportReport = {
   reconstructionSha256: string;
   reconstructionMatchesFullText: boolean;
   warnings: string[];
+  comparison: {
+    added: number;
+    changed: number;
+    deleted: number;
+    unchanged: number;
+  } | null;
 };
 
 async function main() {
@@ -73,12 +83,17 @@ async function main() {
   const rawPath = path.join(options.importDir, "source.html");
   await writeFile(rawPath, html);
 
-  const parsed = parseLawHtml(html);
+  const parsed = parseLawHtml(html, {
+    effectiveDate: options.effectiveDate,
+    revisionDate: options.revisionDate,
+  });
   const htmlSha256 = sha256(html);
   const textSha256 = sha256(parsed.fullText);
   const reconstructedFullText = reconstructFullTextFromDetailedFragments(parsed);
   const reconstructionSha256 = sha256(reconstructedFullText);
   const warnings = validateParsedLaw(parsed);
+  const versionId = options.versionId ?? buildVersionId(parsed.revisionDate);
+  const comparison = await compareWithCurrentVersion(parsed.fragments, versionId);
   const report: ImportReport = {
     sourceName: SOURCE_NAME,
     sourceUrl: options.sourceUrl,
@@ -94,6 +109,7 @@ async function main() {
     reconstructionSha256,
     reconstructionMatchesFullText: reconstructedFullText === parsed.fullText,
     warnings,
+    comparison,
   };
 
   const reportText = formatReport(report, options.write);
@@ -109,10 +125,12 @@ async function main() {
 
   if (options.write) {
     await writeParsedLaw(parsed, {
+      setCurrent: options.setCurrent,
       sourceUrl: options.sourceUrl,
       retrievedAt,
       htmlSha256,
       textSha256,
+      versionId,
     });
     console.log("\nDatabase import completed.");
     return;
@@ -129,6 +147,9 @@ function parseCliOptions(args: string[]): CliOptions {
     write: false,
     sourceUrl: DEFAULT_SOURCE_URL,
     importDir: DEFAULT_IMPORT_DIR,
+    revisionDate: REVISION_DATE,
+    effectiveDate: EFFECTIVE_DATE,
+    setCurrent: true,
   };
 
   for (let index = 0; index < args.length; index += 1) {
@@ -153,6 +174,17 @@ function parseCliOptions(args: string[]): CliOptions {
     } else if (arg === "--report-file") {
       options.reportFile = requireValue(args, index, arg);
       index += 1;
+    } else if (arg === "--version-id") {
+      options.versionId = requireValue(args, index, arg);
+      index += 1;
+    } else if (arg === "--revision-date") {
+      options.revisionDate = requireValue(args, index, arg);
+      index += 1;
+    } else if (arg === "--effective-date") {
+      options.effectiveDate = requireValue(args, index, arg);
+      index += 1;
+    } else if (arg === "--no-set-current") {
+      options.setCurrent = false;
     } else {
       throw new Error(`Unknown argument: ${arg}`);
     }
@@ -184,7 +216,13 @@ async function fetchSourceHtml(sourceUrl: string) {
   return response.text();
 }
 
-function parseLawHtml(html: string): ParsedLaw {
+function parseLawHtml(
+  html: string,
+  metadata: {
+    effectiveDate: string;
+    revisionDate: string;
+  },
+): ParsedLaw {
   const root = parse(html, {
     blockTextElements: {
       script: false,
@@ -309,8 +347,8 @@ function parseLawHtml(html: string): ParsedLaw {
     articles,
     fragments: [preamble, ...detailedFragments],
     fullText,
-    revisionDate: REVISION_DATE,
-    effectiveDate: EFFECTIVE_DATE,
+    revisionDate: metadata.revisionDate,
+    effectiveDate: metadata.effectiveDate,
   };
 }
 
@@ -569,6 +607,7 @@ function formatReport(report: ImportReport, writeMode: boolean) {
 - Article count: ${report.articleCount}
 - Type counts: ${formatTypeCounts(report.typeCounts)}
 - Article sequence: ${report.articleNumbers.join(", ")}
+- Comparison with current version: ${formatComparison(report.comparison)}
 
 Warnings:
 
@@ -583,13 +622,84 @@ function formatTypeCounts(typeCounts: Record<FragmentType, number>) {
     .join(", ");
 }
 
+function formatComparison(comparison: ImportReport["comparison"]) {
+  if (!comparison) {
+    return "not available";
+  }
+
+  return [
+    `unchanged ${comparison.unchanged}`,
+    `changed ${comparison.changed}`,
+    `added ${comparison.added}`,
+    `deleted ${comparison.deleted}`,
+  ].join(", ");
+}
+
+async function compareWithCurrentVersion(fragments: ParsedBlock[], versionId: string) {
+  if (!process.env.DATABASE_URL) {
+    return null;
+  }
+
+  const prisma = new PrismaClient();
+  try {
+    const law = await prisma.law.findUnique({
+      where: { slug: LAW_SLUG },
+      include: {
+        currentVersion: {
+          include: {
+            fragments: true,
+          },
+        },
+      },
+    });
+
+    if (!law?.currentVersion || law.currentVersion.id === versionId) {
+      return null;
+    }
+
+    const currentByStableId = new Map(
+      law.currentVersion.fragments.map((fragment) => [fragment.stableId, fragment.text]),
+    );
+    const importedStableIds = new Set(fragments.map((fragment) => fragment.stableId));
+    const summary = {
+      added: 0,
+      changed: 0,
+      deleted: 0,
+      unchanged: 0,
+    };
+
+    for (const fragment of fragments) {
+      const currentText = currentByStableId.get(fragment.stableId);
+      if (currentText === undefined) {
+        summary.added += 1;
+      } else if (normalizeForComparison(currentText) === normalizeForComparison(fragment.text)) {
+        summary.unchanged += 1;
+      } else {
+        summary.changed += 1;
+      }
+    }
+
+    for (const stableId of currentByStableId.keys()) {
+      if (!importedStableIds.has(stableId)) {
+        summary.deleted += 1;
+      }
+    }
+
+    return summary;
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
 async function writeParsedLaw(
   parsed: ParsedLaw,
   source: {
+    setCurrent: boolean;
     sourceUrl: string;
     retrievedAt: string;
     htmlSha256: string;
     textSha256: string;
+    versionId: string;
   },
 ) {
   if (!process.env.DATABASE_URL) {
@@ -613,7 +723,7 @@ async function writeParsedLaw(
       });
 
       const version = await tx.lawVersion.upsert({
-        where: { id: VERSION_ID },
+        where: { id: source.versionId },
         update: {
           lawId: law.id,
           title: `${LAW_TITLE} (ред. от ${formatRuDate(parsed.revisionDate)})`,
@@ -626,7 +736,7 @@ async function writeParsedLaw(
           status: "published",
         },
         create: {
-          id: VERSION_ID,
+          id: source.versionId,
           lawId: law.id,
           title: `${LAW_TITLE} (ред. от ${formatRuDate(parsed.revisionDate)})`,
           effectiveDate: new Date(`${parsed.effectiveDate}T00:00:00.000Z`),
@@ -753,10 +863,12 @@ async function writeParsedLaw(
         },
       });
 
-      await tx.law.update({
-        where: { id: law.id },
-        data: { currentVersionId: version.id },
-      });
+      if (source.setCurrent) {
+        await tx.law.update({
+          where: { id: law.id },
+          data: { currentVersionId: version.id },
+        });
+      }
     }, { timeout: 60_000 });
   } finally {
     await prisma.$disconnect();
@@ -766,6 +878,18 @@ async function writeParsedLaw(
 function formatRuDate(value: string) {
   const [year, month, day] = value.split("-");
   return `${day}.${month}.${year}`;
+}
+
+function buildVersionId(revisionDate: string) {
+  if (revisionDate === "2025-07-31") {
+    return VERSION_ID;
+  }
+
+  return `63fz-revision-${revisionDate}`;
+}
+
+function normalizeForComparison(value: string) {
+  return value.replace(/\s+/g, " ").trim();
 }
 
 function sha256(value: string) {
