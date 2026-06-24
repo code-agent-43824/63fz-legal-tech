@@ -402,3 +402,52 @@ Verified:
 - `pnpm run typecheck`
 - `pnpm run lint`
 - `pnpm run build`
+
+## 2026-06-24. Four More Historical Revisions
+
+- Imported four additional Контур.Норматив states as separate non-current `LawVersion` rows:
+  - `documentId=485991`, revision `2024-12-28`, effective `2025-01-08`,
+    version `63fz-revision-2024-12-28-effective-2025-01-08`, 379 fragments,
+    normalized text SHA-256 `c5528c147197e9a5de9a46df3c5b31e916a8fed890a5a8c8c5c0c70fb5b2f62a`;
+  - `documentId=474287`, revision `2023-08-04`, effective `2024-08-05`,
+    version `63fz-revision-2023-08-04-effective-2024-08-05`, 379 fragments,
+    normalized text SHA-256 `bb495144518210ef81a7507d6e5b12c0196884a819c0afb25318bd3ac1daeaea`;
+  - `documentId=455153`, revision `2023-08-04`, effective `2023-09-01`,
+    version `63fz-revision-2023-08-04-effective-2023-09-01`, 377 fragments,
+    normalized text SHA-256 `0ed3a40fe1317122d696bb59d030c6cf3ef759e59480da60d7983f5b4d847064`;
+  - `documentId=453947`, revision `2023-08-04`, effective `2023-08-15`,
+    version `63fz-revision-2023-08-04-effective-2023-08-15`, 372 fragments,
+    normalized text SHA-256 `fec8e4db4ecffd9d695a1e10ebdf54d6e7aac0e4da9d455907503d69553b9e0e`.
+- Versions sharing the same revision date use the effective date in their IDs to avoid collisions.
+- Fixed importer normalization so HTML entities such as `&quot;` are decoded before checksumming,
+  storage, and comparison. Also accepted both `Д. МЕДВЕДЕВ` and `Д.МЕДВЕДЕВ` source formatting in
+  the final-signature validation.
+- Re-imported the current and already loaded previous revision through the same normalized parser,
+  preserving fragment IDs and attached commentary:
+  - current text SHA-256:
+    `0141476474ffc4249e018aecc61b6c54d9cda64930b8d93bb07e411b97aa646b`;
+  - previous `2025-04-21` text SHA-256:
+    `779f1c823fd9607d99a0d1d85381a058bc712ca990f148fb21321bf6a0494b6e`.
+- Comparison against the normalized current version:
+  - effective `2025-01-08`: unchanged 358, changed 21, added 0, deleted 2;
+  - effective `2024-08-05`: unchanged 349, changed 29, added 1, deleted 3;
+  - effective `2023-09-01`: unchanged 345, changed 31, added 1, deleted 5;
+  - effective `2023-08-15`: unchanged 326, changed 45, added 1, deleted 10.
+- Production backup before writes:
+  `/home/openclaw/backups/63fz-legal-tech/20260624T204857Z-before-four-older-revisions/`.
+- Production now contains six real versions; `currentVersionId` remains
+  `63fz-current-2025-07-31`.
+- Multi-transition history is now exercised by real data. For example, `63fz.article_18` has three
+  changed transitions across the imported chronology.
+
+Verified:
+
+- every dry run and write reconstructed the normalized full text exactly and reported no warnings;
+- no duplicate version IDs or duplicate `(lawVersionId, stableId)` rows were created;
+- existing commentary counts remained unchanged;
+- public selector shows all six real states with both revision and effective dates;
+- oldest focus URL returns HTTP 200 and renders history blocks and explanation placeholders;
+- `/63fz`, `/`, and `/pdf-signing/` return HTTP 200;
+- unauthenticated `/63fz/admin` redirects to `/63fz/admin/login`;
+- public HTML contains no `DEMO DATA` and no encoded `&quot;` comparison artifacts;
+- `63fz-legal-tech.service` is active with `NRestarts=0`.

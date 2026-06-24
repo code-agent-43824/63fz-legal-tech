@@ -451,7 +451,7 @@ function cleanElementText(element: HTMLElement) {
     }
   }
 
-  return normalizeText(clone.innerText);
+  return normalizeText(clone.text);
 }
 
 function normalizeText(text: string) {
@@ -540,7 +540,10 @@ function validateParsedLaw(parsed: ParsedLaw) {
     warnings.push("Preamble does not contain the law title.");
   }
 
-  if (!parsed.fullText.includes("Президент") || !parsed.fullText.includes("Д. МЕДВЕДЕВ")) {
+  if (
+    !parsed.fullText.includes("Президент") ||
+    !/Д\.\s*МЕДВЕДЕВ/.test(parsed.fullText)
+  ) {
     warnings.push("Final signature block was not detected.");
   }
 
