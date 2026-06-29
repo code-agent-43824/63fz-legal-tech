@@ -6,13 +6,18 @@ type CommentarySource = "selected" | "current" | "none";
 
 export type ReaderChangeHistoryEntry = {
   status: "introduced" | "changed";
+  stableId: string;
+  fromVersionId: string;
+  toVersionId: string;
   versionId: string;
   versionLabel: string;
   previousVersionLabel: string | null;
   beforeSnippet: string | null;
   afterSnippet: string;
-  explanationPlaceholder: string;
-  purposePlaceholder: string;
+  reason: string;
+  purpose: string;
+  practicalMeaning: string;
+  sourceLinks: string | null;
 };
 
 export type ReaderCommentBlock = {
@@ -79,6 +84,16 @@ type ReaderDbFragment = {
   type: string;
 };
 
+type ReaderDbChangeExplanation = {
+  fromVersionId: string;
+  practicalMeaning: string | null;
+  purpose: string | null;
+  reason: string | null;
+  sourceLinks: string | null;
+  stableId: string;
+  toVersionId: string;
+};
+
 const fragmentInclude = Prisma.validator<Prisma.LawFragmentInclude>()({
   plainExplanations: {
     where: { status: "published" },
@@ -136,6 +151,15 @@ export async function getReaderData(requestedVersionId?: string): Promise<Reader
     null;
   const fragments = selectedVersion?.fragments ?? [];
   const currentFragments = currentVersion?.fragments ?? [];
+  const changeExplanations = law
+    ? await prisma.fragmentChangeExplanation.findMany({
+        where: {
+          status: "published",
+          fromVersion: { lawId: law.id },
+          toVersion: { lawId: law.id },
+        },
+      })
+    : [];
 
   if (fragments.length === 0) {
     return getDemoReaderData();
@@ -146,7 +170,10 @@ export async function getReaderData(requestedVersionId?: string): Promise<Reader
   const currentFragmentsByStableId = new Map(
     currentFragments.map((fragment) => [fragment.stableId, fragment]),
   );
-  const changeHistoriesByStableId = buildChangeHistoriesByStableId(versions);
+  const changeHistoriesByStableId = buildChangeHistoriesByStableId(
+    versions,
+    changeExplanations,
+  );
   const displayFragments = fragments.filter((fragment) => {
     if (!fragment.text.trim()) {
       return false;
@@ -300,10 +327,17 @@ function buildChangeHistoriesByStableId(
     id: string;
     title: string;
   }>,
+  changeExplanations: ReaderDbChangeExplanation[],
 ) {
   const histories = new Map<string, ReaderChangeHistoryEntry[]>();
   const chronologicalVersions = [...versions].sort(compareVersionsAscending);
-  const previousFragmentsByStableId = new Map<string, { fragment: ReaderDbFragment; versionLabel: string }>();
+  const previousFragmentsByStableId = new Map<
+    string,
+    { fragment: ReaderDbFragment; versionId: string; versionLabel: string }
+  >();
+  const explanationsByTransition = new Map(
+    changeExplanations.map((explanation) => [transitionKey(explanation), explanation]),
+  );
 
   for (const version of chronologicalVersions) {
     const versionLabel = formatVersionLabel(version.title, version.effectiveDate);
@@ -311,31 +345,64 @@ function buildChangeHistoriesByStableId(
     for (const fragment of version.fragments) {
       const previous = previousFragmentsByStableId.get(fragment.stableId) ?? null;
       if (!previous) {
-        previousFragmentsByStableId.set(fragment.stableId, { fragment, versionLabel });
+        previousFragmentsByStableId.set(fragment.stableId, {
+          fragment,
+          versionId: version.id,
+          versionLabel,
+        });
         continue;
       }
 
       if (normalizeForComparison(previous.fragment.text) !== normalizeForComparison(fragment.text)) {
         const snippets = summarizeTextChange(previous.fragment.text, fragment.text);
         const entries = histories.get(fragment.stableId) ?? [];
+        const explanation = explanationsByTransition.get(
+          transitionKey({
+            fromVersionId: previous.versionId,
+            stableId: fragment.stableId,
+            toVersionId: version.id,
+          }),
+        );
         entries.push({
           status: "changed",
+          stableId: fragment.stableId,
+          fromVersionId: previous.versionId,
+          toVersionId: version.id,
           versionId: version.id,
           versionLabel,
           previousVersionLabel: previous.versionLabel,
           beforeSnippet: snippets.before,
           afterSnippet: snippets.after,
-          explanationPlaceholder: "Пояснение причины изменения: пока не заполнено.",
-          purposePlaceholder: "Цель изменения и практический смысл: пока не заполнено.",
+          reason: explanation?.reason?.trim() || "Пояснение причины изменения: пока не заполнено.",
+          purpose: explanation?.purpose?.trim() || "Цель изменения: пока не заполнено.",
+          practicalMeaning:
+            explanation?.practicalMeaning?.trim() || "Практический смысл: пока не заполнено.",
+          sourceLinks: explanation?.sourceLinks?.trim() || null,
         });
         histories.set(fragment.stableId, entries);
       }
 
-      previousFragmentsByStableId.set(fragment.stableId, { fragment, versionLabel });
+      previousFragmentsByStableId.set(fragment.stableId, {
+        fragment,
+        versionId: version.id,
+        versionLabel,
+      });
     }
   }
 
   return histories;
+}
+
+function transitionKey({
+  fromVersionId,
+  stableId,
+  toVersionId,
+}: {
+  fromVersionId: string;
+  stableId: string;
+  toVersionId: string;
+}) {
+  return `${stableId}\u0000${fromVersionId}\u0000${toVersionId}`;
 }
 
 function compareVersionsAscending(

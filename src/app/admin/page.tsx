@@ -35,12 +35,20 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </p>
             <h1 className="mt-2 text-3xl font-semibold">Фрагменты закона</h1>
           </div>
-          <a
-            className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium"
-            href="/63fz"
-          >
-            Публичная страница
-          </a>
+          <div className="flex flex-wrap gap-2">
+            <a
+              className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium"
+              href="/63fz/admin/changes"
+            >
+              История изменений
+            </a>
+            <a
+              className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium"
+              href="/63fz"
+            >
+              Публичная страница
+            </a>
+          </div>
         </div>
 
         <form className="mt-6 grid gap-3 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-[120px_160px_minmax(0,1fr)_auto]">

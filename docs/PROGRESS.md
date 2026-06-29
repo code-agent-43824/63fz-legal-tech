@@ -451,3 +451,32 @@ Verified:
 - unauthenticated `/63fz/admin` redirects to `/63fz/admin/login`;
 - public HTML contains no `DEMO DATA` and no encoded `&quot;` comparison artifacts;
 - `63fz-legal-tech.service` is active with `NRestarts=0`.
+
+## 2026-06-29. Change Explanation Storage And Admin Editor
+
+- Added `FragmentChangeExplanation` storage for editorial notes about a concrete fragment transition:
+  - `stableId`;
+  - `fromVersionId`;
+  - `toVersionId`;
+  - reason, purpose, practical meaning, source links;
+  - draft/published status.
+- The unique key is `(stableId, fromVersionId, toVersionId)`, so notes survive fragment row
+  replacement during future re-imports as long as stable IDs and law version IDs remain unchanged.
+- Added protected `/63fz/admin/changes`:
+  - filters by article, status, and search query;
+  - lists only real changed transitions computed from loaded law versions;
+  - shows `Было` / `Стало` snippets;
+  - lets an admin create, update, publish, draft, or delete the explanation for a transition.
+- Public fragment history now renders published saved fields instead of placeholders and keeps
+  placeholders only for empty fields.
+
+Verified locally:
+
+- `pnpm prisma format`
+- `pnpm prisma generate`
+- `pnpm run typecheck`
+- `pnpm run lint`
+- `pnpm run build`
+
+Next safe step: apply the new migration on production, deploy the release, and verify the admin
+change editor plus public rendering against the live database.

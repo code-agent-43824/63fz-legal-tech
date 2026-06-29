@@ -47,6 +47,32 @@ export type AdminFragmentDetails = AdminFragmentListItem & {
   }>;
 };
 
+export type AdminChangeTransition = {
+  stableId: string;
+  title: string;
+  type: string;
+  fromVersionId: string;
+  fromVersionLabel: string;
+  toVersionId: string;
+  toVersionLabel: string;
+  beforeSnippet: string;
+  afterSnippet: string;
+  explanation: {
+    id: string;
+    reason: string | null;
+    purpose: string | null;
+    practicalMeaning: string | null;
+    sourceLinks: string | null;
+    status: string;
+  } | null;
+};
+
+export type AdminChangeFilters = {
+  article?: string;
+  q?: string;
+  status?: string;
+};
+
 export async function getAdminFragments(): Promise<AdminFragmentListItem[]> {
   if (!process.env.DATABASE_URL) {
     return [
@@ -177,4 +203,241 @@ export async function getAdminFragmentDetails(
     issues: fragment.issues,
     proposedRevisions: fragment.proposedRevisions,
   };
+}
+
+export async function getAdminChangeTransitions(
+  filters: AdminChangeFilters = {},
+): Promise<AdminChangeTransition[]> {
+  if (!process.env.DATABASE_URL) {
+    return [];
+  }
+
+  const law = await prisma.law.findUnique({
+    where: { slug: "63fz" },
+    include: {
+      versions: {
+        where: { status: { in: ["published", "archived"] } },
+        orderBy: [{ effectiveDate: "asc" }, { createdAt: "asc" }],
+        include: {
+          fragments: {
+            orderBy: { order: "asc" },
+            select: {
+              stableId: true,
+              text: true,
+              title: true,
+              type: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!law) {
+    return [];
+  }
+
+  const versions = law.versions.filter((version) => !isDemoVersion(version.title));
+  const explanations = await prisma.fragmentChangeExplanation.findMany({
+    where: {
+      fromVersion: { lawId: law.id },
+      toVersion: { lawId: law.id },
+    },
+  });
+  const explanationsByTransition = new Map(
+    explanations.map((explanation) => [transitionKey(explanation), explanation]),
+  );
+  const previousFragmentsByStableId = new Map<
+    string,
+    {
+      fragment: { stableId: string; text: string; title: string | null; type: string };
+      versionId: string;
+      versionLabel: string;
+    }
+  >();
+  const transitions: AdminChangeTransition[] = [];
+
+  for (const version of versions) {
+    const versionLabel = formatVersionLabel(version.title, version.effectiveDate);
+
+    for (const fragment of version.fragments) {
+      const previous = previousFragmentsByStableId.get(fragment.stableId) ?? null;
+      if (!previous) {
+        previousFragmentsByStableId.set(fragment.stableId, {
+          fragment,
+          versionId: version.id,
+          versionLabel,
+        });
+        continue;
+      }
+
+      if (normalizeForComparison(previous.fragment.text) !== normalizeForComparison(fragment.text)) {
+        const explanation = explanationsByTransition.get(
+          transitionKey({
+            fromVersionId: previous.versionId,
+            stableId: fragment.stableId,
+            toVersionId: version.id,
+          }),
+        );
+        const snippets = summarizeTextChange(previous.fragment.text, fragment.text);
+        transitions.push({
+          stableId: fragment.stableId,
+          title: fragment.title ?? previous.fragment.title ?? fragment.stableId,
+          type: fragment.type,
+          fromVersionId: previous.versionId,
+          fromVersionLabel: previous.versionLabel,
+          toVersionId: version.id,
+          toVersionLabel: versionLabel,
+          beforeSnippet: snippets.before,
+          afterSnippet: snippets.after,
+          explanation: explanation
+            ? {
+                id: explanation.id,
+                reason: explanation.reason,
+                purpose: explanation.purpose,
+                practicalMeaning: explanation.practicalMeaning,
+                sourceLinks: explanation.sourceLinks,
+                status: explanation.status,
+              }
+            : null,
+        });
+      }
+
+      previousFragmentsByStableId.set(fragment.stableId, {
+        fragment,
+        versionId: version.id,
+        versionLabel,
+      });
+    }
+  }
+
+  return filterChangeTransitions(transitions, filters);
+}
+
+function filterChangeTransitions(
+  transitions: AdminChangeTransition[],
+  filters: AdminChangeFilters,
+) {
+  const article = filters.article?.trim();
+  const query = filters.q?.trim().toLowerCase();
+  const status = filters.status?.trim();
+
+  return transitions.filter((transition) => {
+    if (article && getArticleNumber(transition.stableId) !== article) {
+      return false;
+    }
+
+    if (status === "missing" && transition.explanation) {
+      return false;
+    }
+
+    if (
+      (status === "draft" || status === "published") &&
+      transition.explanation?.status !== status
+    ) {
+      return false;
+    }
+
+    if (query) {
+      const haystack = [
+        transition.stableId,
+        transition.title,
+        transition.beforeSnippet,
+        transition.afterSnippet,
+        transition.explanation?.reason,
+        transition.explanation?.purpose,
+        transition.explanation?.practicalMeaning,
+        transition.explanation?.sourceLinks,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      if (!haystack.includes(query)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+}
+
+function isDemoVersion(title: string) {
+  return title.toUpperCase().includes("DEMO DATA");
+}
+
+function getArticleNumber(stableId: string) {
+  const match = stableId.match(/^63fz\.article_(\d+(?:_\d+)?)(?:\.|$)/);
+  return match?.[1].replace("_", ".") ?? null;
+}
+
+function formatVersionLabel(title: string, effectiveDate: Date | null) {
+  const titleDate = title.match(/ред\.\s+от\s+([^)]+)/i)?.[1];
+  const effective = effectiveDate ? `, действует с ${formatShortDate(effectiveDate)}` : "";
+  return titleDate ? `Ред. от ${titleDate}${effective}` : `${title}${effective}`;
+}
+
+function formatShortDate(date: Date) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
+function summarizeTextChange(before: string, after: string) {
+  const beforeWords = normalizeForComparison(before).split(" ").filter(Boolean);
+  const afterWords = normalizeForComparison(after).split(" ").filter(Boolean);
+  let start = 0;
+  while (
+    start < beforeWords.length &&
+    start < afterWords.length &&
+    beforeWords[start] === afterWords[start]
+  ) {
+    start += 1;
+  }
+
+  let beforeEnd = beforeWords.length - 1;
+  let afterEnd = afterWords.length - 1;
+  while (
+    beforeEnd >= start &&
+    afterEnd >= start &&
+    beforeWords[beforeEnd] === afterWords[afterEnd]
+  ) {
+    beforeEnd -= 1;
+    afterEnd -= 1;
+  }
+
+  return {
+    before: excerptWords(beforeWords, start, beforeEnd),
+    after: excerptWords(afterWords, start, afterEnd),
+  };
+}
+
+function excerptWords(words: string[], start: number, end: number) {
+  if (words.length === 0) {
+    return "";
+  }
+
+  const safeStart = Math.max(0, Math.min(start, words.length - 1) - 8);
+  const safeEnd = Math.min(words.length - 1, Math.max(end, start) + 8);
+  const prefix = safeStart > 0 ? "..." : "";
+  const suffix = safeEnd < words.length - 1 ? "..." : "";
+  return `${prefix}${words.slice(safeStart, safeEnd + 1).join(" ")}${suffix}`;
+}
+
+function normalizeForComparison(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function transitionKey({
+  fromVersionId,
+  stableId,
+  toVersionId,
+}: {
+  fromVersionId: string;
+  stableId: string;
+  toVersionId: string;
+}) {
+  return `${stableId}\u0000${fromVersionId}\u0000${toVersionId}`;
 }

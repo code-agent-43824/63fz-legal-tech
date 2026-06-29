@@ -84,9 +84,11 @@ model LawVersion {
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
-  law           Law           @relation("LawVersions", fields: [lawId], references: [id], onDelete: Cascade)
-  currentForLaw Law?          @relation("CurrentLawVersion")
+  law           Law                         @relation("LawVersions", fields: [lawId], references: [id], onDelete: Cascade)
+  currentForLaw Law?                        @relation("CurrentLawVersion")
   fragments     LawFragment[]
+  changesFrom   FragmentChangeExplanation[] @relation("ChangeFromVersion")
+  changesTo     FragmentChangeExplanation[] @relation("ChangeToVersion")
 
   @@index([lawId, status])
 }
@@ -177,4 +179,25 @@ model ProposedRevision {
   fragment LawFragment @relation(fields: [fragmentId], references: [id], onDelete: Cascade)
 
   @@index([fragmentId, status])
+}
+
+model FragmentChangeExplanation {
+  id               String            @id @default(cuid())
+  stableId         String
+  fromVersionId    String
+  toVersionId      String
+  reason           String?
+  purpose          String?
+  practicalMeaning String?
+  sourceLinks      String?
+  status           PublicationStatus @default(draft)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  fromVersion LawVersion @relation("ChangeFromVersion", fields: [fromVersionId], references: [id], onDelete: Cascade)
+  toVersion   LawVersion @relation("ChangeToVersion", fields: [toVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([stableId, fromVersionId, toVersionId])
+  @@index([stableId, status])
+  @@index([fromVersionId, toVersionId])
 }

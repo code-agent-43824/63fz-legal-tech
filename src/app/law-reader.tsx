@@ -454,8 +454,24 @@ function ChangeHistory({ entries }: { entries: ReaderFragment["changeHistory"] }
               </div>
             ) : null}
             <div className="mt-3 grid gap-2 text-xs leading-5 text-slate-600">
-              <p>{entry.explanationPlaceholder}</p>
-              <p>{entry.purposePlaceholder}</p>
+              <p>
+                <span className="font-semibold text-slate-900">Причина: </span>
+                {entry.reason}
+              </p>
+              <p>
+                <span className="font-semibold text-slate-900">Цель: </span>
+                {entry.purpose}
+              </p>
+              <p>
+                <span className="font-semibold text-slate-900">Практический смысл: </span>
+                {entry.practicalMeaning}
+              </p>
+              {entry.sourceLinks ? (
+                <p>
+                  <span className="font-semibold text-slate-900">Источники: </span>
+                  {entry.sourceLinks}
+                </p>
+              ) : null}
             </div>
           </div>
         ))}
