@@ -480,3 +480,24 @@ Verified locally:
 
 Next safe step: apply the new migration on production, deploy the release, and verify the admin
 change editor plus public rendering against the live database.
+
+Production deployment:
+
+- Commit `ef71020` deployed to `/home/openclaw/services/63fz-legal-tech/releases/ef71020`.
+- Production database backup before migration:
+  `/home/openclaw/backups/63fz-legal-tech/20260629T083731Z-before-change-explanations/fz63_legal_tech_before_change_explanations.sql`
+- Applied the migration on production. The app role created the table and indexes; PostgreSQL owner
+  added the two `LawVersion` foreign keys because the app role does not own `LawVersion`.
+- Switched `/home/openclaw/services/63fz-legal-tech/current` to the new release and restarted the
+  user service.
+
+Production verification:
+
+- `https://mescheryakov.pro/63fz` returns HTTP 200.
+- unauthenticated `https://mescheryakov.pro/63fz/admin` redirects to `/63fz/admin/login`.
+- authenticated `https://mescheryakov.pro/63fz/admin/changes?article=18` returns HTTP 200 and
+  contains the new history editor markers.
+- `https://mescheryakov.pro/63fz?mode=focus&node=63fz.article_18` returns HTTP 200 and renders the
+  public change-history fields.
+- `FragmentChangeExplanation` exists and initially contains 0 rows.
+- `63fz-legal-tech.service` is active/running with `NRestarts=0`.
