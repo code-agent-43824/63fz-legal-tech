@@ -374,6 +374,31 @@ Production verification:
   default introduced-reason placeholder, and the introduced notarial power-of-attorney text.
 - an older article 18 focus URL renders the new "Введено" summary count.
 - `63fz-legal-tech.service` is active with `NRestarts=0`.
+
+## 2026-07-08. 457-FZ Article 18 Granular Explanations
+
+- Replaced the temporary aggregate article 18 draft for Federal Law No. 457-FZ with granular
+  published explanations on the introduced fragments.
+- Production backup before data writes:
+  `/home/openclaw/backups/63fz-legal-tech/20260708T192410Z-before-457-granular-explanations/`.
+- Added 3 `published` explanations for the 2023-08-15 to 2023-09-01 transition:
+  - `63fz.article_18.part_1.point_ru4`: new identification data for a branch/representative
+    office of a foreign legal entity;
+  - `63fz.article_18.part_2.point_8`: notarized power of attorney for the head of such branch or
+    representative office;
+  - `63fz.article_18.part_2_2.point_4`: register extract from the state register of accredited
+    branches and representative offices of foreign legal entities.
+- Deleted the old draft aggregate record `manual-article18-457-article-20260708` on
+  `63fz.article_18`.
+
+Verified:
+
+- article 18 explanations are now `published = 9`, with no article 18 drafts;
+- all 3 public focus URLs render `введено`, Federal Law No. 457-FZ, and the official publication
+  source link;
+- authenticated `/63fz/admin/changes?article=18&q=457` finds exactly the granular stable IDs and
+  no aggregate `63fz.article_18` record;
+- `63fz-legal-tech.service` is active with `NRestarts=0`.
 - local production smoke check for `/63fz?mode=focus&node=63fz.article_1&version=test`, confirming
   the page renders the version selector, reader modes, and expand/collapse controls.
 - importer dry-run against the saved current source HTML:
