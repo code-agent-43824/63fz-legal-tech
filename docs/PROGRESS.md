@@ -501,3 +501,42 @@ Production verification:
   public change-history fields.
 - `FragmentChangeExplanation` exists and initially contains 0 rows.
 - `63fz-legal-tech.service` is active/running with `NRestarts=0`.
+
+## 2026-07-08. Article 18 Change Explanation Pilot
+
+- Filled the first production `FragmentChangeExplanation` records for article 18.
+- Production backup before data writes:
+  `/home/openclaw/backups/63fz-legal-tech/20260708T060014Z-before-article18-explanations/`.
+- Researched and linked the changing laws:
+  - Federal Law No. 457-FZ of 2023-08-04: foreign legal entity branch/representative office
+    certificate data and verification materials;
+  - Federal Law No. 521-FZ of 2024-12-28: replacement of 149-FZ biometric references with the
+    special 572-FZ biometric identification framework;
+  - Federal Law No. 94-FZ of 2025-04-21: qualified certificates for state bodies listed in the new
+    article 8 part 6 information resource.
+- Wrote 7 article 18 explanation records:
+  - 6 `published` granular records:
+    - `63fz.article_18.part_1.point_1` for the 521-FZ biometric reference update;
+    - `63fz.article_18.part_1.point_3` for the 521-FZ representative identification update;
+    - `63fz.article_18.part_1.point_4` for the 521-FZ cryptographic tools reference update;
+    - `63fz.article_18.part_1.point_2` for the 94-FZ state body applicant update;
+    - `63fz.article_18.part_1_1.point_2` for the 94-FZ verification resource update;
+    - `63fz.article_18.part_3` for the 94-FZ "под расписку или" clarification.
+  - 1 `draft` aggregate record on `63fz.article_18` for the 457-FZ change.
+- Pilot finding: the current change editor shows the 457-FZ additions only as a changed aggregate
+  `article` transition. The newly introduced nested items are not represented as first-class
+  "introduced fragment" transitions, so the public reader does not have a good place to show that
+  explanation yet.
+
+Verified:
+
+- article 18 explanation count is now `draft = 1`, `published = 6`;
+- public focus URL for `63fz.article_18.part_1.point_1` renders the 521-FZ explanation and source
+  text, while the 457-FZ draft is not exposed publicly;
+- public focus URL for `63fz.article_18.part_3` renders the 94-FZ explanation and source link;
+- unauthenticated `/63fz/admin/changes?article=18` still redirects to `/63fz/admin/login`;
+- `/63fz` returns HTTP 200;
+- `63fz-legal-tech.service` is active with `NRestarts=0`.
+
+Next safe step: add explicit support for introduced/deleted fragment transitions in the change
+history model before trying to publish the 457-FZ article 18 explanation.
