@@ -5,7 +5,7 @@ type FragmentChangeStatus = "current" | "unchanged" | "changed" | "deleted";
 type CommentarySource = "selected" | "current" | "none";
 
 export type ReaderChangeHistoryEntry = {
-  status: "introduced" | "changed";
+  status: "introduced" | "changed" | "deleted";
   stableId: string;
   fromVersionId: string;
   toVersionId: string;
@@ -13,7 +13,7 @@ export type ReaderChangeHistoryEntry = {
   versionLabel: string;
   previousVersionLabel: string | null;
   beforeSnippet: string | null;
-  afterSnippet: string;
+  afterSnippet: string | null;
   reason: string;
   purpose: string;
   practicalMeaning: string;
@@ -64,6 +64,7 @@ export type ReaderData = {
   toc: ReaderTocItem[];
   fragments: ReaderFragment[];
   changeSummary: {
+    introduced: number;
     unchanged: number;
     changed: number;
     deleted: number;
@@ -279,6 +280,7 @@ function getDemoReaderData(): ReaderData {
       },
     ],
     changeSummary: {
+      introduced: 0,
       unchanged: 0,
       changed: 0,
       deleted: 0,
@@ -331,62 +333,62 @@ function buildChangeHistoriesByStableId(
 ) {
   const histories = new Map<string, ReaderChangeHistoryEntry[]>();
   const chronologicalVersions = [...versions].sort(compareVersionsAscending);
-  const previousFragmentsByStableId = new Map<
-    string,
-    { fragment: ReaderDbFragment; versionId: string; versionLabel: string }
-  >();
   const explanationsByTransition = new Map(
     changeExplanations.map((explanation) => [transitionKey(explanation), explanation]),
   );
 
-  for (const version of chronologicalVersions) {
+  for (let index = 1; index < chronologicalVersions.length; index += 1) {
+    const previousVersion = chronologicalVersions[index - 1];
+    const version = chronologicalVersions[index];
+    const previousVersionLabel = formatVersionLabel(
+      previousVersion.title,
+      previousVersion.effectiveDate,
+    );
     const versionLabel = formatVersionLabel(version.title, version.effectiveDate);
+    const previousFragmentsByStableId = new Map(
+      previousVersion.fragments.map((fragment) => [fragment.stableId, fragment]),
+    );
+    const fragmentsByStableId = new Map(
+      version.fragments.map((fragment) => [fragment.stableId, fragment]),
+    );
+    const stableIds = new Set([
+      ...previousFragmentsByStableId.keys(),
+      ...fragmentsByStableId.keys(),
+    ]);
 
-    for (const fragment of version.fragments) {
-      const previous = previousFragmentsByStableId.get(fragment.stableId) ?? null;
-      if (!previous) {
-        previousFragmentsByStableId.set(fragment.stableId, {
-          fragment,
-          versionId: version.id,
-          versionLabel,
-        });
+    for (const stableId of stableIds) {
+      const previousFragment = previousFragmentsByStableId.get(stableId) ?? null;
+      const fragment = fragmentsByStableId.get(stableId) ?? null;
+      const changeType = getHistoryChangeType(previousFragment, fragment);
+      if (!changeType) {
         continue;
       }
 
-      if (normalizeForComparison(previous.fragment.text) !== normalizeForComparison(fragment.text)) {
-        const snippets = summarizeTextChange(previous.fragment.text, fragment.text);
-        const entries = histories.get(fragment.stableId) ?? [];
-        const explanation = explanationsByTransition.get(
-          transitionKey({
-            fromVersionId: previous.versionId,
-            stableId: fragment.stableId,
-            toVersionId: version.id,
-          }),
-        );
-        entries.push({
-          status: "changed",
-          stableId: fragment.stableId,
-          fromVersionId: previous.versionId,
+      const snippets = summarizeHistoryText(changeType, previousFragment, fragment);
+      const entries = histories.get(stableId) ?? [];
+      const explanation = explanationsByTransition.get(
+        transitionKey({
+          fromVersionId: previousVersion.id,
+          stableId,
           toVersionId: version.id,
-          versionId: version.id,
-          versionLabel,
-          previousVersionLabel: previous.versionLabel,
-          beforeSnippet: snippets.before,
-          afterSnippet: snippets.after,
-          reason: explanation?.reason?.trim() || "Пояснение причины изменения: пока не заполнено.",
-          purpose: explanation?.purpose?.trim() || "Цель изменения: пока не заполнено.",
-          practicalMeaning:
-            explanation?.practicalMeaning?.trim() || "Практический смысл: пока не заполнено.",
-          sourceLinks: explanation?.sourceLinks?.trim() || null,
-        });
-        histories.set(fragment.stableId, entries);
-      }
-
-      previousFragmentsByStableId.set(fragment.stableId, {
-        fragment,
+        }),
+      );
+      entries.push({
+        status: changeType,
+        stableId,
+        fromVersionId: previousVersion.id,
+        toVersionId: version.id,
         versionId: version.id,
         versionLabel,
+        previousVersionLabel,
+        beforeSnippet: snippets.before,
+        afterSnippet: snippets.after,
+        reason: explanation?.reason?.trim() || defaultReason(changeType),
+        purpose: explanation?.purpose?.trim() || defaultPurpose(changeType),
+        practicalMeaning: explanation?.practicalMeaning?.trim() || defaultPracticalMeaning(changeType),
+        sourceLinks: explanation?.sourceLinks?.trim() || null,
       });
+      histories.set(stableId, entries);
     }
   }
 
@@ -529,12 +531,14 @@ function summarizeChanges(
 ) {
   if (!versions.currentVersionId || versions.selectedVersionId === versions.currentVersionId) {
     return {
+      introduced: 0,
       unchanged: 0,
       changed: 0,
       deleted: 0,
     };
   }
 
+  const selectedStableIds = new Set(fragments.map((fragment) => fragment.stableId));
   return fragments.reduce(
     (summary, fragment) => {
       const currentFragment = currentFragmentsByStableId.get(fragment.stableId) ?? null;
@@ -544,7 +548,14 @@ function summarizeChanges(
       }
       return summary;
     },
-    { unchanged: 0, changed: 0, deleted: 0 },
+    {
+      introduced: Array.from(currentFragmentsByStableId.keys()).filter(
+        (stableId) => !selectedStableIds.has(stableId),
+      ).length,
+      unchanged: 0,
+      changed: 0,
+      deleted: 0,
+    },
   );
 }
 
@@ -573,6 +584,74 @@ function formatShortDate(date: Date) {
 
 function normalizeForComparison(value: string) {
   return value.replace(/\s+/g, " ").trim();
+}
+
+function getHistoryChangeType(
+  previousFragment: ReaderDbFragment | null,
+  fragment: ReaderDbFragment | null,
+): ReaderChangeHistoryEntry["status"] | null {
+  if (previousFragment && fragment) {
+    return normalizeForComparison(previousFragment.text) === normalizeForComparison(fragment.text)
+      ? null
+      : "changed";
+  }
+
+  if (fragment) {
+    return "introduced";
+  }
+
+  if (previousFragment) {
+    return "deleted";
+  }
+
+  return null;
+}
+
+function summarizeHistoryText(
+  changeType: ReaderChangeHistoryEntry["status"],
+  previousFragment: ReaderDbFragment | null,
+  fragment: ReaderDbFragment | null,
+) {
+  if (changeType === "changed" && previousFragment && fragment) {
+    return summarizeTextChange(previousFragment.text, fragment.text);
+  }
+
+  return {
+    before: previousFragment ? excerptFullText(previousFragment.text) : null,
+    after: fragment ? excerptFullText(fragment.text) : null,
+  };
+}
+
+function excerptFullText(value: string) {
+  const words = normalizeForComparison(value).split(" ").filter(Boolean);
+  return excerptWords(words, 0, Math.min(words.length - 1, 40));
+}
+
+function defaultReason(changeType: ReaderChangeHistoryEntry["status"]) {
+  const labels: Record<ReaderChangeHistoryEntry["status"], string> = {
+    changed: "Пояснение причины изменения: пока не заполнено.",
+    deleted: "Пояснение причины исключения: пока не заполнено.",
+    introduced: "Пояснение причины введения: пока не заполнено.",
+  };
+  return labels[changeType];
+}
+
+function defaultPurpose(changeType: ReaderChangeHistoryEntry["status"]) {
+  const labels: Record<ReaderChangeHistoryEntry["status"], string> = {
+    changed: "Цель изменения: пока не заполнено.",
+    deleted: "Цель исключения: пока не заполнено.",
+    introduced: "Цель введения: пока не заполнено.",
+  };
+  return labels[changeType];
+}
+
+function defaultPracticalMeaning(changeType: ReaderChangeHistoryEntry["status"]) {
+  const labels: Record<ReaderChangeHistoryEntry["status"], string> = {
+    changed: "Практический смысл: пока не заполнено.",
+    deleted: "Практический смысл исключения: пока не заполнено.",
+    introduced: "Практический смысл введения: пока не заполнено.",
+  };
+  return labels[changeType];
 }
 
 function buildToc(

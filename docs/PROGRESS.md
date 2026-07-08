@@ -540,3 +540,24 @@ Verified:
 
 Next safe step: add explicit support for introduced/deleted fragment transitions in the change
 history model before trying to publish the 457-FZ article 18 explanation.
+
+## 2026-07-08. Introduced And Deleted Change Transitions
+
+- Added computed change transition types for neighboring law versions:
+  - `changed` when a stable fragment exists in both versions and normalized text differs;
+  - `introduced` when a stable fragment appears in the newer version;
+  - `deleted` when a stable fragment disappears in the newer version.
+- No database migration was needed. Existing `FragmentChangeExplanation` keys already use
+  `stableId + fromVersionId + toVersionId`, which also identifies introduced and deleted
+  transitions.
+- Updated `/63fz/admin/changes` to label transition type and show empty-side snippets for
+  introduced/deleted fragments.
+- Updated the public reader history to render introduced/deleted badges and appropriate
+  placeholders for reason, purpose, and practical meaning.
+- Added an "Введено" count to the non-current version comparison summary.
+
+Verified locally:
+
+- `pnpm run typecheck`
+- `pnpm run lint`
+- `pnpm run build`

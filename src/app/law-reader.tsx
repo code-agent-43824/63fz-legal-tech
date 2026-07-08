@@ -181,9 +181,10 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
           {readerData.currentVersionId &&
           readerData.selectedVersionId &&
           readerData.selectedVersionId !== readerData.currentVersionId ? (
-            <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[11px] text-slate-600">
+            <div className="mt-3 grid grid-cols-2 gap-2 text-center text-[11px] text-slate-600 md:grid-cols-4">
               <VersionStat label="Без изменений" value={readerData.changeSummary.unchanged} />
               <VersionStat label="Изменено" value={readerData.changeSummary.changed} />
+              <VersionStat label="Введено" value={readerData.changeSummary.introduced} />
               <VersionStat label="Удалено" value={readerData.changeSummary.deleted} />
             </div>
           ) : null}
@@ -430,10 +431,10 @@ function ChangeHistory({ entries }: { entries: ReaderFragment["changeHistory"] }
       <h3 className="text-sm font-semibold text-slate-900">История изменений фрагмента</h3>
       <div className="mt-3 space-y-3">
         {entries.map((entry) => (
-          <div className="rounded-md border border-amber-200 bg-amber-50 p-3" key={`${entry.versionId}-${entry.versionLabel}`}>
+          <div className={`rounded-md border p-3 ${historyEntryClass(entry.status)}`} key={`${entry.versionId}-${entry.versionLabel}-${entry.status}`}>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full border border-amber-300 bg-white px-2 py-1 text-xs font-medium text-amber-900">
-                изменено
+              <span className={`rounded-full border bg-white px-2 py-1 text-xs font-medium ${historyBadgeClass(entry.status)}`}>
+                {formatHistoryStatus(entry.status)}
               </span>
               <p className="text-sm font-medium text-slate-950">
                 {entry.previousVersionLabel
@@ -441,16 +442,20 @@ function ChangeHistory({ entries }: { entries: ReaderFragment["changeHistory"] }
                   : entry.versionLabel}
               </p>
             </div>
-            {entry.beforeSnippet ? (
+            {entry.beforeSnippet || entry.afterSnippet ? (
               <div className="mt-3 grid gap-2 text-xs leading-5 text-slate-700">
+                {entry.beforeSnippet ? (
                 <p>
                   <span className="font-semibold text-slate-900">Было: </span>
                   {entry.beforeSnippet}
                 </p>
+                ) : null}
+                {entry.afterSnippet ? (
                 <p>
                   <span className="font-semibold text-slate-900">Стало: </span>
                   {entry.afterSnippet}
                 </p>
+                ) : null}
               </div>
             ) : null}
             <div className="mt-3 grid gap-2 text-xs leading-5 text-slate-600">
@@ -503,6 +508,33 @@ function ChangeBadge({ status }: { status: ReaderFragment["changeStatus"] }) {
       {labels[status]}
     </span>
   );
+}
+
+function formatHistoryStatus(status: ReaderFragment["changeHistory"][number]["status"]) {
+  const labels: Record<ReaderFragment["changeHistory"][number]["status"], string> = {
+    changed: "изменено",
+    deleted: "удалено",
+    introduced: "введено",
+  };
+  return labels[status];
+}
+
+function historyEntryClass(status: ReaderFragment["changeHistory"][number]["status"]) {
+  const classes: Record<ReaderFragment["changeHistory"][number]["status"], string> = {
+    changed: "border-amber-200 bg-amber-50",
+    deleted: "border-rose-200 bg-rose-50",
+    introduced: "border-blue-200 bg-blue-50",
+  };
+  return classes[status];
+}
+
+function historyBadgeClass(status: ReaderFragment["changeHistory"][number]["status"]) {
+  const classes: Record<ReaderFragment["changeHistory"][number]["status"], string> = {
+    changed: "border-amber-300 text-amber-900",
+    deleted: "border-rose-300 text-rose-900",
+    introduced: "border-blue-300 text-blue-900",
+  };
+  return classes[status];
 }
 
 function CommentBlock({ title, text }: { title: string; text: string }) {

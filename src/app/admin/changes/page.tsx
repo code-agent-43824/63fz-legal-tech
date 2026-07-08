@@ -120,8 +120,8 @@ function ChangeEditor({ transition }: { transition: AdminChangeTransition }) {
     <article className="rounded-md border border-slate-200 bg-white">
       <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-900">
-            изменено
+          <span className={`rounded-full border px-2 py-1 text-xs font-medium ${changeTypeClass(transition.changeType)}`}>
+            {formatChangeType(transition.changeType)}
           </span>
           <span className="text-sm text-slate-600">{formatType(transition.type)}</span>
           <span className="text-sm text-slate-400">·</span>
@@ -144,8 +144,16 @@ function ChangeEditor({ transition }: { transition: AdminChangeTransition }) {
 
       <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,440px)]">
         <div className="grid gap-3 text-sm leading-6">
-          <Snippet title="Было" text={transition.beforeSnippet} />
-          <Snippet title="Стало" text={transition.afterSnippet} />
+          <Snippet
+            emptyText="Фрагмент отсутствовал в этой редакции."
+            text={transition.beforeSnippet}
+            title="Было"
+          />
+          <Snippet
+            emptyText="Фрагмент отсутствует в этой редакции."
+            text={transition.afterSnippet}
+            title="Стало"
+          />
         </div>
 
         <div>
@@ -200,11 +208,19 @@ function ChangeEditor({ transition }: { transition: AdminChangeTransition }) {
   );
 }
 
-function Snippet({ text, title }: { text: string; title: string }) {
+function Snippet({
+  emptyText,
+  text,
+  title,
+}: {
+  emptyText: string;
+  text: string;
+  title: string;
+}) {
   return (
     <div className="rounded-md border border-slate-200 bg-white p-3">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</h3>
-      <p className="mt-2 text-slate-700">{text}</p>
+      <p className="mt-2 text-slate-700">{text || emptyText}</p>
     </div>
   );
 }
@@ -264,4 +280,22 @@ function formatType(type: string) {
     paragraph: "абзац",
   };
   return labels[type] ?? type;
+}
+
+function formatChangeType(type: AdminChangeTransition["changeType"]) {
+  const labels: Record<AdminChangeTransition["changeType"], string> = {
+    changed: "изменено",
+    deleted: "удалено",
+    introduced: "введено",
+  };
+  return labels[type];
+}
+
+function changeTypeClass(type: AdminChangeTransition["changeType"]) {
+  const classes: Record<AdminChangeTransition["changeType"], string> = {
+    changed: "border-amber-300 bg-amber-50 text-amber-900",
+    deleted: "border-rose-300 bg-rose-50 text-rose-900",
+    introduced: "border-blue-300 bg-blue-50 text-blue-900",
+  };
+  return classes[type];
 }

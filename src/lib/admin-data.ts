@@ -48,6 +48,7 @@ export type AdminFragmentDetails = AdminFragmentListItem & {
 };
 
 export type AdminChangeTransition = {
+  changeType: "changed" | "deleted" | "introduced";
   stableId: string;
   title: string;
   type: string;
@@ -226,6 +227,7 @@ export async function getAdminChangeTransitions(
               text: true,
               title: true,
               type: true,
+              order: true,
             },
           },
         },
@@ -247,66 +249,64 @@ export async function getAdminChangeTransitions(
   const explanationsByTransition = new Map(
     explanations.map((explanation) => [transitionKey(explanation), explanation]),
   );
-  const previousFragmentsByStableId = new Map<
-    string,
-    {
-      fragment: { stableId: string; text: string; title: string | null; type: string };
-      versionId: string;
-      versionLabel: string;
-    }
-  >();
   const transitions: AdminChangeTransition[] = [];
 
-  for (const version of versions) {
+  for (let index = 1; index < versions.length; index += 1) {
+    const previousVersion = versions[index - 1];
+    const version = versions[index];
+    const previousVersionLabel = formatVersionLabel(
+      previousVersion.title,
+      previousVersion.effectiveDate,
+    );
     const versionLabel = formatVersionLabel(version.title, version.effectiveDate);
+    const previousFragmentsByStableId = new Map(
+      previousVersion.fragments.map((fragment) => [fragment.stableId, fragment]),
+    );
+    const fragmentsByStableId = new Map(
+      version.fragments.map((fragment) => [fragment.stableId, fragment]),
+    );
+    const stableIds = new Set([
+      ...previousFragmentsByStableId.keys(),
+      ...fragmentsByStableId.keys(),
+    ]);
 
-    for (const fragment of version.fragments) {
-      const previous = previousFragmentsByStableId.get(fragment.stableId) ?? null;
-      if (!previous) {
-        previousFragmentsByStableId.set(fragment.stableId, {
-          fragment,
-          versionId: version.id,
-          versionLabel,
-        });
+    for (const stableId of stableIds) {
+      const previousFragment = previousFragmentsByStableId.get(stableId) ?? null;
+      const fragment = fragmentsByStableId.get(stableId) ?? null;
+      const changeType = getTransitionChangeType(previousFragment, fragment);
+      if (!changeType) {
         continue;
       }
 
-      if (normalizeForComparison(previous.fragment.text) !== normalizeForComparison(fragment.text)) {
-        const explanation = explanationsByTransition.get(
-          transitionKey({
-            fromVersionId: previous.versionId,
-            stableId: fragment.stableId,
-            toVersionId: version.id,
-          }),
-        );
-        const snippets = summarizeTextChange(previous.fragment.text, fragment.text);
-        transitions.push({
-          stableId: fragment.stableId,
-          title: fragment.title ?? previous.fragment.title ?? fragment.stableId,
-          type: fragment.type,
-          fromVersionId: previous.versionId,
-          fromVersionLabel: previous.versionLabel,
+      const explanation = explanationsByTransition.get(
+        transitionKey({
+          fromVersionId: previousVersion.id,
+          stableId,
           toVersionId: version.id,
-          toVersionLabel: versionLabel,
-          beforeSnippet: snippets.before,
-          afterSnippet: snippets.after,
-          explanation: explanation
-            ? {
-                id: explanation.id,
-                reason: explanation.reason,
-                purpose: explanation.purpose,
-                practicalMeaning: explanation.practicalMeaning,
-                sourceLinks: explanation.sourceLinks,
-                status: explanation.status,
-              }
-            : null,
-        });
-      }
-
-      previousFragmentsByStableId.set(fragment.stableId, {
-        fragment,
-        versionId: version.id,
-        versionLabel,
+        }),
+      );
+      const snippets = summarizeTransitionText(changeType, previousFragment, fragment);
+      transitions.push({
+        changeType,
+        stableId,
+        title: fragment?.title ?? previousFragment?.title ?? stableId,
+        type: fragment?.type ?? previousFragment?.type ?? "fragment",
+        fromVersionId: previousVersion.id,
+        fromVersionLabel: previousVersionLabel,
+        toVersionId: version.id,
+        toVersionLabel: versionLabel,
+        beforeSnippet: snippets.before,
+        afterSnippet: snippets.after,
+        explanation: explanation
+          ? {
+              id: explanation.id,
+              reason: explanation.reason,
+              purpose: explanation.purpose,
+              practicalMeaning: explanation.practicalMeaning,
+              sourceLinks: explanation.sourceLinks,
+              status: explanation.status,
+            }
+          : null,
       });
     }
   }
@@ -428,6 +428,47 @@ function excerptWords(words: string[], start: number, end: number) {
 
 function normalizeForComparison(value: string) {
   return value.replace(/\s+/g, " ").trim();
+}
+
+function getTransitionChangeType(
+  previousFragment: { text: string } | null,
+  fragment: { text: string } | null,
+): AdminChangeTransition["changeType"] | null {
+  if (previousFragment && fragment) {
+    return normalizeForComparison(previousFragment.text) === normalizeForComparison(fragment.text)
+      ? null
+      : "changed";
+  }
+
+  if (fragment) {
+    return "introduced";
+  }
+
+  if (previousFragment) {
+    return "deleted";
+  }
+
+  return null;
+}
+
+function summarizeTransitionText(
+  changeType: AdminChangeTransition["changeType"],
+  previousFragment: { text: string } | null,
+  fragment: { text: string } | null,
+) {
+  if (changeType === "changed" && previousFragment && fragment) {
+    return summarizeTextChange(previousFragment.text, fragment.text);
+  }
+
+  return {
+    before: previousFragment ? excerptFullText(previousFragment.text) : "",
+    after: fragment ? excerptFullText(fragment.text) : "",
+  };
+}
+
+function excerptFullText(value: string) {
+  const words = normalizeForComparison(value).split(" ").filter(Boolean);
+  return excerptWords(words, 0, Math.min(words.length - 1, 40));
 }
 
 function transitionKey({
