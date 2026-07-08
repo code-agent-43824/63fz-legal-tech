@@ -311,7 +311,7 @@ export async function getAdminChangeTransitions(
     }
   }
 
-  return filterChangeTransitions(transitions, filters);
+  return filterChangeTransitions(removeAggregateArticleDuplicates(transitions), filters);
 }
 
 function filterChangeTransitions(
@@ -449,6 +449,22 @@ function getTransitionChangeType(
   }
 
   return null;
+}
+
+function removeAggregateArticleDuplicates(transitions: AdminChangeTransition[]) {
+  return transitions.filter((transition) => {
+    if (transition.type !== "article") {
+      return true;
+    }
+
+    const descendantPrefix = `${transition.stableId}.`;
+    return !transitions.some(
+      (candidate) =>
+        candidate.fromVersionId === transition.fromVersionId &&
+        candidate.toVersionId === transition.toVersionId &&
+        candidate.stableId.startsWith(descendantPrefix),
+    );
+  });
 }
 
 function summarizeTransitionText(
