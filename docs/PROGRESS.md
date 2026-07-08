@@ -355,6 +355,25 @@ Verified locally:
 - `pnpm run typecheck`
 - `pnpm run lint`
 - `pnpm run build`
+
+Production deployment:
+
+- Deployed commit `679a372` to `/home/openclaw/services/63fz-legal-tech/releases/679a372`.
+- Candidate preflight on a temporary loopback port returned HTTP 200 for `/63fz`.
+- Switched `/home/openclaw/services/63fz-legal-tech/current` to the new release and restarted the
+  user service.
+
+Production verification:
+
+- `https://mescheryakov.pro/63fz` returns HTTP 200.
+- unauthenticated `https://mescheryakov.pro/63fz/admin/changes?article=18` redirects to
+  `/63fz/admin/login`.
+- authenticated `/63fz/admin/changes?article=18` renders introduced/deleted labels, including
+  `63fz.article_18.part_2.point_8`, and shows the empty "Было" side for an introduced fragment.
+- public focus URL for `63fz.article_18.part_2.point_8` renders the introduced history label,
+  default introduced-reason placeholder, and the introduced notarial power-of-attorney text.
+- an older article 18 focus URL renders the new "Введено" summary count.
+- `63fz-legal-tech.service` is active with `NRestarts=0`.
 - local production smoke check for `/63fz?mode=focus&node=63fz.article_1&version=test`, confirming
   the page renders the version selector, reader modes, and expand/collapse controls.
 - importer dry-run against the saved current source HTML:
