@@ -399,6 +399,38 @@ Verified:
 - authenticated `/63fz/admin/changes?article=18&q=457` finds exactly the granular stable IDs and
   no aggregate `63fz.article_18` record;
 - `63fz-legal-tech.service` is active with `NRestarts=0`.
+
+## 2026-07-08. Complete Article 18 Change Explanations
+
+- Audited article 18 after introduced/deleted transition support was deployed.
+- Remaining meaningful granular gaps:
+  - `63fz.article_18.part_2.point_6`: 521-FZ technical renumbering of the foreign organization
+    tax-registration item from lettered `б)` to numbered item `6)`;
+  - `63fz.article_18.part_2.point_ru2`: the old lettered `б)` item removed from the current
+    structure because the same requirement is now item `6)`;
+  - `63fz.article_18.part_1.paragraph_1`: 94-FZ introduced the state body data item;
+  - `63fz.article_18.part_1.point_3`: 94-FZ extended representative identification to state
+    bodies from the article 8 part 6 list.
+- Added 4 `published` explanations for those transitions.
+- Production backup before data writes:
+  `/home/openclaw/backups/63fz-legal-tech/20260708T195702Z-before-final-article18-explanations/`.
+- Added commit `2047453` to hide aggregate article-level duplicates in `/63fz/admin/changes` when
+  the same version pair has child transitions. This keeps article-level transitions available for
+  true article-only changes, but removes noisy duplicates such as article 18.
+- Deployed commit `2047453` to `/home/openclaw/services/63fz-legal-tech/releases/2047453`.
+
+Verified:
+
+- local `pnpm run typecheck`, `pnpm run lint`, and `pnpm run build` passed before deploy;
+- candidate preflight on a temporary loopback port returned HTTP 200 for `/63fz`;
+- article 18 now has `published = 13` explanations and no drafts;
+- authenticated `/63fz/admin/changes?article=18&status=missing` returns no transitions;
+- authenticated article 18 admin search for `521` finds both `point_6` and `point_ru2`;
+- public focus URLs for the 4 final granular transitions render the expected 521-FZ/94-FZ
+  explanations;
+- `https://mescheryakov.pro/63fz` returns HTTP 200;
+- `63fz-legal-tech.service` is active with `NRestarts=0`;
+- `/home/openclaw/services/63fz-legal-tech/current` points to release `2047453`.
 - local production smoke check for `/63fz?mode=focus&node=63fz.article_1&version=test`, confirming
   the page renders the version selector, reader modes, and expand/collapse controls.
 - importer dry-run against the saved current source HTML:
