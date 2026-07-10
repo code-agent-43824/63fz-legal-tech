@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 
 import { PrismaClient, type FragmentType } from "@prisma/client";
 import { HTMLElement, parse } from "node-html-parser";
+import { invalidatePublicReaderCache } from "../src/lib/reader-cache";
 
 const DEFAULT_SOURCE_URL =
   "https://normativ.kontur.ru/document?documentId=504436&moduleId=1";
@@ -133,6 +134,7 @@ async function main() {
       textSha256,
       versionId,
     });
+    await invalidatePublicReaderCache();
     console.log("\nDatabase import completed.");
     return;
   }

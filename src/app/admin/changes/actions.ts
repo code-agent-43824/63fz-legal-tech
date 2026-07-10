@@ -12,6 +12,7 @@ import {
 } from "@/lib/admin-validation";
 import { isAdminAuthenticated } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { invalidatePublicReaderCache } from "@/lib/reader-cache";
 
 export async function saveChangeExplanation(formData: FormData) {
   await requireAdmin();
@@ -53,7 +54,7 @@ export async function saveChangeExplanation(formData: FormData) {
     },
   });
 
-  revalidateChanges();
+  await revalidateChanges();
 }
 
 export async function deleteChangeExplanation(formData: FormData) {
@@ -64,7 +65,7 @@ export async function deleteChangeExplanation(formData: FormData) {
   const id = readRecordId(formData, "id");
   await prisma.fragmentChangeExplanation.delete({ where: { id } });
 
-  revalidateChanges();
+  await revalidateChanges();
 }
 
 async function requireAdmin() {
@@ -79,7 +80,8 @@ function ensureDatabase() {
   }
 }
 
-function revalidateChanges() {
+async function revalidateChanges() {
+  await invalidatePublicReaderCache();
   revalidatePath("/");
   revalidatePath("/admin");
   revalidatePath("/admin/changes");

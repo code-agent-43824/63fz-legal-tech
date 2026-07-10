@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { getTransitionChangeType, normalizeForComparison } from "@/lib/change-history";
 import { PUBLIC_READER_STATUSES } from "@/lib/publication-policy";
 import { prisma } from "@/lib/prisma";
+import { getPublicReaderCacheMarker } from "@/lib/reader-cache";
 
 type FragmentChangeStatus = "current" | "unchanged" | "changed" | "deleted";
 type CommentarySource = "selected" | "current" | "none";
@@ -97,6 +98,24 @@ type ReaderDbChangeExplanation = {
   toVersionId: string;
 };
 
+type ReaderHistoryFragment = {
+  stableId: string;
+  text: string;
+  title: string | null;
+  type: string;
+};
+
+type ReaderTextFragment = {
+  text: string;
+};
+
+type ReaderCacheEntry = {
+  data: ReaderData;
+  marker: number;
+};
+
+const readerDataCache = new Map<string, ReaderCacheEntry>();
+
 const fragmentInclude = Prisma.validator<Prisma.LawFragmentInclude>()({
   plainExplanations: {
     where: { status: PUBLIC_READER_STATUSES.plainExplanation },
@@ -121,26 +140,38 @@ export async function getReaderData(requestedVersionId?: string): Promise<Reader
     return getDemoReaderData();
   }
 
+  const cacheKey = requestedVersionId || "__current__";
+  const marker = await getPublicReaderCacheMarker();
+  const cached = readerDataCache.get(cacheKey);
+  if (cached?.marker === marker) {
+    return cached.data;
+  }
+
+  try {
+    const data = await getReaderDataFromDatabase(requestedVersionId);
+    readerDataCache.set(cacheKey, { data, marker });
+    return data;
+  } catch (error) {
+    if (cached) {
+      return cached.data;
+    }
+
+    throw error;
+  }
+}
+
+export function clearReaderDataMemoryCache() {
+  readerDataCache.clear();
+}
+
+async function getReaderDataFromDatabase(requestedVersionId?: string): Promise<ReaderData> {
   const law = await prisma.law.findUnique({
     where: { slug: "63fz" },
     include: {
-      currentVersion: {
-        include: {
-          fragments: {
-            orderBy: { order: "asc" },
-            include: fragmentInclude,
-          },
-        },
-      },
+      currentVersion: true,
       versions: {
         where: { status: { in: ["published", "archived"] } },
         orderBy: [{ effectiveDate: "desc" }, { createdAt: "desc" }],
-        include: {
-          fragments: {
-            orderBy: { order: "asc" },
-            include: fragmentInclude,
-          },
-        },
       },
     },
   });
@@ -152,30 +183,33 @@ export async function getReaderData(requestedVersionId?: string): Promise<Reader
     currentVersion ??
     versions[0] ??
     null;
-  const fragments = selectedVersion?.fragments ?? [];
-  const currentFragments = currentVersion?.fragments ?? [];
-  const changeExplanations = law
-    ? await prisma.fragmentChangeExplanation.findMany({
-        where: {
-          status: "published",
-          fromVersion: { lawId: law.id },
-          toVersion: { lawId: law.id },
-        },
-      })
-    : [];
+
+  if (!law || !selectedVersion) {
+    return getDemoReaderData();
+  }
+
+  const fragments = await prisma.lawFragment.findMany({
+    where: { lawVersionId: selectedVersion.id },
+    orderBy: { order: "asc" },
+    include: fragmentInclude,
+  });
 
   if (fragments.length === 0) {
     return getDemoReaderData();
   }
 
+  const currentFragments =
+    currentVersion && currentVersion.id !== selectedVersion.id
+      ? await prisma.lawFragment.findMany({
+          where: { lawVersionId: currentVersion.id },
+          orderBy: { order: "asc" },
+          include: fragmentInclude,
+        })
+      : fragments;
   const parentIds = getParentIds(fragments);
   const stableIdsById = new Map(fragments.map((fragment) => [fragment.id, fragment.stableId]));
   const currentFragmentsByStableId = new Map(
     currentFragments.map((fragment) => [fragment.stableId, fragment]),
-  );
-  const changeHistoriesByStableId = buildChangeHistoriesByStableId(
-    versions,
-    changeExplanations,
   );
   const displayFragments = fragments.filter((fragment) => {
     if (!fragment.text.trim()) {
@@ -184,6 +218,42 @@ export async function getReaderData(requestedVersionId?: string): Promise<Reader
 
     return fragment.type !== "article" || !parentIds.has(fragment.id);
   });
+  const displayStableIds = displayFragments.map((fragment) => fragment.stableId);
+  const [historyVersions, changeExplanations] = await Promise.all([
+    prisma.lawVersion.findMany({
+      where: {
+        id: { in: versions.map((version) => version.id) },
+      },
+      orderBy: [{ effectiveDate: "asc" }, { createdAt: "asc" }],
+      select: {
+        effectiveDate: true,
+        id: true,
+        title: true,
+        fragments: {
+          where: { stableId: { in: displayStableIds } },
+          orderBy: { order: "asc" },
+          select: {
+            stableId: true,
+            text: true,
+            title: true,
+            type: true,
+          },
+        },
+      },
+    }),
+    prisma.fragmentChangeExplanation.findMany({
+      where: {
+        status: PUBLIC_READER_STATUSES.changeExplanation,
+        stableId: { in: displayStableIds },
+        fromVersion: { lawId: law.id },
+        toVersion: { lawId: law.id },
+      },
+    }),
+  ]);
+  const changeHistoriesByStableId = buildChangeHistoriesByStableId(
+    historyVersions,
+    changeExplanations,
+  );
 
   return {
     isDemo: law?.title.includes("DEMO DATA") ?? false,
@@ -317,7 +387,7 @@ function mapReaderFragment({
 function buildChangeHistoriesByStableId(
   versions: Array<{
     effectiveDate: Date | null;
-    fragments: ReaderDbFragment[];
+    fragments: ReaderHistoryFragment[];
     id: string;
     title: string;
   }>,
@@ -590,8 +660,8 @@ function formatShortDate(date: Date) {
 
 function summarizeHistoryText(
   changeType: ReaderChangeHistoryEntry["status"],
-  previousFragment: ReaderDbFragment | null,
-  fragment: ReaderDbFragment | null,
+  previousFragment: ReaderTextFragment | null,
+  fragment: ReaderTextFragment | null,
 ) {
   if (changeType === "changed" && previousFragment && fragment) {
     return summarizeTextChange(previousFragment.text, fragment.text);

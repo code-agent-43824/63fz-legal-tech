@@ -16,6 +16,7 @@ import {
 } from "@/lib/admin-validation";
 import { isAdminAuthenticated } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { invalidatePublicReaderCache } from "@/lib/reader-cache";
 
 export async function createContent(formData: FormData) {
   await requireAdmin();
@@ -73,7 +74,7 @@ export async function createContent(formData: FormData) {
       throw new Error("Unsupported content kind");
   }
 
-  revalidateFragment(fragmentId);
+  await revalidateFragment(fragmentId);
 }
 
 export async function updateContent(formData: FormData) {
@@ -133,7 +134,7 @@ export async function updateContent(formData: FormData) {
       throw new Error("Unsupported content kind");
   }
 
-  revalidateFragment(fragmentId);
+  await revalidateFragment(fragmentId);
 }
 
 export async function deleteContent(formData: FormData) {
@@ -162,7 +163,7 @@ export async function deleteContent(formData: FormData) {
       throw new Error("Unsupported content kind");
   }
 
-  revalidateFragment(fragmentId);
+  await revalidateFragment(fragmentId);
 }
 
 async function requireAdmin() {
@@ -177,7 +178,8 @@ function ensureDatabase() {
   }
 }
 
-function revalidateFragment(fragmentId: string) {
+async function revalidateFragment(fragmentId: string) {
+  await invalidatePublicReaderCache();
   revalidatePath("/");
   revalidatePath("/admin");
   revalidatePath(`/admin/fragments/${fragmentId}`);
