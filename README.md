@@ -1,32 +1,57 @@
 # 63fz Legal Tech
 
-MVP legal-tech CMS for structured reading and expert commenting of Federal Law 63-FZ "On Electronic Signature".
+Legal-tech reader and editorial CMS for structured work with Federal Law 63-FZ "On Electronic
+Signature".
 
-Production target: `https://mescheryakov.pro/63fz`.
+The current public placement is a test deployment under `/63fz`. It should not be treated as the
+future permanent production domain.
+
+## Current Status
+
+- Imported real 63-FZ text with stable law fragments down to article, part, point, and paragraph
+  level where the parser can identify them.
+- Supports multiple law versions and a public version selector.
+- Shows fragment change history across loaded versions, including `introduced`, `changed`, and
+  `deleted` transitions.
+- Includes an administrative editor for fragment commentary, proposed revisions, issues, and change
+  explanations.
+- Published change explanations are rendered publicly; drafts and editorial workflow hardening remain
+  an active priority.
+- Article 18 has been used as the first editorial pilot for granular change explanations.
+
+## Known Limitations
+
+- The admin model is still a single password-protected account.
+- Security hardening is the next priority, including stricter production secrets, rate limiting,
+  logout, public-status filtering, and validation.
+- Public reader data loading still needs optimization; the current implementation can load more law
+  data than a single screen needs.
+- Empty editorial sections can be noisy and need public rendering cleanup.
+- Mobile layout has a known horizontal overflow problem and needs a dedicated responsive pass.
+- Automatic monitoring of new amendments and confirmed import of a new current version are planned
+  but not implemented.
+- Public deployment is for testing the product shape, not a final domain or hosting commitment.
 
 ## Development Principles
 
 - Keep implementation simple and observable.
 - Make small, reviewable commits for each meaningful change.
-- Do not mix original law text with explanations, comments, issues, or proposed revisions.
+- Keep official law text separate from explanations, comments, issues, and proposed revisions.
 - Do not invent law text or expert comments.
-- Mark all fixture content as `DEMO DATA` until a verified source is imported.
 - Do not commit secrets, `.env` files, passwords, private keys, or tokens.
 - Protect every write endpoint.
-- Do not change the existing `mescheryakov.pro` site outside the `/63fz` route.
+- Do not add hard dependencies on the current test domain or integrate with the main site unless that
+  becomes a separate approved task.
 
-## Current Status
+## Local Commands
 
-Deployed MVP scaffold with database-backed DEMO DATA.
+Install dependencies:
 
-- Production URL: `https://mescheryakov.pro/63fz`.
-- Runtime: isolated Next.js service behind the existing `mescheryakov.pro` Caddy route.
-- Database: PostgreSQL-backed Prisma schema for law versions, stable law fragments, explanations, expert comments, issues, and proposed revisions.
-- Admin: password-protected fragment editing for commentary and proposed revisions; original law text remains read-only.
-- Current content: DEMO DATA only. A verified import of the current 63-FZ text is the next product step.
-- Build hygiene: Prisma Client is generated automatically during install and before `next build`.
+```bash
+pnpm install --frozen-lockfile
+```
 
-Useful local checks:
+Useful checks:
 
 ```bash
 pnpm run typecheck
@@ -34,7 +59,26 @@ pnpm run lint
 pnpm run build
 ```
 
-See:
+Importer:
 
-- [Development Plan](docs/PLAN.md)
+```bash
+pnpm law:import:63fz -- --dry-run
+```
+
+Tests:
+
+- A lightweight `pnpm test` command is planned in the roadmap but is not present yet.
+- Until then, use the typecheck, lint, importer dry-run, and production build checks above.
+
+Prisma utilities:
+
+```bash
+pnpm run prisma:generate
+pnpm run prisma:migrate
+pnpm run prisma:seed
+```
+
+## Documentation
+
+- [Development Roadmap](docs/PLAN.md)
 - [Progress Log](docs/PROGRESS.md)
