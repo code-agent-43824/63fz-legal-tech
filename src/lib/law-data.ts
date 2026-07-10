@@ -3,6 +3,11 @@ import { getTransitionChangeType, normalizeForComparison } from "@/lib/change-hi
 import { PUBLIC_READER_STATUSES } from "@/lib/publication-policy";
 import { prisma } from "@/lib/prisma";
 import { getPublicReaderCacheMarker } from "@/lib/reader-cache";
+import {
+  makeSafeSourceLink,
+  parseSafeSourceLinks,
+  type SafeSourceLink,
+} from "@/lib/source-links";
 
 type FragmentChangeStatus = "current" | "unchanged" | "changed" | "deleted";
 type CommentarySource = "selected" | "current" | "none";
@@ -20,7 +25,7 @@ export type ReaderChangeHistoryEntry = {
   reason: string;
   purpose: string;
   practicalMeaning: string;
-  sourceLinks: string | null;
+  sourceLinks: SafeSourceLink[];
 };
 
 export type ReaderCommentBlock = {
@@ -54,6 +59,9 @@ export type ReaderVersion = {
   title: string;
   label: string;
   effectiveDate: string | null;
+  sourceLink: SafeSourceLink | null;
+  sourceName: string | null;
+  sourceRetrievedAt: string | null;
   status: string;
   isCurrent: boolean;
 };
@@ -262,6 +270,9 @@ async function getReaderDataFromDatabase(requestedVersionId?: string): Promise<R
       title: version.title,
       label: formatVersionLabel(version.title, version.effectiveDate),
       effectiveDate: version.effectiveDate?.toISOString() ?? null,
+      sourceLink: makeSafeSourceLink(version.sourceUrl, version.sourceName),
+      sourceName: version.sourceName ?? null,
+      sourceRetrievedAt: version.sourceRetrievedAt?.toISOString() ?? null,
       status: version.status,
       isCurrent: version.id === currentVersion?.id,
     })),
@@ -448,7 +459,7 @@ function buildChangeHistoriesByStableId(
         reason: explanation?.reason?.trim() || defaultReason(changeType),
         purpose: explanation?.purpose?.trim() || defaultPurpose(changeType),
         practicalMeaning: explanation?.practicalMeaning?.trim() || defaultPracticalMeaning(changeType),
-        sourceLinks: explanation?.sourceLinks?.trim() || null,
+        sourceLinks: parseSafeSourceLinks(explanation?.sourceLinks),
       });
       histories.set(stableId, entries);
     }

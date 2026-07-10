@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { ReaderData, ReaderFragment, ReaderTocItem } from "@/lib/law-data";
+import type { ReaderData, ReaderFragment, ReaderTocItem, ReaderVersion } from "@/lib/law-data";
 
 type ViewMode = "feed" | "focus";
 type TocNode = ReaderTocItem & { children: TocNode[] };
@@ -40,6 +41,14 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
     return next;
   }, [expandedStableIds, readerData.toc, selectedStableId]);
   const tocActiveStableId = mode === "focus" ? selectedStableId : activeStableId;
+  const selectedVersion = useMemo(
+    () => readerData.versions.find((version) => version.id === readerData.selectedVersionId) ?? null,
+    [readerData.selectedVersionId, readerData.versions],
+  );
+  const currentVersion = useMemo(
+    () => readerData.versions.find((version) => version.id === readerData.currentVersionId) ?? null,
+    [readerData.currentVersionId, readerData.versions],
+  );
 
   const visibleFragments = useMemo(() => {
     if (mode === "feed" || !selectedStableId || selectedStableId === "63fz.document") {
@@ -282,6 +291,7 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
               </button>
             ) : null}
           </div>
+          <ReaderMetadata currentVersion={currentVersion} selectedVersion={selectedVersion} />
         </div>
 
         {visibleFragments.length > 0 ? (
@@ -313,6 +323,61 @@ function VersionStat({ label, value }: { label: string; value: number }) {
     <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-2">
       <div className="text-sm font-semibold text-slate-950">{value}</div>
       <div>{label}</div>
+    </div>
+  );
+}
+
+function ReaderMetadata({
+  currentVersion,
+  selectedVersion,
+}: {
+  currentVersion: ReaderVersion | null;
+  selectedVersion: ReaderVersion | null;
+}) {
+  return (
+    <dl className="mt-4 grid gap-3 border-t border-slate-100 pt-4 text-sm md:grid-cols-2 xl:grid-cols-4">
+      <MetadataItem label="Статус редакции">
+        {selectedVersion?.isCurrent ? "Текущая редакция" : "Историческая редакция"}
+        {currentVersion && !selectedVersion?.isCurrent ? (
+          <span className="mt-1 block text-xs text-slate-500">
+            Текущая: {currentVersion.label}
+          </span>
+        ) : null}
+      </MetadataItem>
+      <MetadataItem label="Дата начала действия">
+        {formatDate(selectedVersion?.effectiveDate) ?? "Не указана"}
+      </MetadataItem>
+      <MetadataItem label="Источник текста">
+        {selectedVersion?.sourceLink ? (
+          <>
+            <a
+              className="text-blue-700 underline-offset-4 hover:underline"
+              href={selectedVersion.sourceLink.href}
+              rel="noreferrer"
+              target="_blank"
+            >
+              {selectedVersion.sourceLink.label}
+            </a>
+            <span className="mt-1 block text-xs text-slate-500">
+              Консолидированный источник; официальные акты указаны в истории изменений.
+            </span>
+          </>
+        ) : (
+          selectedVersion?.sourceName ?? "Источник не указан"
+        )}
+      </MetadataItem>
+      <MetadataItem label="Дата проверки источника">
+        {formatDateTime(selectedVersion?.sourceRetrievedAt) ?? "Не зафиксирована"}
+      </MetadataItem>
+    </dl>
+  );
+}
+
+function MetadataItem({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+      <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</dt>
+      <dd className="mt-1 text-slate-900">{children}</dd>
     </div>
   );
 }
@@ -399,6 +464,9 @@ function FragmentArticle({ fragment }: { fragment: ReaderFragment }) {
     >
       <section className={lawTextSectionClass(hasAside)}>
         <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600">
+            Официальный текст
+          </span>
           <h2 className="text-xl font-semibold">{fragment.title}</h2>
           <ChangeBadge status={fragment.changeStatus} />
           <a className="text-sm text-blue-700 underline-offset-4 hover:underline" href={`#${fragment.id}`}>
@@ -485,17 +553,39 @@ function ChangeHistory({ entries }: { entries: ReaderFragment["changeHistory"] }
                 <span className="font-semibold text-slate-900">Практический смысл: </span>
                 {entry.practicalMeaning}
               </p>
-              {entry.sourceLinks ? (
-                <p>
+              {entry.sourceLinks.length > 0 ? (
+                <div>
                   <span className="font-semibold text-slate-900">Источники: </span>
-                  {entry.sourceLinks}
-                </p>
+                  <SourceLinks links={entry.sourceLinks} />
+                </div>
               ) : null}
             </div>
           </div>
         ))}
       </div>
     </div>
+  );
+}
+
+function SourceLinks({ links }: { links: ReaderFragment["changeHistory"][number]["sourceLinks"] }) {
+  if (links.length === 0) {
+    return null;
+  }
+
+  return (
+    <span className="inline-flex flex-wrap gap-x-2 gap-y-1">
+      {links.map((link) => (
+        <a
+          className="text-blue-700 underline-offset-4 hover:underline"
+          href={link.href}
+          key={link.href}
+          rel="noreferrer"
+          target="_blank"
+        >
+          {link.label}
+        </a>
+      ))}
+    </span>
   );
 }
 
@@ -558,6 +648,34 @@ function CommentBlock({ title, text }: { title: string; text: string }) {
       <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">{text}</p>
     </div>
   );
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "UTC",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
+function formatDateTime(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "2-digit",
+    timeZone: "UTC",
+    year: "numeric",
+  }).format(new Date(value));
 }
 
 function buildTree(items: ReaderTocItem[]) {
