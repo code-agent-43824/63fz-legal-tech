@@ -689,3 +689,67 @@ Production verification:
   `X-Powered-By` header.
 - authenticated `/63fz/admin` returns HTTP 200 and renders the logout control plus admin navigation.
 - `63fz-legal-tech.service` is active with `NRestarts=0`.
+
+## 2026-07-10. Lightweight Tests And CI
+
+- Implemented the lightweight testing and CI stage without adding a heavy browser or PostgreSQL
+  test dependency.
+- Added `pnpm test` using Node's built-in test runner through `tsx --test`.
+- Added `pnpm run prisma:validate` with a dummy `DATABASE_URL`, so schema validation does not need
+  a running database.
+- Added pure policy/helper modules to make critical behavior easy to test:
+  - `src/lib/change-history.ts` for `introduced` / `changed` / `deleted` classification;
+  - `src/lib/auth-policy.ts` for admin secret validation;
+  - `src/lib/publication-policy.ts` for public reader status rules.
+- Refactored existing runtime code to use those helpers without changing the public route shape.
+- Exported importer parsing/reconstruction helpers behind a safe direct-run guard so tests can load
+  them without running the importer CLI.
+- Added 13 fast tests:
+  - change-transition classification and whitespace normalization;
+  - auth-secret and admin-password policy;
+  - public status policy excluding draft/internal states;
+  - importer fixture/golden test for stable IDs and reconstruction;
+  - no-database smoke fallbacks for public reader and admin fragments.
+- Added `.github/workflows/ci.yml` for pushes and pull requests:
+  - install with frozen lockfile;
+  - Prisma schema validation;
+  - typecheck;
+  - lint;
+  - fast tests;
+  - production build.
+- Added `packageManager: pnpm@11.5.0` and fixed the workflow setup order so pnpm is installed
+  before setup-node enables pnpm caching.
+- Updated `README.md` and `docs/PLAN.md` to reflect the now-available test command and completed
+  lightweight CI stage.
+- Code/test commit: `3c3fb60` (`test: add lightweight ci checks`).
+- CI workflow fix commit: `83013c3` (`ci: install pnpm before node cache`).
+
+Verified locally:
+
+- `pnpm install --frozen-lockfile`
+- `pnpm run prisma:validate`
+- `pnpm run typecheck`
+- `pnpm run lint`
+- `pnpm test` (`13` tests passed)
+- `pnpm run build`
+
+CI verification:
+
+- GitHub Actions run `29086993264` completed successfully on `master` with install, Prisma
+  validation, typecheck, lint, fast tests, and production build.
+
+Production deployment:
+
+- Deployed runtime release `3c3fb60` to
+  `/home/openclaw/services/63fz-legal-tech/releases/3c3fb60`.
+- Candidate preflight on `127.0.0.1:3912` returned HTTP 200 for `/63fz`; `/63fz/admin/login`
+  returned the expected security headers and no `X-Powered-By` header.
+- Switched `/home/openclaw/services/63fz-legal-tech/current` to release `3c3fb60` and restarted
+  `63fz-legal-tech.service`.
+
+Production verification:
+
+- `https://mescheryakov.pro/63fz` returns HTTP 200 and contains the expected public marker.
+- unauthenticated `https://mescheryakov.pro/63fz/admin` redirects to `/63fz/admin/login`.
+- `https://mescheryakov.pro/63fz/admin/login` returns security headers and no `X-Powered-By`.
+- `63fz-legal-tech.service` is active with `NRestarts=0`.
