@@ -858,3 +858,56 @@ Production verification:
 - unauthenticated `https://mescheryakov.pro/63fz/admin` redirects to `/63fz/admin/login`.
 - `https://mescheryakov.pro/63fz/admin/login` returns security headers and no `X-Powered-By`.
 - `63fz-legal-tech.service` is active with `NRestarts=0`.
+
+## 2026-07-10. Public Freshness And Source Metadata
+
+- Implemented the public source/freshness metadata pass.
+- Extended public reader data with safe selected-version metadata:
+  - current vs historical version status;
+  - effective date;
+  - source name;
+  - safe `https:` source link;
+  - `sourceRetrievedAt` as the current source-check timestamp.
+- Added `src/lib/source-links.ts` to normalize and deduplicate safe `https:` source links.
+- Changed public change-history rendering so `FragmentChangeExplanation.sourceLinks` is parsed into
+  safe clickable links instead of printing raw source text.
+- Marked law text fragments as "Официальный текст" and kept editorial/change-history side panels
+  visually separate.
+- Displayed consolidated sources, such as `Контур.Норматив`, as consolidated law-text sources; the
+  official publication links remain attached to change explanations where editorial cards provide
+  official URLs.
+- Did not add a migration. A distinct "last checked for newer amendments" timestamp remains future
+  monitoring/import work if it must differ from `LawVersion.sourceRetrievedAt`.
+- Added `tests/source-links.test.ts` for safe source-link parsing.
+- Code commit: `826f34b` (`feat: show reader source metadata`).
+
+Verified locally:
+
+- `pnpm run prisma:validate`
+- `pnpm run typecheck`
+- `pnpm run lint`
+- `pnpm test` (`16` tests passed)
+- `pnpm run build`
+
+CI verification:
+
+- GitHub Actions run `29097637969` completed successfully on `master`.
+
+Production deployment:
+
+- Deployed release `826f34b` to
+  `/home/openclaw/services/63fz-legal-tech/releases/826f34b`.
+- Candidate preflight on `127.0.0.1:3915` returned HTTP 200 for `/63fz`; public HTML contained
+  "Дата начала действия", "Источник текста", "Дата проверки источника", "Официальный текст",
+  `https://normativ.kontur.ru`, and `publication.pravo.gov.ru`.
+- Switched `/home/openclaw/services/63fz-legal-tech/current` to release `826f34b` and restarted
+  `63fz-legal-tech.service`.
+
+Production verification:
+
+- `https://mescheryakov.pro/63fz` returns HTTP 200.
+- public HTML contains source/freshness metadata and official/change-history source links.
+- public HTML still does not contain "Пока не добавлено".
+- unauthenticated `https://mescheryakov.pro/63fz/admin` redirects to `/63fz/admin/login`.
+- `https://mescheryakov.pro/63fz/admin/login` returns security headers and no `X-Powered-By`.
+- `63fz-legal-tech.service` is active with `NRestarts=0`.

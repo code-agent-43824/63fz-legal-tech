@@ -43,6 +43,7 @@ These milestones are done and should remain historical context, not the shape of
   and production build.
 - Empty public editorial sections hidden from the reader.
 - Public reader query optimization and cacheable published-data snapshot.
+- Public freshness and source metadata in the reader.
 
 See `docs/PROGRESS.md` for the chronological implementation log. Do not rewrite that log
 retroactively.
@@ -313,7 +314,7 @@ Implementation note:
 ### 5. Public Freshness And Source Metadata
 
 Priority: P1.
-Status: planned.
+Status: completed for imported version metadata.
 
 Goal:
 
@@ -359,6 +360,19 @@ Explicitly not included:
 - Automatic amendment monitoring.
 - Automatic legal-text publication.
 - Domain migration.
+
+Implementation note:
+
+- The reader now shows whether the selected version is current or historical, its effective date,
+  source name/link, and `sourceRetrievedAt` as the current source-check timestamp.
+- The current law source is displayed as a consolidated source when it comes from `Контур.Норматив`;
+  official publication links remain attached to change explanations where those editorial cards
+  include official source URLs.
+- Change explanation source text is parsed into deduplicated safe `https:` links before rendering.
+  Raw unvalidated source text is not printed as a public link block.
+- Official law text is marked separately from editorial side panels in the reader.
+- No migration was added in this pass. A distinct "last checked for newer amendments" field remains
+  part of the future amendment-monitoring/import stage if it needs to differ from source retrieval.
 
 ### 6. Search Across Law Text And Change History
 

@@ -19,6 +19,8 @@ future permanent production domain.
   statuses.
 - Public reader data uses a cacheable published-data snapshot and no longer loads every law version
   with every fragment relation on each request.
+- Public reader shows selected/current version status, effective date, source metadata, and clickable
+  safe source links where available.
 - Article 18 has been used as the first editorial pilot for granular change explanations.
 
 ## Known Limitations
@@ -27,6 +29,8 @@ future permanent production domain.
 - Multi-user authentication, roles, and administrative audit logging are future work.
 - Public reader optimization is intentionally pragmatic: the current page still renders the full
   selected reader view, while server queries and repeated public reads are now lighter.
+- A separate "last checked for newer amendments" timestamp is not modeled yet; the reader currently
+  shows source retrieval/check data from imported law versions.
 - Mobile layout has a known horizontal overflow problem and needs a dedicated responsive pass.
 - Automatic monitoring of new amendments and confirmed import of a new current version are planned
   but not implemented.
