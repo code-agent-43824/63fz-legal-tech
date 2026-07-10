@@ -15,6 +15,8 @@ Status: test public deployment.
   change history with `introduced`, `changed`, and `deleted` transition types.
 - The admin area uses one password-protected administrative account and can edit fragment
   commentary, proposed revisions, issues, and change explanations.
+- Public reader data is filtered to public statuses, hides empty editorial sections, and uses a
+  cacheable snapshot for published reader data.
 - Article 18 has a completed editorial pilot for change explanations.
 - The current public placement under `/63fz` is a test placement. Do not treat the current host name
   or path as the future permanent product domain.
@@ -35,6 +37,12 @@ These milestones are done and should remain historical context, not the shape of
 - `FragmentChangeExplanation` storage, admin editor, and public rendering for published change
   explanations.
 - Article 18 editorial pilot and aggregate-duplicate filtering.
+- Single-admin security hardening: secret validation, login rate limiting, logout, cookie hardening,
+  security headers, public-status filtering, server-side validation, and delete confirmations.
+- Lightweight test and CI baseline with fast Node tests, Prisma schema validation, typecheck, lint,
+  and production build.
+- Empty public editorial sections hidden from the reader.
+- Public reader query optimization and cacheable published-data snapshot.
 
 See `docs/PROGRESS.md` for the chronological implementation log. Do not rewrite that log
 retroactively.
@@ -239,7 +247,7 @@ Implementation note:
 ### 4. Reader Query Optimization And Cacheable Snapshot
 
 Priority: P1.
-Status: planned.
+Status: completed for the current full-reader screen.
 
 Goal:
 
@@ -284,6 +292,21 @@ Explicitly not included:
 - Search indexing.
 - CDN or domain migration.
 - Admin query optimization except where needed to avoid cache misuse.
+
+Implementation note:
+
+- Baseline before this pass: production `/63fz` returned `1,334,284` bytes, about `3,307` HTML tags,
+  and TTFB around `1.00-1.11s` on repeated uncached reads after the empty-section cleanup.
+- The reader now loads version metadata first, then only the selected version fragments, the current
+  version fragments when needed for comparison, and minimal history fragments for stable IDs visible
+  in the selected screen.
+- Published public reader data is cached in process and keyed by selected version plus an explicit
+  marker file. Admin writes and law imports invalidate the marker; admin pages do not read from this
+  public snapshot cache.
+- If the database is temporarily unavailable after a successful public read, the reader can continue
+  serving the last in-process snapshot for that selected version.
+- Post-change production measurements kept the same HTML size for the full reader screen, as
+  expected, but warmed public reads improved TTFB to roughly `0.26-0.37s`.
 
 ## Next Product Stage
 

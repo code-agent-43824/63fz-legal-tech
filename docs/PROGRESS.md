@@ -803,3 +803,58 @@ Production verification:
 - unauthenticated `https://mescheryakov.pro/63fz/admin` redirects to `/63fz/admin/login`.
 - `https://mescheryakov.pro/63fz/admin/login` returns security headers and no `X-Powered-By`.
 - `63fz-legal-tech.service` is active with `NRestarts=0`.
+
+## 2026-07-10. Reader Query Optimization And Cacheable Snapshot
+
+- Implemented the first public reader query optimization pass.
+- Recorded the pre-change production baseline after the empty-section cleanup:
+  - `/63fz` HTML size: `1,334,284` bytes.
+  - Approximate HTML tag count: `3,307`.
+  - Repeated baseline TTFB: about `1.00-1.11s`.
+- Changed public reader data loading so it no longer loads all versions with all fragments and all
+  editorial relations on each request:
+  - the initial law query now loads current version metadata and version metadata only;
+  - the selected version fragments are loaded separately;
+  - current version fragments are loaded only when a non-current selected version needs comparison;
+  - change history uses minimal fragment fields for stable IDs visible on the selected reader screen;
+  - change explanations are filtered by visible stable IDs and published status.
+- Added an in-process public reader snapshot keyed by selected version and an explicit marker file.
+- Added snapshot invalidation after fragment editorial writes, change explanation writes, and
+  `scripts/import-63fz.ts --write`.
+- Kept admin pages outside the public reader snapshot cache.
+- Added fallback behavior where a temporary database failure after a successful read serves the last
+  in-process snapshot for that selected version.
+- Added `tests/reader-cache.test.ts` for explicit marker invalidation behavior.
+- Code commit: `6566d4c` (`feat: optimize public reader data loading`).
+
+Verified locally:
+
+- `pnpm run prisma:validate`
+- `pnpm run typecheck`
+- `pnpm run lint`
+- `pnpm test` (`14` tests passed)
+- `pnpm run build`
+
+CI verification:
+
+- GitHub Actions run `29096724725` completed successfully on `master`.
+
+Production deployment:
+
+- Deployed release `6566d4c` to
+  `/home/openclaw/services/63fz-legal-tech/releases/6566d4c`.
+- Candidate preflight on `127.0.0.1:3914` returned HTTP 200 for `/63fz`; `/63fz/admin/login`
+  returned expected security headers and no `X-Powered-By`; public HTML did not contain
+  "Пока не добавлено".
+- Switched `/home/openclaw/services/63fz-legal-tech/current` to release `6566d4c` and restarted
+  `63fz-legal-tech.service`.
+
+Production verification:
+
+- `https://mescheryakov.pro/63fz` returns HTTP 200 and contains the expected public reader output.
+- First request after restart: `1,334,284` bytes, TTFB about `1.37s`.
+- Warmed snapshot requests: `1,334,284` bytes, TTFB about `0.26-0.37s`.
+- public HTML still does not contain "Пока не добавлено".
+- unauthenticated `https://mescheryakov.pro/63fz/admin` redirects to `/63fz/admin/login`.
+- `https://mescheryakov.pro/63fz/admin/login` returns security headers and no `X-Powered-By`.
+- `63fz-legal-tech.service` is active with `NRestarts=0`.

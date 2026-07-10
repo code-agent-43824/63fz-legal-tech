@@ -15,18 +15,18 @@ future permanent production domain.
   `deleted` transitions.
 - Includes an administrative editor for fragment commentary, proposed revisions, issues, and change
   explanations.
-- Published change explanations are rendered publicly; drafts and editorial workflow hardening remain
-  an active priority.
+- Published change explanations and other editorial materials are filtered by explicit public
+  statuses.
+- Public reader data uses a cacheable published-data snapshot and no longer loads every law version
+  with every fragment relation on each request.
 - Article 18 has been used as the first editorial pilot for granular change explanations.
 
 ## Known Limitations
 
 - The admin model is still a single password-protected account.
-- Security hardening is the next priority, including stricter production secrets, rate limiting,
-  logout, public-status filtering, and validation.
-- Public reader data loading still needs optimization; the current implementation can load more law
-  data than a single screen needs.
-- Empty editorial sections can be noisy and need public rendering cleanup.
+- Multi-user authentication, roles, and administrative audit logging are future work.
+- Public reader optimization is intentionally pragmatic: the current page still renders the full
+  selected reader view, while server queries and repeated public reads are now lighter.
 - Mobile layout has a known horizontal overflow problem and needs a dedicated responsive pass.
 - Automatic monitoring of new amendments and confirmed import of a new current version are planned
   but not implemented.
