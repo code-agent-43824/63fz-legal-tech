@@ -1,4 +1,6 @@
 import { Prisma } from "@prisma/client";
+import { getTransitionChangeType, normalizeForComparison } from "@/lib/change-history";
+import { PUBLIC_READER_STATUSES } from "@/lib/publication-policy";
 import { prisma } from "@/lib/prisma";
 
 type FragmentChangeStatus = "current" | "unchanged" | "changed" | "deleted";
@@ -97,19 +99,19 @@ type ReaderDbChangeExplanation = {
 
 const fragmentInclude = Prisma.validator<Prisma.LawFragmentInclude>()({
   plainExplanations: {
-    where: { status: "published" },
+    where: { status: PUBLIC_READER_STATUSES.plainExplanation },
     orderBy: { updatedAt: "desc" },
   },
   expertComments: {
-    where: { status: "published" },
+    where: { status: PUBLIC_READER_STATUSES.expertComment },
     orderBy: { updatedAt: "desc" },
   },
   issues: {
-    where: { status: "confirmed" },
+    where: { status: PUBLIC_READER_STATUSES.issue },
     orderBy: [{ severity: "desc" }, { updatedAt: "desc" }],
   },
   proposedRevisions: {
-    where: { status: "accepted" },
+    where: { status: PUBLIC_READER_STATUSES.proposedRevision },
     orderBy: { updatedAt: "desc" },
   },
 });
@@ -359,7 +361,7 @@ function buildChangeHistoriesByStableId(
     for (const stableId of stableIds) {
       const previousFragment = previousFragmentsByStableId.get(stableId) ?? null;
       const fragment = fragmentsByStableId.get(stableId) ?? null;
-      const changeType = getHistoryChangeType(previousFragment, fragment);
+      const changeType = getTransitionChangeType(previousFragment, fragment);
       if (!changeType) {
         continue;
       }
@@ -580,31 +582,6 @@ function formatShortDate(date: Date) {
     year: "numeric",
     timeZone: "UTC",
   }).format(date);
-}
-
-function normalizeForComparison(value: string) {
-  return value.replace(/\s+/g, " ").trim();
-}
-
-function getHistoryChangeType(
-  previousFragment: ReaderDbFragment | null,
-  fragment: ReaderDbFragment | null,
-): ReaderChangeHistoryEntry["status"] | null {
-  if (previousFragment && fragment) {
-    return normalizeForComparison(previousFragment.text) === normalizeForComparison(fragment.text)
-      ? null
-      : "changed";
-  }
-
-  if (fragment) {
-    return "introduced";
-  }
-
-  if (previousFragment) {
-    return "deleted";
-  }
-
-  return null;
 }
 
 function summarizeHistoryText(

@@ -1,4 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import {
+  getTransitionChangeType,
+  normalizeForComparison,
+  type TransitionChangeType,
+} from "@/lib/change-history";
 
 export type AdminFragmentListItem = {
   id: string;
@@ -48,7 +53,7 @@ export type AdminFragmentDetails = AdminFragmentListItem & {
 };
 
 export type AdminChangeTransition = {
-  changeType: "changed" | "deleted" | "introduced";
+  changeType: TransitionChangeType;
   stableId: string;
   title: string;
   type: string;
@@ -424,31 +429,6 @@ function excerptWords(words: string[], start: number, end: number) {
   const prefix = safeStart > 0 ? "..." : "";
   const suffix = safeEnd < words.length - 1 ? "..." : "";
   return `${prefix}${words.slice(safeStart, safeEnd + 1).join(" ")}${suffix}`;
-}
-
-function normalizeForComparison(value: string) {
-  return value.replace(/\s+/g, " ").trim();
-}
-
-function getTransitionChangeType(
-  previousFragment: { text: string } | null,
-  fragment: { text: string } | null,
-): AdminChangeTransition["changeType"] | null {
-  if (previousFragment && fragment) {
-    return normalizeForComparison(previousFragment.text) === normalizeForComparison(fragment.text)
-      ? null
-      : "changed";
-  }
-
-  if (fragment) {
-    return "introduced";
-  }
-
-  if (previousFragment) {
-    return "deleted";
-  }
-
-  return null;
 }
 
 function removeAggregateArticleDuplicates(transitions: AdminChangeTransition[]) {

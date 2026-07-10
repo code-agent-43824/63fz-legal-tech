@@ -1,15 +1,13 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import {
+  getAuthConfigurationIssueForValues,
+  isValidAdminPassword,
+  isValidAuthSecret,
+} from "@/lib/auth-policy";
 
 const ADMIN_COOKIE = "admin_session";
 const COOKIE_PATH = "/63fz";
-const ADMIN_PASSWORD_EXAMPLES = new Set(["change-me", "password", "admin", "admin123"]);
-const AUTH_SECRET_EXAMPLES = new Set([
-  "change-me-at-least-32-characters",
-  "development-only-auth-secret-change-before-production",
-]);
-const MIN_ADMIN_PASSWORD_LENGTH = 12;
-const MIN_AUTH_SECRET_LENGTH = 32;
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 8;
 const SESSION_MAX_AGE_MS = SESSION_MAX_AGE_SECONDS * 1000;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
@@ -114,18 +112,10 @@ export function recordAdminLoginSuccess(key: string) {
 }
 
 export function getAuthConfigurationIssue() {
-  const authSecret = process.env.AUTH_SECRET;
-  const adminPassword = process.env.ADMIN_PASSWORD;
-
-  if (!isValidAuthSecret(authSecret)) {
-    return `AUTH_SECRET must be set, non-example, and at least ${MIN_AUTH_SECRET_LENGTH} characters.`;
-  }
-
-  if (!isValidAdminPassword(adminPassword)) {
-    return `ADMIN_PASSWORD must be set, non-example, and at least ${MIN_ADMIN_PASSWORD_LENGTH} characters.`;
-  }
-
-  return null;
+  return getAuthConfigurationIssueForValues({
+    adminPassword: process.env.ADMIN_PASSWORD,
+    authSecret: process.env.AUTH_SECRET,
+  });
 }
 
 function signSession(subject: string) {
@@ -179,24 +169,6 @@ function getAuthSecret() {
   }
 
   return secret;
-}
-
-function isValidAuthSecret(secret: string | undefined): secret is string {
-  return Boolean(
-    secret &&
-      secret.length >= MIN_AUTH_SECRET_LENGTH &&
-      !AUTH_SECRET_EXAMPLES.has(secret) &&
-      !/change[-_ ]?me/i.test(secret),
-  );
-}
-
-function isValidAdminPassword(password: string | undefined): password is string {
-  return Boolean(
-    password &&
-      password.length >= MIN_ADMIN_PASSWORD_LENGTH &&
-      !ADMIN_PASSWORD_EXAMPLES.has(password.toLowerCase()) &&
-      !/change[-_ ]?me/i.test(password),
-  );
 }
 
 function normalizeRateLimitKey(key: string) {

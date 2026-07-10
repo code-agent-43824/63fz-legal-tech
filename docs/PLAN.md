@@ -130,7 +130,7 @@ Implementation note:
 ### 2. Lightweight Tests And CI
 
 Priority: P0.
-Status: planned.
+Status: completed for the lightweight fast-check pass.
 
 Goal:
 
@@ -178,6 +178,14 @@ Explicitly not included:
 - Mandatory PostgreSQL integration tests on every short local development cycle.
 - Load testing.
 - Large end-to-end suites that make ordinary edits slow.
+
+Implementation note:
+
+- The current pass uses Node's built-in test runner through `tsx --test`, without adding a heavy
+  browser or database dependency. Coverage includes change-transition classification, auth-secret
+  policy, public publication-status policy, importer fixture/golden behavior, and no-database smoke
+  fallbacks. CI runs install with frozen lockfile, Prisma schema validation with a dummy
+  `DATABASE_URL`, typecheck, lint, fast tests, and production build.
 
 ### 3. Hide Empty Editorial Sections
 

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { PrismaClient, type FragmentType } from "@prisma/client";
 import { HTMLElement, parse } from "node-html-parser";
@@ -216,7 +217,7 @@ async function fetchSourceHtml(sourceUrl: string) {
   return response.text();
 }
 
-function parseLawHtml(
+export function parseLawHtml(
   html: string,
   metadata: {
     effectiveDate: string;
@@ -472,7 +473,7 @@ function appendParagraph(text: string, paragraph: string) {
   return `${text}\n\n${paragraph}`;
 }
 
-function validateParsedLaw(parsed: ParsedLaw) {
+export function validateParsedLaw(parsed: ParsedLaw) {
   const warnings: string[] = [];
   const expectedArticles = [
     "1",
@@ -550,7 +551,7 @@ function validateParsedLaw(parsed: ParsedLaw) {
   return warnings;
 }
 
-function reconstructFullTextFromDetailedFragments(parsed: ParsedLaw) {
+export function reconstructFullTextFromDetailedFragments(parsed: ParsedLaw) {
   const articleTexts = parsed.articles.map((article) => {
     const articleChildren = parsed.fragments
       .filter((fragment) => isDetailedArticleChild(fragment, article.stableId))
@@ -895,11 +896,13 @@ function normalizeForComparison(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
 
-function sha256(value: string) {
+export function sha256(value: string) {
   return createHash("sha256").update(value).digest("hex");
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}

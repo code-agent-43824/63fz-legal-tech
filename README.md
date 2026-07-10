@@ -56,6 +56,7 @@ Useful checks:
 ```bash
 pnpm run typecheck
 pnpm run lint
+pnpm test
 pnpm run build
 ```
 
@@ -65,15 +66,11 @@ Importer:
 pnpm law:import:63fz -- --dry-run
 ```
 
-Tests:
-
-- A lightweight `pnpm test` command is planned in the roadmap but is not present yet.
-- Until then, use the typecheck, lint, importer dry-run, and production build checks above.
-
 Prisma utilities:
 
 ```bash
 pnpm run prisma:generate
+pnpm run prisma:validate
 pnpm run prisma:migrate
 pnpm run prisma:seed
 ```
