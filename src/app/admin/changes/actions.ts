@@ -2,6 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import {
+  readOptionalSourceLinks,
+  readOptionalText,
+  readPublicationStatus,
+  readRecordId,
+  readStableId,
+  requireDeleteConfirmation,
+} from "@/lib/admin-validation";
 import { isAdminAuthenticated } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -9,9 +17,14 @@ export async function saveChangeExplanation(formData: FormData) {
   await requireAdmin();
   ensureDatabase();
 
-  const stableId = readRequired(formData, "stableId");
-  const fromVersionId = readRequired(formData, "fromVersionId");
-  const toVersionId = readRequired(formData, "toVersionId");
+  const stableId = readStableId(formData, "stableId");
+  const fromVersionId = readRecordId(formData, "fromVersionId");
+  const toVersionId = readRecordId(formData, "toVersionId");
+  const status = readPublicationStatus(formData);
+  const reason = readOptionalText(formData, "reason");
+  const purpose = readOptionalText(formData, "purpose");
+  const practicalMeaning = readOptionalText(formData, "practicalMeaning");
+  const sourceLinks = readOptionalSourceLinks(formData, "sourceLinks");
 
   await prisma.fragmentChangeExplanation.upsert({
     where: {
@@ -25,18 +38,18 @@ export async function saveChangeExplanation(formData: FormData) {
       stableId,
       fromVersionId,
       toVersionId,
-      reason: readOptional(formData, "reason"),
-      purpose: readOptional(formData, "purpose"),
-      practicalMeaning: readOptional(formData, "practicalMeaning"),
-      sourceLinks: readOptional(formData, "sourceLinks"),
-      status: readStatus(formData),
+      reason,
+      purpose,
+      practicalMeaning,
+      sourceLinks,
+      status,
     },
     update: {
-      reason: readOptional(formData, "reason"),
-      purpose: readOptional(formData, "purpose"),
-      practicalMeaning: readOptional(formData, "practicalMeaning"),
-      sourceLinks: readOptional(formData, "sourceLinks"),
-      status: readStatus(formData),
+      reason,
+      purpose,
+      practicalMeaning,
+      sourceLinks,
+      status,
     },
   });
 
@@ -47,7 +60,8 @@ export async function deleteChangeExplanation(formData: FormData) {
   await requireAdmin();
   ensureDatabase();
 
-  const id = readRequired(formData, "id");
+  requireDeleteConfirmation(formData);
+  const id = readRecordId(formData, "id");
   await prisma.fragmentChangeExplanation.delete({ where: { id } });
 
   revalidateChanges();
@@ -69,23 +83,4 @@ function revalidateChanges() {
   revalidatePath("/");
   revalidatePath("/admin");
   revalidatePath("/admin/changes");
-}
-
-function readRequired(formData: FormData, key: string) {
-  const value = String(formData.get(key) ?? "").trim();
-
-  if (!value) {
-    throw new Error(`${key} is required`);
-  }
-
-  return value;
-}
-
-function readOptional(formData: FormData, key: string) {
-  const value = String(formData.get(key) ?? "").trim();
-  return value || null;
-}
-
-function readStatus(formData: FormData) {
-  return readRequired(formData, "status") as "draft" | "published";
 }

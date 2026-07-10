@@ -105,11 +105,11 @@ const fragmentInclude = Prisma.validator<Prisma.LawFragmentInclude>()({
     orderBy: { updatedAt: "desc" },
   },
   issues: {
-    where: { status: { in: ["hypothesis", "confirmed"] } },
+    where: { status: "confirmed" },
     orderBy: [{ severity: "desc" }, { updatedAt: "desc" }],
   },
   proposedRevisions: {
-    where: { status: { in: ["draft", "proposed", "accepted"] } },
+    where: { status: "accepted" },
     orderBy: { updatedAt: "desc" },
   },
 });

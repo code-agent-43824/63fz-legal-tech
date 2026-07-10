@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getAdminFragmentDetails } from "@/lib/admin-data";
 import { isAdminAuthenticated } from "@/lib/auth";
+import { logoutAdmin } from "../../actions";
 import { createContent, deleteContent, updateContent } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -24,9 +25,19 @@ export default async function AdminFragmentPage({
   return (
     <main className="min-h-screen bg-stone-50 px-5 py-8 text-slate-950">
       <div className="mx-auto w-full max-w-6xl">
-        <a className="text-sm text-slate-600 underline-offset-4 hover:underline" href="/63fz/admin">
-          ← Все фрагменты
-        </a>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <a className="text-sm text-slate-600 underline-offset-4 hover:underline" href="/63fz/admin">
+            ← Все фрагменты
+          </a>
+          <form action={logoutAdmin}>
+            <button
+              className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium"
+              type="submit"
+            >
+              Выйти
+            </button>
+          </form>
+        </div>
         <div className="mt-4 border-b border-slate-200 pb-6">
           <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
             {fragment.type} · {fragment.stableId}
@@ -237,7 +248,11 @@ function EditForm({
         <input name="fragmentId" type="hidden" value={fragmentId} />
         <input name="kind" type="hidden" value={kind} />
         <input name="id" type="hidden" value={id} />
-        <button className="text-sm text-red-700 underline-offset-4 hover:underline" type="submit">
+        <label className="flex items-center gap-2 text-sm text-slate-600">
+          <input className="h-4 w-4" name="confirmDelete" type="checkbox" value="yes" />
+          Подтверждаю удаление
+        </label>
+        <button className="mt-2 text-sm text-red-700 underline-offset-4 hover:underline" type="submit">
           Удалить
         </button>
       </form>

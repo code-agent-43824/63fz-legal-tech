@@ -1,16 +1,34 @@
 import { redirect } from "next/navigation";
-import { createAdminSession, verifyAdminPassword } from "@/lib/auth";
+import { headers } from "next/headers";
+import {
+  checkAdminLoginRateLimit,
+  createAdminSession,
+  getAuthConfigurationIssue,
+  recordAdminLoginFailure,
+  recordAdminLoginSuccess,
+  verifyAdminPassword,
+} from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
 
 export default function AdminLoginPage() {
   async function login(formData: FormData) {
     "use server";
 
     const password = String(formData.get("password") ?? "");
+    const rateLimitKey = await getRateLimitKey();
+    const rateLimit = checkAdminLoginRateLimit(rateLimitKey);
+
+    if (!rateLimit.allowed) {
+      redirect("/admin/login?error=rate");
+    }
 
     if (!verifyAdminPassword(password)) {
+      recordAdminLoginFailure(rateLimitKey);
       redirect("/admin/login?error=1");
     }
 
+    recordAdminLoginSuccess(rateLimitKey);
     await createAdminSession();
     redirect("/admin");
   }
@@ -45,10 +63,20 @@ export default function AdminLoginPage() {
   );
 }
 
+async function getRateLimitKey() {
+  const headerStore = await headers();
+  const forwardedFor = headerStore.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return forwardedFor || headerStore.get("x-real-ip") || "unknown";
+}
+
 function LoginError() {
+  const configurationIssue = getAuthConfigurationIssue();
+
   return (
     <p className="text-sm text-slate-500">
-      Если пароль не задан в окружении, вход будет заблокирован.
+      {configurationIssue
+        ? "Вход заблокирован: административные секреты не настроены безопасно."
+        : "После нескольких неудачных попыток вход временно блокируется."}
     </p>
   );
 }

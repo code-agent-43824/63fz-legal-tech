@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getAdminFragments, type AdminFragmentListItem } from "@/lib/admin-data";
 import { isAdminAuthenticated } from "@/lib/auth";
+import { logoutAdmin } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             >
               Публичная страница
             </a>
+            <form action={logoutAdmin}>
+              <button
+                className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium"
+                type="submit"
+              >
+                Выйти
+              </button>
+            </form>
           </div>
         </div>
 

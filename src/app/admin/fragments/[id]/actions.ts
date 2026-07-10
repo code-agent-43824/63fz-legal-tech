@@ -2,15 +2,25 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import {
+  readContentKind,
+  readIssueSeverity,
+  readIssueStatus,
+  readIssueType,
+  readOptionalShortText,
+  readPublicationStatus,
+  readRecordId,
+  readRequiredText,
+  readRevisionStatus,
+  requireDeleteConfirmation,
+} from "@/lib/admin-validation";
 import { isAdminAuthenticated } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-type ContentKind = "explanation" | "comment" | "issue" | "revision";
-
 export async function createContent(formData: FormData) {
   await requireAdmin();
-  const fragmentId = readRequired(formData, "fragmentId");
-  const kind = readRequired(formData, "kind") as ContentKind;
+  const fragmentId = readRecordId(formData, "fragmentId");
+  const kind = readContentKind(formData);
 
   ensureDatabase();
 
@@ -19,9 +29,9 @@ export async function createContent(formData: FormData) {
       await prisma.plainExplanation.create({
         data: {
           fragmentId,
-          text: readRequired(formData, "text"),
-          status: readStatus(formData),
-          authorName: readOptional(formData, "authorName"),
+          text: readRequiredText(formData, "text"),
+          status: readPublicationStatus(formData),
+          authorName: readOptionalShortText(formData, "authorName"),
         },
       });
       break;
@@ -29,10 +39,10 @@ export async function createContent(formData: FormData) {
       await prisma.expertComment.create({
         data: {
           fragmentId,
-          expertName: readRequired(formData, "expertName"),
-          expertTitle: readOptional(formData, "expertTitle"),
-          text: readRequired(formData, "text"),
-          status: readStatus(formData),
+          expertName: readRequiredText(formData, "expertName", 300),
+          expertTitle: readOptionalShortText(formData, "expertTitle"),
+          text: readRequiredText(formData, "text"),
+          status: readPublicationStatus(formData),
         },
       });
       break;
@@ -40,11 +50,11 @@ export async function createContent(formData: FormData) {
       await prisma.issue.create({
         data: {
           fragmentId,
-          type: readRequired(formData, "type") as never,
-          title: readRequired(formData, "title"),
-          description: readRequired(formData, "description"),
-          severity: readRequired(formData, "severity") as never,
-          status: readRequired(formData, "status") as never,
+          type: readIssueType(formData),
+          title: readRequiredText(formData, "title", 300),
+          description: readRequiredText(formData, "description"),
+          severity: readIssueSeverity(formData),
+          status: readIssueStatus(formData),
         },
       });
       break;
@@ -52,10 +62,10 @@ export async function createContent(formData: FormData) {
       await prisma.proposedRevision.create({
         data: {
           fragmentId,
-          originalText: readRequired(formData, "originalText"),
-          proposedText: readRequired(formData, "proposedText"),
-          rationale: readRequired(formData, "rationale"),
-          status: readRequired(formData, "status") as never,
+          originalText: readRequiredText(formData, "originalText"),
+          proposedText: readRequiredText(formData, "proposedText"),
+          rationale: readRequiredText(formData, "rationale"),
+          status: readRevisionStatus(formData),
         },
       });
       break;
@@ -68,9 +78,9 @@ export async function createContent(formData: FormData) {
 
 export async function updateContent(formData: FormData) {
   await requireAdmin();
-  const fragmentId = readRequired(formData, "fragmentId");
-  const id = readRequired(formData, "id");
-  const kind = readRequired(formData, "kind") as ContentKind;
+  const fragmentId = readRecordId(formData, "fragmentId");
+  const id = readRecordId(formData, "id");
+  const kind = readContentKind(formData);
 
   ensureDatabase();
 
@@ -79,9 +89,9 @@ export async function updateContent(formData: FormData) {
       await prisma.plainExplanation.update({
         where: { id },
         data: {
-          text: readRequired(formData, "text"),
-          status: readStatus(formData),
-          authorName: readOptional(formData, "authorName"),
+          text: readRequiredText(formData, "text"),
+          status: readPublicationStatus(formData),
+          authorName: readOptionalShortText(formData, "authorName"),
         },
       });
       break;
@@ -89,10 +99,10 @@ export async function updateContent(formData: FormData) {
       await prisma.expertComment.update({
         where: { id },
         data: {
-          expertName: readRequired(formData, "expertName"),
-          expertTitle: readOptional(formData, "expertTitle"),
-          text: readRequired(formData, "text"),
-          status: readStatus(formData),
+          expertName: readRequiredText(formData, "expertName", 300),
+          expertTitle: readOptionalShortText(formData, "expertTitle"),
+          text: readRequiredText(formData, "text"),
+          status: readPublicationStatus(formData),
         },
       });
       break;
@@ -100,11 +110,11 @@ export async function updateContent(formData: FormData) {
       await prisma.issue.update({
         where: { id },
         data: {
-          type: readRequired(formData, "type") as never,
-          title: readRequired(formData, "title"),
-          description: readRequired(formData, "description"),
-          severity: readRequired(formData, "severity") as never,
-          status: readRequired(formData, "status") as never,
+          type: readIssueType(formData),
+          title: readRequiredText(formData, "title", 300),
+          description: readRequiredText(formData, "description"),
+          severity: readIssueSeverity(formData),
+          status: readIssueStatus(formData),
         },
       });
       break;
@@ -112,10 +122,10 @@ export async function updateContent(formData: FormData) {
       await prisma.proposedRevision.update({
         where: { id },
         data: {
-          originalText: readRequired(formData, "originalText"),
-          proposedText: readRequired(formData, "proposedText"),
-          rationale: readRequired(formData, "rationale"),
-          status: readRequired(formData, "status") as never,
+          originalText: readRequiredText(formData, "originalText"),
+          proposedText: readRequiredText(formData, "proposedText"),
+          rationale: readRequiredText(formData, "rationale"),
+          status: readRevisionStatus(formData),
         },
       });
       break;
@@ -128,9 +138,10 @@ export async function updateContent(formData: FormData) {
 
 export async function deleteContent(formData: FormData) {
   await requireAdmin();
-  const fragmentId = readRequired(formData, "fragmentId");
-  const id = readRequired(formData, "id");
-  const kind = readRequired(formData, "kind") as ContentKind;
+  requireDeleteConfirmation(formData);
+  const fragmentId = readRecordId(formData, "fragmentId");
+  const id = readRecordId(formData, "id");
+  const kind = readContentKind(formData);
 
   ensureDatabase();
 
@@ -170,23 +181,4 @@ function revalidateFragment(fragmentId: string) {
   revalidatePath("/");
   revalidatePath("/admin");
   revalidatePath(`/admin/fragments/${fragmentId}`);
-}
-
-function readRequired(formData: FormData, key: string) {
-  const value = String(formData.get(key) ?? "").trim();
-
-  if (!value) {
-    throw new Error(`${key} is required`);
-  }
-
-  return value;
-}
-
-function readOptional(formData: FormData, key: string) {
-  const value = String(formData.get(key) ?? "").trim();
-  return value || null;
-}
-
-function readStatus(formData: FormData) {
-  return readRequired(formData, "status") as "draft" | "published";
 }

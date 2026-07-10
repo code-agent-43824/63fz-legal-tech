@@ -66,7 +66,7 @@ public search, change-history work, amendment monitoring, or Markdown export dow
 ### 1. Security Hardening
 
 Priority: P0.
-Status: planned, next implementation stage.
+Status: completed for the single-admin-account hardening pass.
 
 Goal:
 
@@ -119,6 +119,13 @@ Explicitly not included:
 - Full user accounts, OAuth, SSO, role management, or audit logs.
 - A public registration flow.
 - Broad redesign of admin screens.
+
+Implementation note:
+
+- The current pass keeps the single administrative account but removes the unsafe auth-secret
+  fallback, adds fail-closed secret checks, login rate limiting, logout, stricter cookie settings,
+  basic security headers, public status filtering, server-side form validation, URL protocol
+  validation for source links, and delete confirmations.
 
 ### 2. Lightweight Tests And CI
 

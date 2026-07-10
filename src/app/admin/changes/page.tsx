@@ -4,6 +4,7 @@ import {
   type AdminChangeTransition,
 } from "@/lib/admin-data";
 import { isAdminAuthenticated } from "@/lib/auth";
+import { logoutAdmin } from "../actions";
 import { deleteChangeExplanation, saveChangeExplanation } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -44,6 +45,14 @@ export default async function AdminChangesPage({ searchParams }: AdminChangesPag
           >
             Публичная страница
           </a>
+          <form action={logoutAdmin}>
+            <button
+              className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium"
+              type="submit"
+            >
+              Выйти
+            </button>
+          </form>
         </div>
 
         <form className="mt-6 grid gap-3 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-[120px_170px_minmax(0,1fr)_auto]">
@@ -197,7 +206,11 @@ function ChangeEditor({ transition }: { transition: AdminChangeTransition }) {
           {transition.explanation ? (
             <form action={deleteChangeExplanation} className="mt-2">
               <input name="id" type="hidden" value={transition.explanation.id} />
-              <button className="text-sm text-red-700 underline-offset-4 hover:underline" type="submit">
+              <label className="flex items-center gap-2 text-sm text-slate-600">
+                <input className="h-4 w-4" name="confirmDelete" type="checkbox" value="yes" />
+                Подтверждаю удаление
+              </label>
+              <button className="mt-2 text-sm text-red-700 underline-offset-4 hover:underline" type="submit">
                 Удалить пояснение
               </button>
             </form>
