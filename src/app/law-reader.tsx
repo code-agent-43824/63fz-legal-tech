@@ -48,6 +48,9 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
 
     return readerData.fragments.filter((fragment) => isSameOrDescendant(fragment, selectedStableId));
   }, [mode, readerData.fragments, selectedStableId]);
+  const hasVisibleSupplementalContent = visibleFragments.some((fragment) =>
+    hasSupplementalContent(fragment),
+  );
 
   useEffect(() => {
     if (mode !== "feed") {
@@ -191,48 +194,48 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
         </div>
 
         <div className="p-4">
-        <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Оглавление
-          </h2>
-          <p className="mt-1 text-xs leading-5 text-slate-500">
-            Дерево закона с раскрытием до частей и пунктов.
-          </p>
-        </div>
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+              Оглавление
+            </h2>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              Дерево закона с раскрытием до частей и пунктов.
+            </p>
+          </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-2 rounded-md bg-slate-100 p-1 text-sm">
-          <button
-            className={modeButtonClass(mode === "feed")}
-            onClick={() => updateMode("feed")}
-            type="button"
-          >
-            Лента
-          </button>
-          <button
-            className={modeButtonClass(mode === "focus")}
-            onClick={() => updateMode("focus")}
-            type="button"
-          >
-            Фокус
-          </button>
-        </div>
+          <div className="mt-4 grid grid-cols-2 gap-2 rounded-md bg-slate-100 p-1 text-sm">
+            <button
+              className={modeButtonClass(mode === "feed")}
+              onClick={() => updateMode("feed")}
+              type="button"
+            >
+              Лента
+            </button>
+            <button
+              className={modeButtonClass(mode === "focus")}
+              onClick={() => updateMode("focus")}
+              type="button"
+            >
+              Фокус
+            </button>
+          </div>
 
-        <div className="mt-3 flex gap-2">
-          <button
-            className="h-8 flex-1 rounded-md border border-slate-200 px-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-            onClick={expandAll}
-            type="button"
-          >
-            Раскрыть всё
-          </button>
-          <button
-            className="h-8 flex-1 rounded-md border border-slate-200 px-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-            onClick={collapseAll}
-            type="button"
-          >
-            Свернуть
-          </button>
-        </div>
+          <div className="mt-3 flex gap-2">
+            <button
+              className="h-8 flex-1 rounded-md border border-slate-200 px-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              onClick={expandAll}
+              type="button"
+            >
+              Раскрыть всё
+            </button>
+            <button
+              className="h-8 flex-1 rounded-md border border-slate-200 px-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              onClick={collapseAll}
+              type="button"
+            >
+              Свернуть
+            </button>
+          </div>
         </div>
 
         <nav aria-label="Оглавление закона" className="border-t border-slate-200 p-3">
@@ -282,11 +285,18 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
         </div>
 
         {visibleFragments.length > 0 ? (
-          <div className="space-y-5">
-            {visibleFragments.map((fragment) => (
-              <FragmentArticle fragment={fragment} key={fragment.id} />
-            ))}
-          </div>
+          <>
+            {!hasVisibleSupplementalContent ? (
+              <div className="mb-5 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+                Для выбранной области пока нет опубликованных редакционных секций.
+              </div>
+            ) : null}
+            <div className="space-y-5">
+              {visibleFragments.map((fragment) => (
+                <FragmentArticle fragment={fragment} key={fragment.id} />
+              ))}
+            </div>
+          </>
         ) : (
           <div className="rounded-md border border-slate-200 bg-white p-8 text-sm text-slate-600">
             В выбранном узле нет отображаемого текста. Выберите статью, часть или пункт ниже по
@@ -379,13 +389,15 @@ function TocTreeNode({
 }
 
 function FragmentArticle({ fragment }: { fragment: ReaderFragment }) {
+  const hasAside = hasSupplementalContent(fragment);
+
   return (
     <article
-      className={fragmentArticleClass(fragment.changeStatus)}
+      className={fragmentArticleClass(fragment.changeStatus, hasAside)}
       data-stable-id={fragment.stableId}
       id={fragment.id}
     >
-      <section className="border-b border-slate-200 p-5 lg:border-b-0 lg:border-r">
+      <section className={lawTextSectionClass(hasAside)}>
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="text-xl font-semibold">{fragment.title}</h2>
           <ChangeBadge status={fragment.changeStatus} />
@@ -398,6 +410,7 @@ function FragmentArticle({ fragment }: { fragment: ReaderFragment }) {
         </p>
       </section>
 
+      {hasAside ? (
       <section className="bg-slate-50 p-5">
         <ChangeHistory entries={fragment.changeHistory} />
         {fragment.commentarySource === "current" ? (
@@ -417,6 +430,7 @@ function FragmentArticle({ fragment }: { fragment: ReaderFragment }) {
           ))}
         </div>
       </section>
+      ) : null}
     </article>
   );
 }
@@ -623,8 +637,20 @@ function treeRowClass(type: string, isSelected: boolean, isActive: boolean) {
   return `${base} ${depth} hover:bg-slate-50`;
 }
 
-function fragmentArticleClass(status: ReaderFragment["changeStatus"]) {
-  const base = "scroll-mt-6 grid gap-0 overflow-hidden rounded-md border bg-white lg:grid-cols-2";
+function hasCommentaryNotice(fragment: ReaderFragment) {
+  return (
+    fragment.commentarySource === "current" ||
+    fragment.changeStatus === "changed" ||
+    fragment.changeStatus === "deleted"
+  );
+}
+
+function hasSupplementalContent(fragment: ReaderFragment) {
+  return fragment.changeHistory.length > 0 || hasCommentaryNotice(fragment) || fragment.blocks.length > 0;
+}
+
+function fragmentArticleClass(status: ReaderFragment["changeStatus"], hasAside: boolean) {
+  const base = `scroll-mt-6 grid gap-0 overflow-hidden rounded-md border bg-white ${hasAside ? "lg:grid-cols-2" : ""}`;
   if (status === "changed") {
     return `${base} border-amber-300`;
   }
@@ -635,4 +661,9 @@ function fragmentArticleClass(status: ReaderFragment["changeStatus"]) {
     return `${base} border-emerald-200`;
   }
   return `${base} border-slate-200`;
+}
+
+function lawTextSectionClass(hasAside: boolean) {
+  const base = "p-5";
+  return hasAside ? `${base} border-b border-slate-200 lg:border-b-0 lg:border-r` : base;
 }

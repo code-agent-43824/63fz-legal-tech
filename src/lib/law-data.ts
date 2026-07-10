@@ -256,12 +256,7 @@ function getDemoReaderData(): ReaderData {
         changeStatus: "current",
         commentarySource: "selected",
         changeHistory: [],
-        blocks: [
-          { title: "Простыми словами", text: "Пояснение пока не добавлено." },
-          { title: "Комментарии экспертов", text: "Пока не добавлено." },
-          { title: "Ошибки и спорные места", text: "Пока не добавлено." },
-          { title: "Предложенная редакция", text: "Пока не добавлено." },
-        ],
+        blocks: [],
       },
       {
         id: "63fz.article_2.part_1",
@@ -273,12 +268,7 @@ function getDemoReaderData(): ReaderData {
         changeStatus: "current",
         commentarySource: "selected",
         changeHistory: [],
-        blocks: [
-          { title: "Простыми словами", text: "Комментариев экспертов пока нет." },
-          { title: "Комментарии экспертов", text: "Пока не добавлено." },
-          { title: "Ошибки и спорные места", text: "Пока не добавлено." },
-          { title: "Предложенная редакция", text: "Пока не добавлено." },
-        ],
+        blocks: [],
       },
     ],
     changeSummary: {
@@ -463,24 +453,38 @@ function excerptWords(words: string[], start: number, end: number) {
 }
 
 function buildCommentBlocks(fragment: ReaderDbFragment): ReaderCommentBlock[] {
-  return [
-    {
+  const blocks: ReaderCommentBlock[] = [];
+
+  if (fragment.plainExplanations.length > 0) {
+    blocks.push({
       title: "Простыми словами",
       text: formatPlainExplanations(fragment.plainExplanations),
-    },
-    {
+    });
+  }
+
+  if (fragment.expertComments.length > 0) {
+    blocks.push({
       title: "Комментарии экспертов",
       text: formatExpertComments(fragment.expertComments),
-    },
-    {
+    });
+  }
+
+  if (fragment.issues.length > 0) {
+    blocks.push({
       title: "Ошибки и спорные места",
       text: formatIssues(fragment.issues),
-    },
-    {
+    });
+  }
+
+  const proposedRevision = fragment.proposedRevisions[0];
+  if (proposedRevision) {
+    blocks.push({
       title: "Предложенная редакция",
-      text: fragment.proposedRevisions[0]?.proposedText ?? "Пока не добавлено.",
-    },
-  ];
+      text: proposedRevision.proposedText,
+    });
+  }
+
+  return blocks;
 }
 
 function getFragmentChangeStatus(

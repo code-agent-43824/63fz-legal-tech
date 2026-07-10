@@ -12,6 +12,7 @@ test("public reader returns deterministic demo data without DATABASE_URL", async
     assert.equal(data.isDemo, true);
     assert.equal(data.selectedVersionLabel, "DEMO DATA");
     assert.ok(data.fragments.length > 0);
+    assert.equal(data.fragments.every((fragment) => fragment.blocks.length === 0), true);
   } finally {
     restoreEnv("DATABASE_URL", previousDatabaseUrl);
   }

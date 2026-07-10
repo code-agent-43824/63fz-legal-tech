@@ -190,7 +190,7 @@ Implementation note:
 ### 3. Hide Empty Editorial Sections
 
 Priority: P1.
-Status: planned.
+Status: completed.
 
 Goal:
 
@@ -227,6 +227,14 @@ Explicitly not included:
 - Rewriting editorial copy.
 - Adding new editorial data models.
 - Mobile layout fixes.
+
+Implementation note:
+
+- Public reader data now includes only editorial blocks that have real public content. Empty
+  "Простыми словами", "Комментарии экспертов", "Ошибки и спорные места", and "Предложенная
+  редакция" cards are not generated. The reader shows one selected-scope empty state when no
+  editorial blocks are available at all, and fragments without any side content render as a
+  single-column law-text row.
 
 ### 4. Reader Query Optimization And Cacheable Snapshot
 
