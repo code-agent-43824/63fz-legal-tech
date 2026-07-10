@@ -637,3 +637,55 @@ Verified locally:
 - `pnpm run typecheck`
 - `pnpm run lint`
 - `pnpm run build`
+
+## 2026-07-10. Security Hardening
+
+- Implemented the first security hardening stage while keeping the current single administrative
+  account model.
+- Removed the unsafe `AUTH_SECRET` fallback for session signing. Admin session signing now fails
+  closed when `AUTH_SECRET` is missing, example-valued, or shorter than the configured minimum.
+- Added stronger `ADMIN_PASSWORD` checks: missing, example-valued, and too-short passwords are
+  rejected before login can succeed.
+- Added in-memory admin login rate limiting for the standalone Node process.
+- Added an admin logout server action and visible logout buttons in the admin fragment list,
+  fragment editor, and change editor.
+- Tightened admin session cookie settings to `httpOnly`, `secure` in production, `sameSite:
+  strict`, `/63fz` path, and eight-hour lifetime. Logout clears the cookie on the same path.
+- Added basic security headers in `next.config.ts` and disabled `X-Powered-By`.
+- Hardened public reader status filtering:
+  - plain explanations: `published`;
+  - expert comments: `published`;
+  - issues: `confirmed`;
+  - proposed revisions: `accepted`;
+  - change explanations were already filtered to `published`.
+- Added server-side validation for admin form enum values, record IDs, stable IDs, field length
+  limits, and `https://`-only source-link protocols.
+- Added required delete confirmations for fragment editorial records and change explanations.
+- Updated `docs/PLAN.md` to mark the single-admin-account security hardening pass complete.
+- Code commit: `7c01eab` (`feat: harden admin security`).
+
+Verified locally:
+
+- `pnpm run typecheck`
+- `pnpm run lint`
+- `pnpm run build`
+
+Production deployment:
+
+- Verified production secret shape without printing secret values: `ADMIN_PASSWORD` and
+  `AUTH_SECRET` are present, long enough, and not example-like.
+- Deployed release `7c01eab` to
+  `/home/openclaw/services/63fz-legal-tech/releases/7c01eab`.
+- Candidate preflight on `127.0.0.1:3911` returned HTTP 200 for `/63fz`; `/63fz/admin/login`
+  returned the expected security headers and no `X-Powered-By` header.
+- Switched `/home/openclaw/services/63fz-legal-tech/current` to release `7c01eab` and restarted
+  `63fz-legal-tech.service`.
+
+Production verification:
+
+- `https://mescheryakov.pro/63fz` returns HTTP 200.
+- unauthenticated `https://mescheryakov.pro/63fz/admin` redirects to `/63fz/admin/login`.
+- `https://mescheryakov.pro/63fz/admin/login` returns the configured security headers and no
+  `X-Powered-By` header.
+- authenticated `/63fz/admin` returns HTTP 200 and renders the logout control plus admin navigation.
+- `63fz-legal-tech.service` is active with `NRestarts=0`.
