@@ -44,6 +44,7 @@ These milestones are done and should remain historical context, not the shape of
 - Empty public editorial sections hidden from the reader.
 - Public reader query optimization and cacheable published-data snapshot.
 - Public freshness and source metadata in the reader.
+- Lightweight public search across loaded reader data.
 
 See `docs/PROGRESS.md` for the chronological implementation log. Do not rewrite that log
 retroactively.
@@ -377,7 +378,7 @@ Implementation note:
 ### 6. Search Across Law Text And Change History
 
 Priority: P2.
-Status: planned.
+Status: completed for lightweight in-reader search.
 
 Goal:
 
@@ -409,6 +410,17 @@ Explicitly not included:
 - Full-text ranking perfection.
 - External search service unless a local database approach proves insufficient.
 - Markdown export.
+
+Implementation note:
+
+- Public search is implemented inside the reader over the already-loaded public snapshot. This keeps
+  the stage lightweight and avoids a separate search index.
+- The search covers original law text, stable IDs/titles, public editorial blocks, published change
+  explanations, and safe source-link labels/URLs that are already present in `ReaderData`.
+- The query is stored in the `q` URL parameter. Results link to `mode=focus&node=<stableId>` plus the
+  fragment anchor, preserving the selected law version.
+- Results are capped and intentionally simple. Ranking, dedicated database full-text search, change
+  permalinks, filters, and advanced diff search remain in the next roadmap stage.
 
 ### 7. Improved Diff View, Filters, Permalinks, And Feedback
 

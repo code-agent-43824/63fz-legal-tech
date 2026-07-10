@@ -21,6 +21,8 @@ future permanent production domain.
   with every fragment relation on each request.
 - Public reader shows selected/current version status, effective date, source metadata, and clickable
   safe source links where available.
+- Public reader has lightweight search across law text, public editorial blocks, and published
+  change-history explanations.
 - Article 18 has been used as the first editorial pilot for granular change explanations.
 
 ## Known Limitations
@@ -31,6 +33,8 @@ future permanent production domain.
   selected reader view, while server queries and repeated public reads are now lighter.
 - A separate "last checked for newer amendments" timestamp is not modeled yet; the reader currently
   shows source retrieval/check data from imported law versions.
+- Search is a lightweight in-reader search over the loaded public snapshot, not a ranked full-text
+  index.
 - Mobile layout has a known horizontal overflow problem and needs a dedicated responsive pass.
 - Automatic monitoring of new amendments and confirmed import of a new current version are planned
   but not implemented.

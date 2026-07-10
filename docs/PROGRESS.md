@@ -859,6 +859,57 @@ Production verification:
 - `https://mescheryakov.pro/63fz/admin/login` returns security headers and no `X-Powered-By`.
 - `63fz-legal-tech.service` is active with `NRestarts=0`.
 
+## 2026-07-10. Search Across Law Text And Change History
+
+- Implemented the lightweight public reader search stage.
+- Added `src/lib/reader-search.ts` for pure in-reader search over already-public `ReaderData`.
+- Search covers:
+  - original law text, titles, and stable IDs;
+  - public editorial blocks that are already allowed into the reader data;
+  - published change-history explanations;
+  - safe source-link labels and URLs.
+- Added a sidebar search form using the `q` URL parameter.
+- Search results show concise type labels, fragment title, and an excerpt.
+- Result links open `mode=focus&node=<stableId>#<fragmentAnchor>` while preserving the selected law
+  version.
+- Kept this stage intentionally lightweight: no external search service, no new database index, no
+  ranking tuning, and no advanced filters/change permalinks yet.
+- Added `tests/reader-search.test.ts` covering law text, public editorial blocks, change history,
+  short queries, and no-result behavior.
+- Code commit: `49a419e` (`feat: add public reader search`).
+
+Verified locally:
+
+- `pnpm run prisma:validate`
+- `pnpm run typecheck`
+- `pnpm run lint`
+- `pnpm test` (`18` tests passed)
+- `pnpm run build`
+
+CI verification:
+
+- GitHub Actions run `29099638617` completed successfully on `master`.
+
+Production deployment:
+
+- Deployed release `49a419e` to
+  `/home/openclaw/services/63fz-legal-tech/releases/49a419e`.
+- Candidate preflight on `127.0.0.1:3916` returned HTTP 200 for `/63fz` and
+  `/63fz?q=457-%D0%A4%D0%97`; search HTML contained "Найдено:", "История изменений", "457-ФЗ",
+  and `mode=focus` result links.
+- Switched `/home/openclaw/services/63fz-legal-tech/current` to release `49a419e` and restarted
+  `63fz-legal-tech.service`.
+
+Production verification:
+
+- `https://mescheryakov.pro/63fz` returns HTTP 200 and contains the public search UI.
+- `https://mescheryakov.pro/63fz?q=457-%D0%A4%D0%97` returns HTTP 200 and contains matching
+  change-history results with focus-mode links.
+- public HTML still does not contain "Пока не добавлено".
+- unauthenticated `https://mescheryakov.pro/63fz/admin` redirects to `/63fz/admin/login`.
+- `https://mescheryakov.pro/63fz/admin/login` returns security headers and no `X-Powered-By`.
+- `63fz-legal-tech.service` is active with `NRestarts=0`.
+
 ## 2026-07-10. Public Freshness And Source Metadata
 
 - Implemented the public source/freshness metadata pass.
