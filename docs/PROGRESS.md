@@ -753,3 +753,53 @@ Production verification:
 - unauthenticated `https://mescheryakov.pro/63fz/admin` redirects to `/63fz/admin/login`.
 - `https://mescheryakov.pro/63fz/admin/login` returns security headers and no `X-Powered-By`.
 - `63fz-legal-tech.service` is active with `NRestarts=0`.
+
+## 2026-07-10. Hide Empty Editorial Sections
+
+- Implemented the public reader cleanup for empty editorial sections.
+- Public reader data now returns only editorial blocks with real public content:
+  - plain-language explanations only when published rows exist;
+  - expert comments only when published rows exist;
+  - issue/dispute blocks only when confirmed rows exist;
+  - proposed revisions only when an accepted row exists.
+- Removed generated "Пока не добавлено" / "Пояснение пока не добавлено" placeholder cards from
+  both database-backed reader data and the no-database demo fallback.
+- The reader now shows one selected-scope empty state only when the visible selection has no
+  supplemental content at all.
+- Fragments without change history, commentary notices, or editorial blocks render as a single-column
+  law-text row instead of an empty right-hand commentary column.
+- Kept change-history rendering intact, so article 18 change explanations still have a right-hand
+  side panel where relevant.
+- Updated `docs/PLAN.md` to mark the empty editorial sections stage complete.
+- Added a smoke assertion that no-database reader fallback returns no placeholder editorial blocks.
+- Code commit: `5460da4` (`feat: hide empty editorial sections`).
+
+Verified locally:
+
+- `pnpm run prisma:validate`
+- `pnpm run typecheck`
+- `pnpm run lint`
+- `pnpm test` (`13` tests passed)
+- `pnpm run build`
+
+CI verification:
+
+- GitHub Actions run `29095838836` completed successfully on `master`.
+
+Production deployment:
+
+- Deployed release `5460da4` to
+  `/home/openclaw/services/63fz-legal-tech/releases/5460da4`.
+- Candidate preflight on `127.0.0.1:3913` returned HTTP 200 for `/63fz`; `/63fz/admin/login`
+  returned expected security headers and no `X-Powered-By`; public HTML did not contain
+  "Пока не добавлено".
+- Switched `/home/openclaw/services/63fz-legal-tech/current` to release `5460da4` and restarted
+  `63fz-legal-tech.service`.
+
+Production verification:
+
+- `https://mescheryakov.pro/63fz` returns HTTP 200 and contains the expected public marker.
+- public HTML no longer contains "Пока не добавлено".
+- unauthenticated `https://mescheryakov.pro/63fz/admin` redirects to `/63fz/admin/login`.
+- `https://mescheryakov.pro/63fz/admin/login` returns security headers and no `X-Powered-By`.
+- `63fz-legal-tech.service` is active with `NRestarts=0`.
