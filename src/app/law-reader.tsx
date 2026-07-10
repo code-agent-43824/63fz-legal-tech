@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ReaderData, ReaderFragment, ReaderTocItem, ReaderVersion } from "@/lib/law-data";
+import {
+  buildReaderSearchResults,
+  type ReaderSearchResult,
+} from "@/lib/reader-search";
 
 type ViewMode = "feed" | "focus";
 type TocNode = ReaderTocItem & { children: TocNode[] };
@@ -21,6 +25,7 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const mode: ViewMode = searchParams.get("mode") === "focus" ? "focus" : "feed";
+  const searchQuery = searchParams.get("q") ?? "";
   const tree = useMemo(() => buildTree(readerData.toc), [readerData.toc]);
   const tocByStableId = useMemo(
     () => new Map(readerData.toc.map((item) => [item.stableId, item])),
@@ -48,6 +53,10 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
   const currentVersion = useMemo(
     () => readerData.versions.find((version) => version.id === readerData.currentVersionId) ?? null,
     [readerData.currentVersionId, readerData.versions],
+  );
+  const searchResults = useMemo(
+    () => buildReaderSearchResults(readerData, searchQuery),
+    [readerData, searchQuery],
   );
 
   const visibleFragments = useMemo(() => {
@@ -131,6 +140,37 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
 
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
+
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const params = new URLSearchParams(searchParams.toString());
+    const formData = new FormData(event.currentTarget);
+    const nextQuery = String(formData.get("q") ?? "").trim();
+
+    if (nextQuery) {
+      params.set("q", nextQuery);
+    } else {
+      params.delete("q");
+    }
+
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
+
+  function clearSearch() {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("q");
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
+
+  function getSearchResultHref(result: ReaderSearchResult) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("mode", "focus");
+    params.set("node", result.stableId);
+    const query = params.toString();
+    return `${pathname}?${query}#${result.fragmentId}`;
   }
 
   function updateVersion(versionId: string) {
@@ -247,6 +287,14 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
           </div>
         </div>
 
+        <ReaderSearch
+          onClear={clearSearch}
+          onSubmit={submitSearch}
+          resultHref={getSearchResultHref}
+          results={searchResults}
+          searchQuery={searchQuery}
+        />
+
         <nav aria-label="Оглавление закона" className="border-t border-slate-200 p-3">
           {tree.map((node) => (
             <TocTreeNode
@@ -325,6 +373,98 @@ function VersionStat({ label, value }: { label: string; value: number }) {
       <div>{label}</div>
     </div>
   );
+}
+
+function ReaderSearch({
+  onClear,
+  onSubmit,
+  resultHref,
+  results,
+  searchQuery,
+}: {
+  onClear: () => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  resultHref: (result: ReaderSearchResult) => string;
+  results: ReaderSearchResult[];
+  searchQuery: string;
+}) {
+  const hasCommittedQuery = searchQuery.trim().length > 0;
+  const hasSearchableQuery = searchQuery.trim().length >= 2;
+
+  return (
+    <section className="border-t border-slate-200 p-4">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Поиск</h2>
+      <form className="mt-3 flex gap-2" onSubmit={onSubmit}>
+        <input
+          className="h-10 min-w-0 flex-1 rounded-md border border-slate-300 px-3 text-sm text-slate-900"
+          defaultValue={searchQuery}
+          key={searchQuery}
+          name="q"
+          placeholder="Текст, источник, изменение"
+          type="search"
+        />
+        <button
+          className="h-10 rounded-md bg-slate-950 px-3 text-sm font-medium text-white hover:bg-slate-800"
+          type="submit"
+        >
+          Найти
+        </button>
+      </form>
+      {hasCommittedQuery ? (
+        <div className="mt-3">
+          <div className="flex items-center justify-between gap-3 text-xs text-slate-500">
+            <span>
+              {hasSearchableQuery
+                ? `Найдено: ${results.length}`
+                : "Минимум 2 символа"}
+            </span>
+            <button
+              className="font-medium text-slate-700 underline-offset-4 hover:underline"
+              onClick={onClear}
+              type="button"
+            >
+              Сбросить
+            </button>
+          </div>
+          {hasSearchableQuery && results.length === 0 ? (
+            <p className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+              Ничего не найдено.
+            </p>
+          ) : null}
+          {results.length > 0 ? (
+            <div className="mt-3 max-h-80 space-y-2 overflow-auto pr-1">
+              {results.map((result) => (
+                <a
+                  className="block rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm hover:border-blue-200 hover:bg-blue-50"
+                  href={resultHref(result)}
+                  key={result.id}
+                >
+                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    {searchKindLabel(result.kind)} · {result.label}
+                  </span>
+                  <span className="mt-1 block font-medium text-slate-950">
+                    {result.fragmentTitle}
+                  </span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-600">
+                    {result.excerpt}
+                  </span>
+                </a>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function searchKindLabel(kind: ReaderSearchResult["kind"]) {
+  const labels: Record<ReaderSearchResult["kind"], string> = {
+    "change-history": "История изменений",
+    editorial: "Редакционный материал",
+    "law-text": "Текст закона",
+  };
+  return labels[kind];
 }
 
 function ReaderMetadata({
