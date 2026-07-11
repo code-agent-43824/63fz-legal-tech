@@ -201,3 +201,17 @@ model FragmentChangeExplanation {
   @@index([stableId, status])
   @@index([fromVersionId, toVersionId])
 }
+
+model ChangeFeedback {
+  id            String   @id @default(cuid())
+  stableId      String
+  fromVersionId String
+  toVersionId   String
+  kind          String
+  clientHash    String
+  createdAt     DateTime @default(now())
+
+  @@unique([stableId, fromVersionId, toVersionId, kind, clientHash])
+  @@index([stableId, fromVersionId, toVersionId])
+  @@index([createdAt])
+}

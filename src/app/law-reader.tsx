@@ -8,9 +8,18 @@ import {
   buildReaderSearchResults,
   type ReaderSearchResult,
 } from "@/lib/reader-search";
+import { submitChangeFeedback } from "@/app/feedback-actions";
 
 type ViewMode = "feed" | "focus";
 type TocNode = ReaderTocItem & { children: TocNode[] };
+type ChangeFilters = {
+  article: string;
+  fromVersionId: string;
+  source: string;
+  status: string;
+  toVersionId: string;
+  type: string;
+};
 
 const TYPE_LABELS: Record<string, string> = {
   law: "Закон",
@@ -26,6 +35,18 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
   const searchParams = useSearchParams();
   const mode: ViewMode = searchParams.get("mode") === "focus" ? "focus" : "feed";
   const searchQuery = searchParams.get("q") ?? "";
+  const changeFilters: ChangeFilters = useMemo(
+    () => ({
+      article: searchParams.get("changeArticle") ?? "",
+      fromVersionId: searchParams.get("changeFrom") ?? "",
+      source: searchParams.get("changeSource") ?? "",
+      status: searchParams.get("changeStatus") ?? "",
+      toVersionId: searchParams.get("changeTo") ?? "",
+      type: searchParams.get("changeType") ?? "",
+    }),
+    [searchParams],
+  );
+  const selectedChangeId = searchParams.get("change") ?? "";
   const tree = useMemo(() => buildTree(readerData.toc), [readerData.toc]);
   const tocByStableId = useMemo(
     () => new Map(readerData.toc.map((item) => [item.stableId, item])),
@@ -66,7 +87,12 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
 
     return readerData.fragments.filter((fragment) => isSameOrDescendant(fragment, selectedStableId));
   }, [mode, readerData.fragments, selectedStableId]);
-  const hasVisibleSupplementalContent = visibleFragments.some((fragment) =>
+  const filteredFragments = useMemo(
+    () => filterFragmentsByChangeFilters(visibleFragments, changeFilters, selectedChangeId),
+    [changeFilters, selectedChangeId, visibleFragments],
+  );
+  const hasChangeFilters = hasActiveChangeFilters(changeFilters, selectedChangeId);
+  const hasVisibleSupplementalContent = filteredFragments.some((fragment) =>
     hasSupplementalContent(fragment),
   );
 
@@ -163,6 +189,45 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
     params.delete("q");
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
+
+  function updateChangeFilter(name: keyof ChangeFilters, value: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    const queryName = changeFilterQueryName(name);
+    if (value) {
+      params.set(queryName, value);
+    } else {
+      params.delete(queryName);
+    }
+    params.delete("change");
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
+
+  function clearChangeFilters() {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const key of [
+      "change",
+      "changeArticle",
+      "changeFrom",
+      "changeSource",
+      "changeStatus",
+      "changeTo",
+      "changeType",
+    ]) {
+      params.delete(key);
+    }
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
+
+  function getChangeHref(fragment: ReaderFragment, entry: ReaderFragment["changeHistory"][number]) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("mode", "focus");
+    params.set("node", fragment.stableId);
+    params.set("change", entry.changeId);
+    const query = params.toString();
+    return `${pathname}?${query}#change-${entry.changeId}`;
   }
 
   function getSearchResultHref(result: ReaderSearchResult) {
@@ -295,6 +360,14 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
           searchQuery={searchQuery}
         />
 
+        <ChangeFilterPanel
+          filters={changeFilters}
+          hasFilters={hasChangeFilters}
+          onClear={clearChangeFilters}
+          onUpdate={updateChangeFilter}
+          versions={readerData.versions}
+        />
+
         <nav aria-label="Оглавление закона" className="border-t border-slate-200 p-3">
           {tree.map((node) => (
             <TocTreeNode
@@ -342,23 +415,34 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
           <ReaderMetadata currentVersion={currentVersion} selectedVersion={selectedVersion} />
         </div>
 
-        {visibleFragments.length > 0 ? (
+        {filteredFragments.length > 0 ? (
           <>
             {!hasVisibleSupplementalContent ? (
               <div className="mb-5 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
                 Для выбранной области пока нет опубликованных редакционных секций.
               </div>
             ) : null}
+            {hasChangeFilters ? (
+              <div className="mb-5 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">
+                История отфильтрована: {filteredFragments.length} фрагментов в текущей области.
+              </div>
+            ) : null}
             <div className="space-y-5">
-              {visibleFragments.map((fragment) => (
-                <FragmentArticle fragment={fragment} key={fragment.id} />
+              {filteredFragments.map((fragment) => (
+                <FragmentArticle
+                  changeHref={getChangeHref}
+                  fragment={fragment}
+                  key={fragment.id}
+                  selectedChangeId={selectedChangeId}
+                />
               ))}
             </div>
           </>
         ) : (
           <div className="rounded-md border border-slate-200 bg-white p-8 text-sm text-slate-600">
-            В выбранном узле нет отображаемого текста. Выберите статью, часть или пункт ниже по
-            дереву.
+            {hasChangeFilters
+              ? "По выбранным фильтрам истории изменений ничего не найдено."
+              : "В выбранном узле нет отображаемого текста. Выберите статью, часть или пункт ниже по дереву."}
           </div>
         )}
       </div>
@@ -454,6 +538,117 @@ function ReaderSearch({
           ) : null}
         </div>
       ) : null}
+    </section>
+  );
+}
+
+function ChangeFilterPanel({
+  filters,
+  hasFilters,
+  onClear,
+  onUpdate,
+  versions,
+}: {
+  filters: ChangeFilters;
+  hasFilters: boolean;
+  onClear: () => void;
+  onUpdate: (name: keyof ChangeFilters, value: string) => void;
+  versions: ReaderVersion[];
+}) {
+  return (
+    <section className="border-t border-slate-200 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          История
+        </h2>
+        {hasFilters ? (
+          <button
+            className="text-xs font-medium text-slate-700 underline-offset-4 hover:underline"
+            onClick={onClear}
+            type="button"
+          >
+            Сбросить
+          </button>
+        ) : null}
+      </div>
+      <div className="mt-3 grid gap-2 text-sm">
+        <label className="grid gap-1">
+          <span className="text-xs font-medium text-slate-600">Статья</span>
+          <input
+            className="h-9 rounded-md border border-slate-300 px-3"
+            onChange={(event) => onUpdate("article", event.target.value.trim())}
+            placeholder="18"
+            value={filters.article}
+          />
+        </label>
+        <label className="grid gap-1">
+          <span className="text-xs font-medium text-slate-600">Тип изменения</span>
+          <select
+            className="h-9 rounded-md border border-slate-300 bg-white px-3"
+            onChange={(event) => onUpdate("type", event.target.value)}
+            value={filters.type}
+          >
+            <option value="">Все</option>
+            <option value="introduced">Введено</option>
+            <option value="changed">Изменено</option>
+            <option value="deleted">Удалено</option>
+          </select>
+        </label>
+        <label className="grid gap-1">
+          <span className="text-xs font-medium text-slate-600">Пояснение</span>
+          <select
+            className="h-9 rounded-md border border-slate-300 bg-white px-3"
+            onChange={(event) => onUpdate("status", event.target.value)}
+            value={filters.status}
+          >
+            <option value="">Все</option>
+            <option value="missing">Нет опубликованного</option>
+            <option value="published">Опубликовано</option>
+          </select>
+        </label>
+        <label className="grid gap-1">
+          <span className="text-xs font-medium text-slate-600">Источники</span>
+          <select
+            className="h-9 rounded-md border border-slate-300 bg-white px-3"
+            onChange={(event) => onUpdate("source", event.target.value)}
+            value={filters.source}
+          >
+            <option value="">Все</option>
+            <option value="with">С источниками</option>
+            <option value="without">Без источников</option>
+          </select>
+        </label>
+        <label className="grid gap-1">
+          <span className="text-xs font-medium text-slate-600">Из редакции</span>
+          <select
+            className="h-9 rounded-md border border-slate-300 bg-white px-3"
+            onChange={(event) => onUpdate("fromVersionId", event.target.value)}
+            value={filters.fromVersionId}
+          >
+            <option value="">Любая</option>
+            {versions.map((version) => (
+              <option key={version.id} value={version.id}>
+                {version.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="grid gap-1">
+          <span className="text-xs font-medium text-slate-600">В редакцию</span>
+          <select
+            className="h-9 rounded-md border border-slate-300 bg-white px-3"
+            onChange={(event) => onUpdate("toVersionId", event.target.value)}
+            value={filters.toVersionId}
+          >
+            <option value="">Любая</option>
+            {versions.map((version) => (
+              <option key={version.id} value={version.id}>
+                {version.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
     </section>
   );
 }
@@ -593,7 +788,18 @@ function TocTreeNode({
   );
 }
 
-function FragmentArticle({ fragment }: { fragment: ReaderFragment }) {
+function FragmentArticle({
+  changeHref,
+  fragment,
+  selectedChangeId,
+}: {
+  changeHref: (
+    fragment: ReaderFragment,
+    entry: ReaderFragment["changeHistory"][number],
+  ) => string;
+  fragment: ReaderFragment;
+  selectedChangeId: string;
+}) {
   const hasAside = hasSupplementalContent(fragment);
 
   return (
@@ -620,7 +826,11 @@ function FragmentArticle({ fragment }: { fragment: ReaderFragment }) {
 
       {hasAside ? (
       <section className="bg-slate-50 p-5">
-        <ChangeHistory entries={fragment.changeHistory} />
+        <ChangeHistory
+          changeHref={(entry) => changeHref(fragment, entry)}
+          entries={fragment.changeHistory}
+          selectedChangeId={selectedChangeId}
+        />
         {fragment.commentarySource === "current" ? (
           <p className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-900">
             Текст этого фрагмента совпадает с текущей редакцией, поэтому показаны действующие
@@ -643,7 +853,15 @@ function FragmentArticle({ fragment }: { fragment: ReaderFragment }) {
   );
 }
 
-function ChangeHistory({ entries }: { entries: ReaderFragment["changeHistory"] }) {
+function ChangeHistory({
+  changeHref,
+  entries,
+  selectedChangeId,
+}: {
+  changeHref: (entry: ReaderFragment["changeHistory"][number]) => string;
+  entries: ReaderFragment["changeHistory"];
+  selectedChangeId: string;
+}) {
   if (entries.length === 0) {
     return null;
   }
@@ -653,29 +871,44 @@ function ChangeHistory({ entries }: { entries: ReaderFragment["changeHistory"] }
       <h3 className="text-sm font-semibold text-slate-900">История изменений фрагмента</h3>
       <div className="mt-3 space-y-3">
         {entries.map((entry) => (
-          <div className={`rounded-md border p-3 ${historyEntryClass(entry.status)}`} key={`${entry.versionId}-${entry.versionLabel}-${entry.status}`}>
+          <div
+            className={`scroll-mt-6 rounded-md border p-3 ${historyEntryClass(entry.status, selectedChangeId === entry.changeId)}`}
+            id={`change-${entry.changeId}`}
+            key={entry.changeId}
+          >
             <div className="flex flex-wrap items-center gap-2">
               <span className={`rounded-full border bg-white px-2 py-1 text-xs font-medium ${historyBadgeClass(entry.status)}`}>
                 {formatHistoryStatus(entry.status)}
               </span>
+              {!entry.hasPublishedExplanation ? (
+                <span className="rounded-full border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-600">
+                  нет опубликованного пояснения
+                </span>
+              ) : null}
               <p className="text-sm font-medium text-slate-950">
                 {entry.previousVersionLabel
                   ? `${entry.previousVersionLabel} → ${entry.versionLabel}`
                   : entry.versionLabel}
               </p>
+              <a
+                className="ml-auto text-xs font-medium text-blue-700 underline-offset-4 hover:underline"
+                href={changeHref(entry)}
+              >
+                Ссылка
+              </a>
             </div>
             {entry.beforeSnippet || entry.afterSnippet ? (
               <div className="mt-3 grid gap-2 text-xs leading-5 text-slate-700">
                 {entry.beforeSnippet ? (
                 <p>
                   <span className="font-semibold text-slate-900">Было: </span>
-                  {entry.beforeSnippet}
+                  <DiffSegments fallback={entry.beforeSnippet} segments={entry.beforeSegments} />
                 </p>
                 ) : null}
                 {entry.afterSnippet ? (
                 <p>
                   <span className="font-semibold text-slate-900">Стало: </span>
-                  {entry.afterSnippet}
+                  <DiffSegments fallback={entry.afterSnippet} segments={entry.afterSegments} />
                 </p>
                 ) : null}
               </div>
@@ -700,10 +933,65 @@ function ChangeHistory({ entries }: { entries: ReaderFragment["changeHistory"] }
                 </div>
               ) : null}
             </div>
+            <ChangeFeedbackForm entry={entry} />
           </div>
         ))}
       </div>
     </div>
+  );
+}
+
+function DiffSegments({
+  fallback,
+  segments,
+}: {
+  fallback: string;
+  segments: ReaderFragment["changeHistory"][number]["beforeSegments"];
+}) {
+  if (segments.length === 0) {
+    return <>{fallback}</>;
+  }
+
+  return (
+    <>
+      {segments.map((segment, index) => (
+        <span
+          className={
+            segment.changed
+              ? "rounded-sm bg-yellow-200 px-0.5 font-medium text-slate-950"
+              : undefined
+          }
+          key={`${segment.text}-${index}`}
+        >
+          {index > 0 ? " " : ""}
+          {segment.text}
+        </span>
+      ))}
+    </>
+  );
+}
+
+function ChangeFeedbackForm({
+  entry,
+}: {
+  entry: ReaderFragment["changeHistory"][number];
+}) {
+  return (
+    <form action={submitChangeFeedback} className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/70 pt-3 text-xs">
+      <input name="stableId" type="hidden" value={entry.stableId} />
+      <input name="fromVersionId" type="hidden" value={entry.fromVersionId} />
+      <input name="toVersionId" type="hidden" value={entry.toVersionId} />
+      <span className="font-medium text-slate-600">Оценить:</span>
+      <button className="rounded-md border border-slate-200 bg-white px-2 py-1 font-medium text-slate-700 hover:bg-slate-50" name="kind" type="submit" value="useful">
+        Полезно
+      </button>
+      <button className="rounded-md border border-slate-200 bg-white px-2 py-1 font-medium text-slate-700 hover:bg-slate-50" name="kind" type="submit" value="unclear">
+        Непонятно
+      </button>
+      <button className="rounded-md border border-slate-200 bg-white px-2 py-1 font-medium text-slate-700 hover:bg-slate-50" name="kind" type="submit" value="error">
+        Ошибка
+      </button>
+    </form>
   );
 }
 
@@ -763,13 +1051,16 @@ function formatHistoryStatus(status: ReaderFragment["changeHistory"][number]["st
   return labels[status];
 }
 
-function historyEntryClass(status: ReaderFragment["changeHistory"][number]["status"]) {
+function historyEntryClass(
+  status: ReaderFragment["changeHistory"][number]["status"],
+  isSelected: boolean,
+) {
   const classes: Record<ReaderFragment["changeHistory"][number]["status"], string> = {
     changed: "border-amber-200 bg-amber-50",
     deleted: "border-rose-200 bg-rose-50",
     introduced: "border-blue-200 bg-blue-50",
   };
-  return classes[status];
+  return `${classes[status]} ${isSelected ? "ring-2 ring-blue-400" : ""}`;
 }
 
 function historyBadgeClass(status: ReaderFragment["changeHistory"][number]["status"]) {
@@ -905,6 +1196,115 @@ function hasCommentaryNotice(fragment: ReaderFragment) {
 
 function hasSupplementalContent(fragment: ReaderFragment) {
   return fragment.changeHistory.length > 0 || hasCommentaryNotice(fragment) || fragment.blocks.length > 0;
+}
+
+function filterFragmentsByChangeFilters(
+  fragments: ReaderFragment[],
+  filters: ChangeFilters,
+  selectedChangeId: string,
+) {
+  if (!hasActiveChangeFilters(filters, selectedChangeId)) {
+    return fragments;
+  }
+
+  return fragments
+    .map((fragment) => ({
+      ...fragment,
+      changeHistory: fragment.changeHistory.filter((entry) =>
+        matchesChangeFilters(fragment, entry, filters, selectedChangeId),
+      ),
+      blocks: selectedChangeId || hasNonArticleChangeFilters(filters) ? [] : fragment.blocks,
+    }))
+    .filter((fragment) => fragment.changeHistory.length > 0);
+}
+
+function matchesChangeFilters(
+  fragment: ReaderFragment,
+  entry: ReaderFragment["changeHistory"][number],
+  filters: ChangeFilters,
+  selectedChangeId: string,
+) {
+  if (selectedChangeId && entry.changeId !== selectedChangeId) {
+    return false;
+  }
+
+  if (filters.article && getArticleNumber(fragment.stableId) !== filters.article) {
+    return false;
+  }
+
+  if (filters.fromVersionId && entry.fromVersionId !== filters.fromVersionId) {
+    return false;
+  }
+
+  if (filters.toVersionId && entry.toVersionId !== filters.toVersionId) {
+    return false;
+  }
+
+  if (
+    (filters.type === "changed" ||
+      filters.type === "introduced" ||
+      filters.type === "deleted") &&
+    entry.status !== filters.type
+  ) {
+    return false;
+  }
+
+  if (filters.status === "missing" && entry.hasPublishedExplanation) {
+    return false;
+  }
+
+  if (filters.status === "published" && !entry.hasPublishedExplanation) {
+    return false;
+  }
+
+  if (filters.source === "with" && entry.sourceLinks.length === 0) {
+    return false;
+  }
+
+  if (filters.source === "without" && entry.sourceLinks.length > 0) {
+    return false;
+  }
+
+  return true;
+}
+
+function hasActiveChangeFilters(filters: ChangeFilters, selectedChangeId: string) {
+  return Boolean(
+    selectedChangeId ||
+      filters.article ||
+      filters.fromVersionId ||
+      filters.source ||
+      filters.status ||
+      filters.toVersionId ||
+      filters.type,
+  );
+}
+
+function hasNonArticleChangeFilters(filters: ChangeFilters) {
+  return Boolean(
+    filters.fromVersionId ||
+      filters.source ||
+      filters.status ||
+      filters.toVersionId ||
+      filters.type,
+  );
+}
+
+function changeFilterQueryName(name: keyof ChangeFilters) {
+  const names: Record<keyof ChangeFilters, string> = {
+    article: "changeArticle",
+    fromVersionId: "changeFrom",
+    source: "changeSource",
+    status: "changeStatus",
+    toVersionId: "changeTo",
+    type: "changeType",
+  };
+  return names[name];
+}
+
+function getArticleNumber(stableId: string) {
+  const match = stableId.match(/^63fz\.article_(\d+(?:_\d+)?)(?:\.|$)/);
+  return match?.[1].replace("_", ".") ?? "";
 }
 
 function fragmentArticleClass(status: ReaderFragment["changeStatus"], hasAside: boolean) {

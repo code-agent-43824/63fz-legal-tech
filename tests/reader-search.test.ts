@@ -40,6 +40,7 @@ function makeReaderData(): ReaderData {
         blocks: [{ title: "Простыми словами", text: "Простое объяснение нормы." }],
         changeHistory: [
           {
+            changeId: "63fz.article_18.part_2.point_8..old..current",
             status: "introduced",
             stableId: "63fz.article_18.part_2.point_8",
             fromVersionId: "old",
@@ -49,6 +50,9 @@ function makeReaderData(): ReaderData {
             previousVersionLabel: "Старая редакция",
             beforeSnippet: null,
             afterSnippet: "нотариальная доверенность",
+            beforeSegments: [],
+            afterSegments: [],
+            hasPublishedExplanation: true,
             reason: "Введено 457-ФЗ.",
             purpose: "Уточнить полномочия.",
             practicalMeaning: "Практический смысл.",

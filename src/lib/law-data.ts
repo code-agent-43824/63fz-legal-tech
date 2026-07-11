@@ -8,11 +8,17 @@ import {
   parseSafeSourceLinks,
   type SafeSourceLink,
 } from "@/lib/source-links";
+import {
+  buildFullTextSnippet,
+  buildTextDiffSummary,
+  type DiffSegment,
+} from "@/lib/text-diff";
 
 type FragmentChangeStatus = "current" | "unchanged" | "changed" | "deleted";
 type CommentarySource = "selected" | "current" | "none";
 
 export type ReaderChangeHistoryEntry = {
+  changeId: string;
   status: "introduced" | "changed" | "deleted";
   stableId: string;
   fromVersionId: string;
@@ -22,6 +28,9 @@ export type ReaderChangeHistoryEntry = {
   previousVersionLabel: string | null;
   beforeSnippet: string | null;
   afterSnippet: string | null;
+  beforeSegments: DiffSegment[];
+  afterSegments: DiffSegment[];
+  hasPublishedExplanation: boolean;
   reason: string;
   purpose: string;
   practicalMeaning: string;
@@ -447,6 +456,11 @@ function buildChangeHistoriesByStableId(
         }),
       );
       entries.push({
+        changeId: encodeChangeId({
+          fromVersionId: previousVersion.id,
+          stableId,
+          toVersionId: version.id,
+        }),
         status: changeType,
         stableId,
         fromVersionId: previousVersion.id,
@@ -456,6 +470,9 @@ function buildChangeHistoriesByStableId(
         previousVersionLabel,
         beforeSnippet: snippets.before,
         afterSnippet: snippets.after,
+        beforeSegments: snippets.beforeSegments,
+        afterSegments: snippets.afterSegments,
+        hasPublishedExplanation: Boolean(explanation),
         reason: explanation?.reason?.trim() || defaultReason(changeType),
         purpose: explanation?.purpose?.trim() || defaultPurpose(changeType),
         practicalMeaning: explanation?.practicalMeaning?.trim() || defaultPracticalMeaning(changeType),
@@ -466,6 +483,18 @@ function buildChangeHistoriesByStableId(
   }
 
   return histories;
+}
+
+export function encodeChangeId({
+  fromVersionId,
+  stableId,
+  toVersionId,
+}: {
+  fromVersionId: string;
+  stableId: string;
+  toVersionId: string;
+}) {
+  return `${encodeURIComponent(stableId)}..${encodeURIComponent(fromVersionId)}..${encodeURIComponent(toVersionId)}`;
 }
 
 function transitionKey({
@@ -490,47 +519,6 @@ function compareVersionsAscending(
     return leftTime - rightTime;
   }
   return left.id.localeCompare(right.id);
-}
-
-function summarizeTextChange(before: string, after: string) {
-  const beforeWords = normalizeForComparison(before).split(" ").filter(Boolean);
-  const afterWords = normalizeForComparison(after).split(" ").filter(Boolean);
-  let start = 0;
-  while (
-    start < beforeWords.length &&
-    start < afterWords.length &&
-    beforeWords[start] === afterWords[start]
-  ) {
-    start += 1;
-  }
-
-  let beforeEnd = beforeWords.length - 1;
-  let afterEnd = afterWords.length - 1;
-  while (
-    beforeEnd >= start &&
-    afterEnd >= start &&
-    beforeWords[beforeEnd] === afterWords[afterEnd]
-  ) {
-    beforeEnd -= 1;
-    afterEnd -= 1;
-  }
-
-  return {
-    before: excerptWords(beforeWords, start, beforeEnd),
-    after: excerptWords(afterWords, start, afterEnd),
-  };
-}
-
-function excerptWords(words: string[], start: number, end: number) {
-  if (words.length === 0) {
-    return "";
-  }
-
-  const safeStart = Math.max(0, Math.min(start, words.length - 1) - 8);
-  const safeEnd = Math.min(words.length - 1, Math.max(end, start) + 8);
-  const prefix = safeStart > 0 ? "..." : "";
-  const suffix = safeEnd < words.length - 1 ? "..." : "";
-  return `${prefix}${words.slice(safeStart, safeEnd + 1).join(" ")}${suffix}`;
 }
 
 function buildCommentBlocks(fragment: ReaderDbFragment): ReaderCommentBlock[] {
@@ -675,18 +663,21 @@ function summarizeHistoryText(
   fragment: ReaderTextFragment | null,
 ) {
   if (changeType === "changed" && previousFragment && fragment) {
-    return summarizeTextChange(previousFragment.text, fragment.text);
+    const diff = buildTextDiffSummary(previousFragment.text, fragment.text);
+    return {
+      before: diff.beforeSnippet,
+      after: diff.afterSnippet,
+      beforeSegments: diff.beforeSegments,
+      afterSegments: diff.afterSegments,
+    };
   }
 
   return {
-    before: previousFragment ? excerptFullText(previousFragment.text) : null,
-    after: fragment ? excerptFullText(fragment.text) : null,
+    before: previousFragment ? buildFullTextSnippet(previousFragment.text) : null,
+    after: fragment ? buildFullTextSnippet(fragment.text) : null,
+    beforeSegments: [],
+    afterSegments: [],
   };
-}
-
-function excerptFullText(value: string) {
-  const words = normalizeForComparison(value).split(" ").filter(Boolean);
-  return excerptWords(words, 0, Math.min(words.length - 1, 40));
 }
 
 function defaultReason(changeType: ReaderChangeHistoryEntry["status"]) {

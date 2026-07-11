@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import {
   getTransitionChangeType,
-  normalizeForComparison,
   type TransitionChangeType,
 } from "@/lib/change-history";
+import { buildFullTextSnippet, buildTextDiffSummary } from "@/lib/text-diff";
 
 export type AdminFragmentListItem = {
   id: string;
@@ -75,8 +75,12 @@ export type AdminChangeTransition = {
 
 export type AdminChangeFilters = {
   article?: string;
+  fromVersionId?: string;
   q?: string;
+  source?: string;
   status?: string;
+  toVersionId?: string;
+  type?: string;
 };
 
 export async function getAdminFragments(): Promise<AdminFragmentListItem[]> {
@@ -325,10 +329,29 @@ function filterChangeTransitions(
 ) {
   const article = filters.article?.trim();
   const query = filters.q?.trim().toLowerCase();
+  const fromVersionId = filters.fromVersionId?.trim();
+  const source = filters.source?.trim();
   const status = filters.status?.trim();
+  const toVersionId = filters.toVersionId?.trim();
+  const type = filters.type?.trim();
 
   return transitions.filter((transition) => {
     if (article && getArticleNumber(transition.stableId) !== article) {
+      return false;
+    }
+
+    if (fromVersionId && transition.fromVersionId !== fromVersionId) {
+      return false;
+    }
+
+    if (toVersionId && transition.toVersionId !== toVersionId) {
+      return false;
+    }
+
+    if (
+      (type === "changed" || type === "introduced" || type === "deleted") &&
+      transition.changeType !== type
+    ) {
       return false;
     }
 
@@ -340,6 +363,14 @@ function filterChangeTransitions(
       (status === "draft" || status === "published") &&
       transition.explanation?.status !== status
     ) {
+      return false;
+    }
+
+    if (source === "with" && !transition.explanation?.sourceLinks?.trim()) {
+      return false;
+    }
+
+    if (source === "without" && transition.explanation?.sourceLinks?.trim()) {
       return false;
     }
 
@@ -390,47 +421,6 @@ function formatShortDate(date: Date) {
   }).format(date);
 }
 
-function summarizeTextChange(before: string, after: string) {
-  const beforeWords = normalizeForComparison(before).split(" ").filter(Boolean);
-  const afterWords = normalizeForComparison(after).split(" ").filter(Boolean);
-  let start = 0;
-  while (
-    start < beforeWords.length &&
-    start < afterWords.length &&
-    beforeWords[start] === afterWords[start]
-  ) {
-    start += 1;
-  }
-
-  let beforeEnd = beforeWords.length - 1;
-  let afterEnd = afterWords.length - 1;
-  while (
-    beforeEnd >= start &&
-    afterEnd >= start &&
-    beforeWords[beforeEnd] === afterWords[afterEnd]
-  ) {
-    beforeEnd -= 1;
-    afterEnd -= 1;
-  }
-
-  return {
-    before: excerptWords(beforeWords, start, beforeEnd),
-    after: excerptWords(afterWords, start, afterEnd),
-  };
-}
-
-function excerptWords(words: string[], start: number, end: number) {
-  if (words.length === 0) {
-    return "";
-  }
-
-  const safeStart = Math.max(0, Math.min(start, words.length - 1) - 8);
-  const safeEnd = Math.min(words.length - 1, Math.max(end, start) + 8);
-  const prefix = safeStart > 0 ? "..." : "";
-  const suffix = safeEnd < words.length - 1 ? "..." : "";
-  return `${prefix}${words.slice(safeStart, safeEnd + 1).join(" ")}${suffix}`;
-}
-
 function removeAggregateArticleDuplicates(transitions: AdminChangeTransition[]) {
   return transitions.filter((transition) => {
     if (transition.type !== "article") {
@@ -453,18 +443,17 @@ function summarizeTransitionText(
   fragment: { text: string } | null,
 ) {
   if (changeType === "changed" && previousFragment && fragment) {
-    return summarizeTextChange(previousFragment.text, fragment.text);
+    const diff = buildTextDiffSummary(previousFragment.text, fragment.text);
+    return {
+      before: diff.beforeSnippet,
+      after: diff.afterSnippet,
+    };
   }
 
   return {
-    before: previousFragment ? excerptFullText(previousFragment.text) : "",
-    after: fragment ? excerptFullText(fragment.text) : "",
+    before: previousFragment ? buildFullTextSnippet(previousFragment.text) : "",
+    after: fragment ? buildFullTextSnippet(fragment.text) : "",
   };
-}
-
-function excerptFullText(value: string) {
-  const words = normalizeForComparison(value).split(" ").filter(Boolean);
-  return excerptWords(words, 0, Math.min(words.length - 1, 40));
 }
 
 function transitionKey({

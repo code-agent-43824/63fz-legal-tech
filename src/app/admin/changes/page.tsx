@@ -12,8 +12,12 @@ export const dynamic = "force-dynamic";
 type AdminChangesPageProps = {
   searchParams: Promise<{
     article?: string;
+    fromVersionId?: string;
     q?: string;
+    source?: string;
     status?: string;
+    toVersionId?: string;
+    type?: string;
   }>;
 };
 
@@ -55,7 +59,7 @@ export default async function AdminChangesPage({ searchParams }: AdminChangesPag
           </form>
         </div>
 
-        <form className="mt-6 grid gap-3 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-[120px_170px_minmax(0,1fr)_auto]">
+        <form className="mt-6 grid gap-3 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-2 xl:grid-cols-[90px_150px_150px_150px_minmax(0,1fr)_auto]">
           <label className="grid gap-1 text-sm">
             <span className="font-medium text-slate-700">Статья</span>
             <input
@@ -64,6 +68,19 @@ export default async function AdminChangesPage({ searchParams }: AdminChangesPag
               name="article"
               placeholder="18"
             />
+          </label>
+          <label className="grid gap-1 text-sm">
+            <span className="font-medium text-slate-700">Тип</span>
+            <select
+              className="h-10 rounded-md border border-slate-300 bg-white px-3"
+              defaultValue={filters.type ?? ""}
+              name="type"
+            >
+              <option value="">Все</option>
+              <option value="introduced">Введено</option>
+              <option value="changed">Изменено</option>
+              <option value="deleted">Удалено</option>
+            </select>
           </label>
           <label className="grid gap-1 text-sm">
             <span className="font-medium text-slate-700">Статус</span>
@@ -76,6 +93,18 @@ export default async function AdminChangesPage({ searchParams }: AdminChangesPag
               <option value="missing">Не заполнено</option>
               <option value="draft">Черновик</option>
               <option value="published">Опубликовано</option>
+            </select>
+          </label>
+          <label className="grid gap-1 text-sm">
+            <span className="font-medium text-slate-700">Источники</span>
+            <select
+              className="h-10 rounded-md border border-slate-300 bg-white px-3"
+              defaultValue={filters.source ?? ""}
+              name="source"
+            >
+              <option value="">Все</option>
+              <option value="with">Есть</option>
+              <option value="without">Нет</option>
             </select>
           </label>
           <label className="grid gap-1 text-sm">
@@ -98,6 +127,24 @@ export default async function AdminChangesPage({ searchParams }: AdminChangesPag
               Сброс
             </a>
           </div>
+          <label className="grid gap-1 text-sm xl:col-span-2">
+            <span className="font-medium text-slate-700">Из редакции</span>
+            <input
+              className="h-10 rounded-md border border-slate-300 px-3"
+              defaultValue={filters.fromVersionId ?? ""}
+              name="fromVersionId"
+              placeholder="version id"
+            />
+          </label>
+          <label className="grid gap-1 text-sm xl:col-span-2">
+            <span className="font-medium text-slate-700">В редакцию</span>
+            <input
+              className="h-10 rounded-md border border-slate-300 px-3"
+              defaultValue={filters.toVersionId ?? ""}
+              name="toVersionId"
+              placeholder="version id"
+            />
+          </label>
         </form>
 
         <div className="mt-4 flex flex-wrap gap-2 text-sm text-slate-600">
