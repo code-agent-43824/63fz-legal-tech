@@ -23,6 +23,8 @@ future permanent production domain.
   safe source links where available.
 - Public reader has lightweight search across law text, public editorial blocks, and published
   change-history explanations.
+- Change history supports URL filters, stable links to concrete changes, highlighted changed text,
+  and anonymous feedback buttons.
 - Article 18 has been used as the first editorial pilot for granular change explanations.
 
 ## Known Limitations
@@ -35,6 +37,8 @@ future permanent production domain.
   shows source retrieval/check data from imported law versions.
 - Search is a lightweight in-reader search over the loaded public snapshot, not a ranked full-text
   index.
+- Change feedback is anonymous/aggregated v1 storage; there is no moderation dashboard or user
+  account attribution yet.
 - Mobile layout has a known horizontal overflow problem and needs a dedicated responsive pass.
 - Automatic monitoring of new amendments and confirmed import of a new current version are planned
   but not implemented.

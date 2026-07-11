@@ -962,3 +962,59 @@ Production verification:
 - unauthenticated `https://mescheryakov.pro/63fz/admin` redirects to `/63fz/admin/login`.
 - `https://mescheryakov.pro/63fz/admin/login` returns security headers and no `X-Powered-By`.
 - `63fz-legal-tech.service` is active with `NRestarts=0`.
+
+## 2026-07-11. Improved Diff View, Filters, Permalinks, And Feedback
+
+- Implemented the v1 improved change-review pass.
+- Added shared `src/lib/text-diff.ts` so changed transitions can carry highlighted word ranges
+  instead of only broad before/after snippets.
+- Public reader change history now has:
+  - URL filters for article, version pair, change type, published explanation presence, and source
+    presence;
+  - stable concrete change links encoded as `stableId..fromVersionId..toVersionId`;
+  - selected-change highlighting after a page refresh;
+  - cleaner filtered change screens that suppress unrelated editorial cards.
+- Added anonymous public feedback buttons for each change: `Полезно`, `Непонятно`, and `Ошибка`.
+- Added `ChangeFeedback` storage with a salted client hash, unique per-kind votes, and a short
+  in-process rate limit. Raw IP/user-agent values are not stored.
+- Extended `/63fz/admin/changes` filters with change type, source presence, and version-pair fields.
+- Added `tests/text-diff.test.ts`; fast suite now has `20` tests.
+
+Verified locally:
+
+- `pnpm run prisma:validate`
+- `pnpm run prisma:generate`
+- `pnpm run typecheck`
+- `pnpm run lint`
+- `pnpm test` (`20` tests passed)
+- `pnpm run build`
+
+Production deployment:
+
+- Code commit `1b8cedd` (`feat: improve change review workflow`) was pushed to `master`.
+- Production DB backup before the feedback migration:
+  `/home/openclaw/backups/63fz-legal-tech/20260711T053001Z-before-change-feedback/fz63_legal_tech_before_change_feedback.sql`
+- Applied migration `20260711052000_add_change_feedback` manually because this production database
+  has no `_prisma_migrations` history table from prior manual migrations.
+- Deployed release `1b8cedd` to
+  `/home/openclaw/services/63fz-legal-tech/releases/1b8cedd`.
+- Candidate preflight on `127.0.0.1:3917` returned HTTP 200 for `/63fz` and for
+  `/63fz?changeArticle=18&changeType=introduced&changeStatus=published&changeSource=with`; the
+  filtered HTML contained history controls, concrete change links, and feedback buttons.
+- Switched `/home/openclaw/services/63fz-legal-tech/current` to release `1b8cedd` and restarted
+  `63fz-legal-tech.service`.
+
+CI verification:
+
+- GitHub Actions run `29141249965` completed successfully on `master`.
+
+Production verification:
+
+- `https://mescheryakov.pro/63fz` returns HTTP 200 and contains the public history filter UI and
+  feedback labels.
+- `https://mescheryakov.pro/63fz?changeArticle=18&changeType=introduced&changeStatus=published&changeSource=with`
+  returns HTTP 200 and contains filtered change-history content, `Ссылка`, and `Полезно`.
+- `ChangeFeedback` exists in production.
+- unauthenticated `https://mescheryakov.pro/63fz/admin` redirects to `/63fz/admin/login`.
+- `https://mescheryakov.pro/63fz/admin/login` returns security headers and no `X-Powered-By`.
+- `63fz-legal-tech.service` is active with `NRestarts=0`.

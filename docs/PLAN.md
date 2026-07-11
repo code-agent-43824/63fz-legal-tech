@@ -45,6 +45,8 @@ These milestones are done and should remain historical context, not the shape of
 - Public reader query optimization and cacheable published-data snapshot.
 - Public freshness and source metadata in the reader.
 - Lightweight public search across loaded reader data.
+- Improved change-history filters, concrete change permalinks, highlighted changed text, and
+  anonymous change feedback.
 
 See `docs/PROGRESS.md` for the chronological implementation log. Do not rewrite that log
 retroactively.
@@ -425,7 +427,7 @@ Implementation note:
 ### 7. Improved Diff View, Filters, Permalinks, And Feedback
 
 Priority: P2.
-Status: planned.
+Status: completed for the v1 public/admin filtering and anonymous feedback pass.
 
 Goal:
 
@@ -468,9 +470,22 @@ Acceptance criteria:
 
 Explicitly not included:
 
+- A separate public change-review page outside the reader.
+- A moderation or analytics dashboard for feedback.
+- User accounts or attribution for feedback.
 - Full moderation workflow.
 - User profiles.
 - Public comments.
+
+Implementation note:
+
+- The current pass keeps change review inside the existing reader and admin screens. Reader
+  `change*` URL parameters filter history by article, version pair, change type, published
+  explanation presence, and source presence; `change=<stableId..from..to>` opens a concrete
+  transition and anchors to its card. Changed snippets now carry highlighted changed word ranges.
+  Public feedback stores anonymous per-change `useful`, `unclear`, and `error` submissions in
+  `ChangeFeedback` with a salted client hash and short in-process rate limit. Admin change filters
+  now include change type, source presence, and version-pair fields.
 
 ## Future Work
 
