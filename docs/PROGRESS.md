@@ -1110,4 +1110,36 @@ Verified locally:
 
 Production deployment:
 
-- Pending in this log entry until the release is pushed and switched on VDSina.
+- Code commits:
+  - `e08df51` (`feat: add protected markdown export`);
+  - `08ca7c9` (`fix: use relative export login redirect`).
+- Deployed release `08ca7c9` to
+  `/home/openclaw/services/63fz-legal-tech/releases/08ca7c9`.
+- Candidate preflight on `127.0.0.1:3918` returned HTTP 200 for `/63fz`.
+- Candidate unauthenticated `/63fz/admin/export/markdown` redirected to the relative
+  `/63fz/admin/login` path.
+- Candidate authenticated Markdown export returned HTTP 200 with
+  `content-type: text/markdown; charset=utf-8` and attachment filename
+  `63fz-63fz-current-2025-07-31.md`.
+- Switched `/home/openclaw/services/63fz-legal-tech/current` to release `08ca7c9` and restarted
+  `63fz-legal-tech.service`.
+
+CI verification:
+
+- GitHub Actions run `29142642282` completed successfully on `master`.
+- GitHub Actions run `29142798924` completed successfully on `master`.
+
+Production verification:
+
+- `https://mescheryakov.pro/63fz` returns HTTP 200.
+- unauthenticated `https://mescheryakov.pro/63fz/admin` redirects to `/63fz/admin/login`.
+- unauthenticated `https://mescheryakov.pro/63fz/admin/export/markdown` redirects to
+  `/63fz/admin/login`.
+- authenticated `https://mescheryakov.pro/63fz/admin/export/markdown` returns HTTP 200 as a
+  Markdown attachment named `63fz-63fz-current-2025-07-31.md`.
+- A live export artifact was saved for verification at
+  `/home/openclaw/services/63fz-legal-tech/imports/63fz-current-export.md`.
+- Export size is about `392K` and contains metadata, source checksum, official text sections, and
+  published change explanation sections.
+- `https://mescheryakov.pro/63fz/admin/login` returns security headers and no `X-Powered-By`.
+- `63fz-legal-tech.service` is active with `NRestarts=0`.
