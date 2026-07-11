@@ -27,7 +27,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const typeCounts = countTypes(fragments);
 
   return (
-    <main className="min-h-screen bg-stone-50 px-5 py-8 text-slate-950">
+    <main className="min-h-screen bg-stone-50 px-3 py-6 text-slate-950 sm:px-5 sm:py-8">
       <div className="mx-auto w-full max-w-6xl">
         <div className="flex flex-col gap-3 border-b border-slate-200 pb-6 md:flex-row md:items-end md:justify-between">
           <div>
@@ -160,16 +160,16 @@ function FragmentRow({ fragment }: { fragment: AdminFragmentListItem }) {
     fragment.proposedRevisionCount;
 
   return (
-    <div className="grid gap-3 border-b border-slate-100 px-4 py-4 text-sm last:border-b-0 md:grid-cols-[minmax(0,1fr)_120px_120px]">
+    <div className="grid min-w-0 gap-3 border-b border-slate-100 px-4 py-4 text-sm last:border-b-0 md:grid-cols-[minmax(0,1fr)_120px_120px]">
       <div style={{ paddingLeft: `${getDepth(fragment.stableId) * 16}px` }}>
         <a
-          className="font-medium text-slate-950 underline-offset-4 hover:underline"
+          className="wrap-anywhere font-medium text-slate-950 underline-offset-4 hover:underline"
           href={`/63fz/admin/fragments/${fragment.id}`}
         >
           {shortenTitle(fragment.title)}
         </a>
-        <div className="mt-1 text-slate-500">{fragment.stableId}</div>
-        <p className="mt-2 line-clamp-2 text-slate-600">{fragment.text}</p>
+        <div className="wrap-anywhere mt-1 text-slate-500">{fragment.stableId}</div>
+        <p className="wrap-anywhere mt-2 line-clamp-2 text-slate-600">{fragment.text}</p>
       </div>
       <div className="text-slate-600">{formatType(fragment.type)}</div>
       <div className="text-slate-600">{materialCount}</div>

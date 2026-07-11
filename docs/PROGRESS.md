@@ -1143,3 +1143,37 @@ Production verification:
   published change explanation sections.
 - `https://mescheryakov.pro/63fz/admin/login` returns security headers and no `X-Powered-By`.
 - `63fz-legal-tech.service` is active with `NRestarts=0`.
+
+## 2026-07-11. Responsive Reader And Admin Usability Pass
+
+- Implemented the core responsive overflow-hardening pass for the public reader and admin screens.
+- Public reader changes:
+  - reduced mobile page padding;
+  - changed the desktop sidebar/content grid to `minmax(280px,340px) minmax(0,1fr)`;
+  - changed fragment two-column cards to `minmax(0,1fr)` tracks;
+  - added `min-w-0` to key grid/flex containers;
+  - added `wrap-anywhere` handling for long stable IDs, version labels, source links, snippets,
+    titles, and law text;
+  - kept desktop reader structure intact.
+- Admin changes:
+  - reduced mobile page padding on fragment list, fragment editor, and change editor;
+  - added wrapping for stable IDs, anchors, titles, version labels, snippets, and original text;
+  - added `min-w-0` to form/card containers and form controls.
+- Global CSS changes:
+  - added `.wrap-anywhere` utility;
+  - capped form controls at their container width;
+  - clipped document-level horizontal overflow as a final guard.
+- No product logic, database schema, import behavior, search behavior, or public data rules changed.
+
+Verified locally:
+
+- `pnpm run typecheck`
+- `pnpm run lint`
+- `pnpm test` (`26` tests passed)
+- `pnpm run build`
+- OpenClaw browser smoke at `390px` on local `/63fz` demo fallback: `scrollWidth <= clientWidth`.
+- OpenClaw browser smoke at `390px` on local `/63fz/admin/login`: `scrollWidth <= clientWidth`.
+
+Production deployment:
+
+- Pending in this log entry until the responsive release is pushed and switched on VDSina.

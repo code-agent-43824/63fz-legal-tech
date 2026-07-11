@@ -271,8 +271,8 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
   }
 
   return (
-    <section className="mx-auto grid w-full max-w-6xl gap-6 px-5 py-8 lg:grid-cols-[340px_minmax(0,1fr)]">
-      <aside className="rounded-md border border-slate-200 bg-white lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-auto">
+    <section className="mx-auto grid w-full max-w-6xl gap-6 px-3 py-6 sm:px-5 sm:py-8 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
+      <aside className="min-w-0 rounded-md border border-slate-200 bg-white lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-auto">
         <div className="border-b border-slate-200 p-4">
           <label className="text-xs font-semibold uppercase tracking-wide text-slate-500" htmlFor="version-select">
             Редакция
@@ -385,13 +385,13 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
 
       <div className="min-w-0" id="law">
         <div className="mb-5 rounded-md border border-slate-200 bg-white p-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0">
+              <p className="wrap-anywhere text-xs font-semibold uppercase tracking-wide text-slate-500">
                 {readerData.selectedVersionLabel ?? "Текущая редакция"} ·{" "}
                 {mode === "focus" ? "режим фокуса" : "режим ленты"}
               </p>
-              <h2 className="mt-1 text-lg font-semibold text-slate-950">
+              <h2 className="wrap-anywhere mt-1 text-lg font-semibold text-slate-950">
                 {mode === "focus"
                   ? (selectedItem?.title ?? "Выбранный фрагмент")
                   : "Весь закон одной лентой"}
@@ -404,7 +404,7 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
             </div>
             {mode === "focus" ? (
               <button
-                className="h-10 rounded-md border border-slate-200 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className="h-10 shrink-0 rounded-md border border-slate-200 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 onClick={() => updateMode("feed")}
                 type="button"
               >
@@ -516,20 +516,20 @@ function ReaderSearch({
             </p>
           ) : null}
           {results.length > 0 ? (
-            <div className="mt-3 max-h-80 space-y-2 overflow-auto pr-1">
+            <div className="mt-3 max-h-80 min-w-0 space-y-2 overflow-auto pr-1">
               {results.map((result) => (
                 <a
-                  className="block rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm hover:border-blue-200 hover:bg-blue-50"
+                  className="block min-w-0 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm hover:border-blue-200 hover:bg-blue-50"
                   href={resultHref(result)}
                   key={result.id}
                 >
-                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  <span className="wrap-anywhere block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                     {searchKindLabel(result.kind)} · {result.label}
                   </span>
-                  <span className="mt-1 block font-medium text-slate-950">
+                  <span className="wrap-anywhere mt-1 block font-medium text-slate-950">
                     {result.fragmentTitle}
                   </span>
-                  <span className="mt-1 block text-xs leading-5 text-slate-600">
+                  <span className="wrap-anywhere mt-1 block text-xs leading-5 text-slate-600">
                     {result.excerpt}
                   </span>
                 </a>
@@ -712,7 +712,7 @@ function MetadataItem({ children, label }: { children: ReactNode; label: string 
   return (
     <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
       <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</dt>
-      <dd className="mt-1 text-slate-900">{children}</dd>
+      <dd className="wrap-anywhere mt-1 text-slate-900">{children}</dd>
     </div>
   );
 }
@@ -761,7 +761,7 @@ function TocTreeNode({
           title={node.title}
           type="button"
         >
-          <span className="block truncate">
+          <span className="block truncate text-sm leading-5">
             <span className="mr-2 text-[11px] font-semibold uppercase text-slate-400">
               {TYPE_LABELS[node.type] ?? node.type}
             </span>
@@ -809,23 +809,23 @@ function FragmentArticle({
       id={fragment.id}
     >
       <section className={lawTextSectionClass(hasAside)}>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <span className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600">
             Официальный текст
           </span>
-          <h2 className="text-xl font-semibold">{fragment.title}</h2>
+          <h2 className="wrap-anywhere min-w-0 text-xl font-semibold">{fragment.title}</h2>
           <ChangeBadge status={fragment.changeStatus} />
-          <a className="text-sm text-blue-700 underline-offset-4 hover:underline" href={`#${fragment.id}`}>
+          <a className="wrap-anywhere min-w-0 text-sm text-blue-700 underline-offset-4 hover:underline" href={`#${fragment.id}`}>
             #{fragment.id}
           </a>
         </div>
-        <p className="mt-4 whitespace-pre-wrap text-base leading-7 text-slate-800">
+        <p className="wrap-anywhere mt-4 whitespace-pre-wrap text-base leading-7 text-slate-800">
           {fragment.text}
         </p>
       </section>
 
       {hasAside ? (
-      <section className="bg-slate-50 p-5">
+      <section className="min-w-0 bg-slate-50 p-5">
         <ChangeHistory
           changeHref={(entry) => changeHref(fragment, entry)}
           entries={fragment.changeHistory}
@@ -869,14 +869,14 @@ function ChangeHistory({
   return (
     <div className="mb-4 rounded-md border border-slate-200 bg-white p-4">
       <h3 className="text-sm font-semibold text-slate-900">История изменений фрагмента</h3>
-      <div className="mt-3 space-y-3">
+      <div className="mt-3 min-w-0 space-y-3">
         {entries.map((entry) => (
           <div
             className={`scroll-mt-6 rounded-md border p-3 ${historyEntryClass(entry.status, selectedChangeId === entry.changeId)}`}
             id={`change-${entry.changeId}`}
             key={entry.changeId}
           >
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <span className={`rounded-full border bg-white px-2 py-1 text-xs font-medium ${historyBadgeClass(entry.status)}`}>
                 {formatHistoryStatus(entry.status)}
               </span>
@@ -885,7 +885,7 @@ function ChangeHistory({
                   нет опубликованного пояснения
                 </span>
               ) : null}
-              <p className="text-sm font-medium text-slate-950">
+              <p className="wrap-anywhere min-w-0 text-sm font-medium text-slate-950">
                 {entry.previousVersionLabel
                   ? `${entry.previousVersionLabel} → ${entry.versionLabel}`
                   : entry.versionLabel}
@@ -898,31 +898,31 @@ function ChangeHistory({
               </a>
             </div>
             {entry.beforeSnippet || entry.afterSnippet ? (
-              <div className="mt-3 grid gap-2 text-xs leading-5 text-slate-700">
+              <div className="mt-3 grid min-w-0 gap-2 text-xs leading-5 text-slate-700">
                 {entry.beforeSnippet ? (
-                <p>
+                <p className="wrap-anywhere">
                   <span className="font-semibold text-slate-900">Было: </span>
                   <DiffSegments fallback={entry.beforeSnippet} segments={entry.beforeSegments} />
                 </p>
                 ) : null}
                 {entry.afterSnippet ? (
-                <p>
+                <p className="wrap-anywhere">
                   <span className="font-semibold text-slate-900">Стало: </span>
                   <DiffSegments fallback={entry.afterSnippet} segments={entry.afterSegments} />
                 </p>
                 ) : null}
               </div>
             ) : null}
-            <div className="mt-3 grid gap-2 text-xs leading-5 text-slate-600">
-              <p>
+            <div className="mt-3 grid min-w-0 gap-2 text-xs leading-5 text-slate-600">
+              <p className="wrap-anywhere">
                 <span className="font-semibold text-slate-900">Причина: </span>
                 {entry.reason}
               </p>
-              <p>
+              <p className="wrap-anywhere">
                 <span className="font-semibold text-slate-900">Цель: </span>
                 {entry.purpose}
               </p>
-              <p>
+              <p className="wrap-anywhere">
                 <span className="font-semibold text-slate-900">Практический смысл: </span>
                 {entry.practicalMeaning}
               </p>
@@ -977,7 +977,7 @@ function ChangeFeedbackForm({
   entry: ReaderFragment["changeHistory"][number];
 }) {
   return (
-    <form action={submitChangeFeedback} className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/70 pt-3 text-xs">
+    <form action={submitChangeFeedback} className="mt-3 flex min-w-0 flex-wrap items-center gap-2 border-t border-white/70 pt-3 text-xs">
       <input name="stableId" type="hidden" value={entry.stableId} />
       <input name="fromVersionId" type="hidden" value={entry.fromVersionId} />
       <input name="toVersionId" type="hidden" value={entry.toVersionId} />
@@ -1001,10 +1001,10 @@ function SourceLinks({ links }: { links: ReaderFragment["changeHistory"][number]
   }
 
   return (
-    <span className="inline-flex flex-wrap gap-x-2 gap-y-1">
+    <span className="inline-flex min-w-0 flex-wrap gap-x-2 gap-y-1">
       {links.map((link) => (
         <a
-          className="text-blue-700 underline-offset-4 hover:underline"
+          className="wrap-anywhere min-w-0 text-blue-700 underline-offset-4 hover:underline"
           href={link.href}
           key={link.href}
           rel="noreferrer"
@@ -1076,7 +1076,7 @@ function CommentBlock({ title, text }: { title: string; text: string }) {
   return (
     <div className="rounded-md border border-slate-200 bg-white p-4">
       <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">{text}</p>
+      <p className="wrap-anywhere mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">{text}</p>
     </div>
   );
 }
@@ -1308,7 +1308,7 @@ function getArticleNumber(stableId: string) {
 }
 
 function fragmentArticleClass(status: ReaderFragment["changeStatus"], hasAside: boolean) {
-  const base = `scroll-mt-6 grid gap-0 overflow-hidden rounded-md border bg-white ${hasAside ? "lg:grid-cols-2" : ""}`;
+  const base = `scroll-mt-6 grid min-w-0 gap-0 overflow-hidden rounded-md border bg-white ${hasAside ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : ""}`;
   if (status === "changed") {
     return `${base} border-amber-300`;
   }
@@ -1322,6 +1322,6 @@ function fragmentArticleClass(status: ReaderFragment["changeStatus"], hasAside: 
 }
 
 function lawTextSectionClass(hasAside: boolean) {
-  const base = "p-5";
+  const base = "min-w-0 p-5";
   return hasAside ? `${base} border-b border-slate-200 lg:border-b-0 lg:border-r` : base;
 }

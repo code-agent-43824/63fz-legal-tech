@@ -23,7 +23,7 @@ export default async function AdminFragmentPage({
   }
 
   return (
-    <main className="min-h-screen bg-stone-50 px-5 py-8 text-slate-950">
+    <main className="min-h-screen bg-stone-50 px-3 py-6 text-slate-950 sm:px-5 sm:py-8">
       <div className="mx-auto w-full max-w-6xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <a className="text-sm text-slate-600 underline-offset-4 hover:underline" href="/63fz/admin">
@@ -38,17 +38,17 @@ export default async function AdminFragmentPage({
             </button>
           </form>
         </div>
-        <div className="mt-4 border-b border-slate-200 pb-6">
-          <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
+        <div className="mt-4 min-w-0 border-b border-slate-200 pb-6">
+          <p className="wrap-anywhere text-sm font-medium uppercase tracking-wide text-slate-500">
             {fragment.type} · {fragment.stableId}
           </p>
-          <h1 className="mt-2 text-3xl font-semibold">{fragment.title}</h1>
-          <p className="mt-2 text-sm text-slate-600">#{fragment.anchor}</p>
+          <h1 className="wrap-anywhere mt-2 text-3xl font-semibold">{fragment.title}</h1>
+          <p className="wrap-anywhere mt-2 text-sm text-slate-600">#{fragment.anchor}</p>
         </div>
 
         <section className="mt-6 rounded-md border border-slate-200 bg-white p-5">
           <h2 className="text-lg font-semibold">Оригинальный текст</h2>
-          <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+          <p className="wrap-anywhere mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">
             {fragment.originalText}
           </p>
           <p className="mt-4 text-sm text-slate-500">
@@ -194,8 +194,8 @@ function RevisionSection({
 
 function AdminSection({ children, title }: { children: React.ReactNode; title: string }) {
   return (
-    <section className="rounded-md border border-slate-200 bg-white p-5">
-      <h2 className="text-lg font-semibold">{title}</h2>
+    <section className="min-w-0 rounded-md border border-slate-200 bg-white p-5">
+      <h2 className="wrap-anywhere text-lg font-semibold">{title}</h2>
       <div className="mt-4 grid gap-4">{children}</div>
     </section>
   );
@@ -211,7 +211,7 @@ function CreateForm({
   kind: string;
 }) {
   return (
-    <form action={createContent} className="rounded-md border border-slate-200 bg-slate-50 p-4">
+    <form action={createContent} className="min-w-0 rounded-md border border-slate-200 bg-slate-50 p-4">
       <input name="fragmentId" type="hidden" value={fragmentId} />
       <input name="kind" type="hidden" value={kind} />
       <div className="grid gap-3">{children}</div>
@@ -234,7 +234,7 @@ function EditForm({
   kind: string;
 }) {
   return (
-    <div className="rounded-md border border-slate-200 p-4">
+    <div className="min-w-0 rounded-md border border-slate-200 p-4">
       <form action={updateContent}>
         <input name="fragmentId" type="hidden" value={fragmentId} />
         <input name="kind" type="hidden" value={kind} />
@@ -322,7 +322,7 @@ function Select({
   return (
     <label className="block">
       <span className="text-sm font-medium text-slate-700">{label}</span>
-      <select className="mt-1 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm" defaultValue={defaultValue} name={name}>
+      <select className="mt-1 h-10 w-full min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm" defaultValue={defaultValue} name={name}>
         {options.map((option) => (
           <option key={option} value={option}>
             {option}
@@ -347,7 +347,7 @@ function TextInput({
   return (
     <label className="block">
       <span className="text-sm font-medium text-slate-700">{label}</span>
-      <input className="mt-1 h-10 w-full rounded-md border border-slate-300 px-3 text-sm" defaultValue={defaultValue} name={name} required={required} />
+      <input className="mt-1 h-10 w-full min-w-0 rounded-md border border-slate-300 px-3 text-sm" defaultValue={defaultValue} name={name} required={required} />
     </label>
   );
 }
@@ -366,7 +366,7 @@ function TextArea({
   return (
     <label className="block">
       <span className="text-sm font-medium text-slate-700">{label}</span>
-      <textarea className="mt-1 min-h-28 w-full rounded-md border border-slate-300 px-3 py-2 text-sm leading-6" defaultValue={defaultValue} name={name} required={required} />
+      <textarea className="mt-1 min-h-28 w-full min-w-0 rounded-md border border-slate-300 px-3 py-2 text-sm leading-6" defaultValue={defaultValue} name={name} required={required} />
     </label>
   );
 }

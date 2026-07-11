@@ -30,6 +30,7 @@ future permanent production domain.
 - Admin-only Markdown export can produce a deterministic current-version Markdown file with public
   editorial material, published change rationale, source metadata, and accepted proposed revisions
   separated from official law text.
+- Core reader and admin screens have a responsive overflow hardening pass for mobile widths.
 - Article 18 has been used as the first editorial pilot for granular change explanations.
 
 ## Known Limitations
@@ -44,7 +45,8 @@ future permanent production domain.
   index.
 - Change feedback is anonymous/aggregated v1 storage; there is no moderation dashboard or user
   account attribution yet.
-- Mobile layout has a known horizontal overflow problem and needs a dedicated responsive pass.
+- Mobile layout has had a first core overflow pass, but final visual polish should still be checked
+  before a public launch.
 - Amendment monitoring is a safe CLI workflow, not automatic publication. A new current version
   still requires reviewed dry-run output, database backup, and explicit current-version
   confirmation.

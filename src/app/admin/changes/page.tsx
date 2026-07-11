@@ -31,17 +31,17 @@ export default async function AdminChangesPage({ searchParams }: AdminChangesPag
   const filledCount = transitions.filter((transition) => transition.explanation).length;
 
   return (
-    <main className="min-h-screen bg-stone-50 px-5 py-8 text-slate-950">
+    <main className="min-h-screen bg-stone-50 px-3 py-6 text-slate-950 sm:px-5 sm:py-8">
       <div className="mx-auto w-full max-w-6xl">
-        <div className="flex flex-col gap-3 border-b border-slate-200 pb-6 md:flex-row md:items-end md:justify-between">
-          <div>
+        <div className="flex min-w-0 flex-col gap-3 border-b border-slate-200 pb-6 md:flex-row md:items-end md:justify-between">
+          <div className="min-w-0">
             <a className="text-sm text-slate-600 underline-offset-4 hover:underline" href="/63fz/admin">
               ← Фрагменты закона
             </a>
             <p className="mt-4 text-sm font-medium uppercase tracking-wide text-slate-500">
               63-ФЗ · админка
             </p>
-            <h1 className="mt-2 text-3xl font-semibold">История изменений</h1>
+            <h1 className="wrap-anywhere mt-2 text-3xl font-semibold">История изменений</h1>
           </div>
           <a
             className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium"
@@ -175,13 +175,13 @@ function ChangeEditor({ transition }: { transition: AdminChangeTransition }) {
   return (
     <article className="rounded-md border border-slate-200 bg-white">
       <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <span className={`rounded-full border px-2 py-1 text-xs font-medium ${changeTypeClass(transition.changeType)}`}>
             {formatChangeType(transition.changeType)}
           </span>
           <span className="text-sm text-slate-600">{formatType(transition.type)}</span>
           <span className="text-sm text-slate-400">·</span>
-          <span className="text-sm text-slate-600">{transition.stableId}</span>
+          <span className="wrap-anywhere min-w-0 text-sm text-slate-600">{transition.stableId}</span>
           {transition.explanation ? (
             <span className="rounded-full border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-900">
               {transition.explanation.status}
@@ -192,14 +192,14 @@ function ChangeEditor({ transition }: { transition: AdminChangeTransition }) {
             </span>
           )}
         </div>
-        <h2 className="mt-2 text-base font-semibold">{transition.title}</h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <h2 className="wrap-anywhere mt-2 text-base font-semibold">{transition.title}</h2>
+        <p className="wrap-anywhere mt-1 text-sm text-slate-600">
           {transition.fromVersionLabel} → {transition.toVersionLabel}
         </p>
       </div>
 
-      <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,440px)]">
-        <div className="grid gap-3 text-sm leading-6">
+      <div className="grid min-w-0 gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,440px)]">
+        <div className="grid min-w-0 gap-3 text-sm leading-6">
           <Snippet
             emptyText="Фрагмент отсутствовал в этой редакции."
             text={transition.beforeSnippet}
@@ -212,7 +212,7 @@ function ChangeEditor({ transition }: { transition: AdminChangeTransition }) {
           />
         </div>
 
-        <div>
+        <div className="min-w-0">
           <form action={saveChangeExplanation} className="rounded-md border border-slate-200 bg-slate-50 p-4">
             <input name="stableId" type="hidden" value={transition.stableId} />
             <input name="fromVersionId" type="hidden" value={transition.fromVersionId} />
@@ -278,9 +278,9 @@ function Snippet({
   title: string;
 }) {
   return (
-    <div className="rounded-md border border-slate-200 bg-white p-3">
+    <div className="min-w-0 rounded-md border border-slate-200 bg-white p-3">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</h3>
-      <p className="mt-2 text-slate-700">{text || emptyText}</p>
+      <p className="wrap-anywhere mt-2 text-slate-700">{text || emptyText}</p>
     </div>
   );
 }
@@ -299,7 +299,7 @@ function Select({
   return (
     <label className="block">
       <span className="text-sm font-medium text-slate-700">{label}</span>
-      <select className="mt-1 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm" defaultValue={defaultValue} name={name}>
+      <select className="mt-1 h-10 w-full min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm" defaultValue={defaultValue} name={name}>
         {options.map((option) => (
           <option key={option} value={option}>
             {option}
@@ -322,7 +322,7 @@ function TextArea({
   return (
     <label className="block">
       <span className="text-sm font-medium text-slate-700">{label}</span>
-      <textarea className="mt-1 min-h-24 w-full rounded-md border border-slate-300 px-3 py-2 text-sm leading-6" defaultValue={defaultValue} name={name} />
+      <textarea className="mt-1 min-h-24 w-full min-w-0 rounded-md border border-slate-300 px-3 py-2 text-sm leading-6" defaultValue={defaultValue} name={name} />
     </label>
   );
 }

@@ -48,7 +48,7 @@ Status: done.
 - `FragmentChangeExplanation` storage, admin editor, and public rendering.
 - Article 18 editorial pilot and aggregate article duplicate filtering.
 
-### Roadmap Points 1-9
+### Roadmap Points 1-10
 
 1. Security Hardening: done.
    - Removed unsafe production auth fallback.
@@ -100,11 +100,18 @@ Status: done.
      metadata, and keeps official text separate from accepted proposed revisions.
    - No public export endpoint was added.
 
+10. Responsive Reader And Admin Usability Pass: done for the core overflow-hardening pass.
+    - Core public reader and admin screens use safer mobile padding, wrapping, and grid/flex
+      constraints.
+    - Long stable IDs, source links, snippets, and version labels no longer force document-level
+      horizontal overflow in the checked responsive cases.
+
 ## Current Known Gaps
 
 These are product risks or limitations, not all immediate next steps.
 
-- Mobile layout has known horizontal overflow and needs a dedicated responsive pass.
+- Core reader and admin screens have had a responsive overflow pass, but final visual polish remains
+  a public-launch concern.
 - The admin model is still one shared password; there are no users, roles, or audit logs.
 - Change feedback has no moderation or analytics dashboard.
 - Search is lightweight in-reader search, not database full-text search.
@@ -127,7 +134,7 @@ opening a new public surface too early.
 ### 10. Responsive Reader And Admin Usability Pass
 
 Priority: P1.
-Status: deferred by Kirill for now; keep as the next product-quality implementation when resumed.
+Status: completed for the core overflow-hardening pass.
 
 Goal:
 
@@ -156,6 +163,14 @@ Explicitly not included:
 - Visual redesign for a final brand/domain.
 - New reader features.
 - Public launch/domain migration.
+
+Implementation note:
+
+- The current pass tightened the core reader and admin layouts for mobile widths: smaller mobile page
+  padding, `min-w-0` on grid/flex containers, safer `minmax(0, 1fr)` column tracks, wrapping for
+  long stable IDs/source links/version labels/snippets, and capped form controls. Local browser
+  smoke checks at 390px showed no document-level horizontal overflow for the reader fallback and
+  admin login; production checks are recorded in `docs/PROGRESS.md`.
 
 ### 11. Feedback Review And Editorial Work Queue
 
@@ -391,8 +406,7 @@ Explicitly not included:
 
 ## Current Recommendation
 
-Do not start new feature implementation until this plan is accepted. When work resumes, the most
-practical next implementation is still the responsive usability pass, but it is explicitly deferred
-for now. If the next task should avoid UI work, the strongest alternative is Feedback Review And
-Editorial Work Queue because it builds directly on the newly added feedback data and improves
-editorial operations without changing the public legal text.
+The strongest next implementation is Feedback Review And Editorial Work Queue because it builds
+directly on the newly added feedback data and improves editorial operations without changing the
+public legal text. If editorial operations should wait, the next infrastructure-focused alternative
+is Scheduled Amendment Monitoring And Notifications.
