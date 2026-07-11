@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -29,6 +30,8 @@ type CliOptions = {
   revisionDate: string;
   effectiveDate: string;
   setCurrent: boolean;
+  confirmSetCurrent?: string;
+  backupDir: string;
 };
 
 type ParsedBlock = {
@@ -95,6 +98,7 @@ async function main() {
   const reconstructionSha256 = sha256(reconstructedFullText);
   const warnings = validateParsedLaw(parsed);
   const versionId = options.versionId ?? buildVersionId(parsed.revisionDate);
+  validateCurrentConfirmation(options, versionId);
   const comparison = await compareWithCurrentVersion(parsed.fragments, versionId);
   const report: ImportReport = {
     sourceName: SOURCE_NAME,
@@ -126,6 +130,11 @@ async function main() {
   }
 
   if (options.write) {
+    const backupPath = await createDatabaseBackup({
+      backupDir: options.backupDir,
+      versionId,
+    });
+    console.log(`\nDatabase backup created: ${backupPath}`);
     await writeParsedLaw(parsed, {
       setCurrent: options.setCurrent,
       sourceUrl: options.sourceUrl,
@@ -144,7 +153,7 @@ async function main() {
   }
 }
 
-function parseCliOptions(args: string[]): CliOptions {
+export function parseCliOptions(args: string[]): CliOptions {
   const options: CliOptions = {
     dryRun: true,
     write: false,
@@ -152,7 +161,8 @@ function parseCliOptions(args: string[]): CliOptions {
     importDir: DEFAULT_IMPORT_DIR,
     revisionDate: REVISION_DATE,
     effectiveDate: EFFECTIVE_DATE,
-    setCurrent: true,
+    setCurrent: false,
+    backupDir: path.join(DEFAULT_IMPORT_DIR, "backups"),
   };
 
   for (let index = 0; index < args.length; index += 1) {
@@ -186,8 +196,16 @@ function parseCliOptions(args: string[]): CliOptions {
     } else if (arg === "--effective-date") {
       options.effectiveDate = requireValue(args, index, arg);
       index += 1;
+    } else if (arg === "--set-current") {
+      options.setCurrent = true;
+    } else if (arg === "--confirm-set-current") {
+      options.confirmSetCurrent = requireValue(args, index, arg);
+      index += 1;
     } else if (arg === "--no-set-current") {
       options.setCurrent = false;
+    } else if (arg === "--backup-dir") {
+      options.backupDir = requireValue(args, index, arg);
+      index += 1;
     } else {
       throw new Error(`Unknown argument: ${arg}`);
     }
@@ -202,6 +220,18 @@ function requireValue(args: string[], index: number, arg: string) {
     throw new Error(`Expected value after ${arg}`);
   }
   return value;
+}
+
+export function validateCurrentConfirmation(options: CliOptions, versionId: string) {
+  if (!options.setCurrent) {
+    return;
+  }
+
+  if (options.confirmSetCurrent !== versionId) {
+    throw new Error(
+      `Changing currentVersionId requires --confirm-set-current ${versionId}`,
+    );
+  }
 }
 
 async function fetchSourceHtml(sourceUrl: string) {
@@ -697,6 +727,37 @@ async function compareWithCurrentVersion(fragments: ParsedBlock[], versionId: st
   }
 }
 
+async function createDatabaseBackup({
+  backupDir,
+  versionId,
+}: {
+  backupDir: string;
+  versionId: string;
+}) {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    throw new Error("DATABASE_URL is required to create a backup before --write.");
+  }
+
+  await mkdir(backupDir, { recursive: true });
+  const backupPath = path.join(
+    backupDir,
+    `${new Date().toISOString().replace(/[:.]/g, "-")}-${versionId}.sql`,
+  );
+  const dumpUrl = databaseUrl.replace(/\?.*$/, "");
+  const result = spawnSync("pg_dump", [dumpUrl], {
+    encoding: "utf8",
+    maxBuffer: 1024 * 1024 * 200,
+  });
+
+  if (result.status !== 0) {
+    throw new Error(`Backup failed: ${result.stderr || "pg_dump exited unsuccessfully"}`);
+  }
+
+  await writeFile(backupPath, result.stdout);
+  return backupPath;
+}
+
 async function writeParsedLaw(
   parsed: ParsedLaw,
   source: {
@@ -870,6 +931,22 @@ async function writeParsedLaw(
       });
 
       if (source.setCurrent) {
+        const currentVersion = law.currentVersionId
+          ? await tx.lawVersion.findUnique({
+              where: { id: law.currentVersionId },
+              select: { effectiveDate: true, id: true },
+            })
+          : null;
+        const nextEffectiveDate = new Date(`${parsed.effectiveDate}T00:00:00.000Z`);
+        if (
+          currentVersion?.effectiveDate &&
+          nextEffectiveDate.getTime() < currentVersion.effectiveDate.getTime()
+        ) {
+          throw new Error(
+            `Refusing to make older version current: ${version.id} is effective ${parsed.effectiveDate}, current ${currentVersion.id} is effective ${currentVersion.effectiveDate.toISOString().slice(0, 10)}`,
+          );
+        }
+
         await tx.law.update({
           where: { id: law.id },
           data: { currentVersionId: version.id },
