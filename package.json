@@ -13,6 +13,7 @@
     "lint": "eslint .",
     "law:import:63fz": "tsx scripts/import-63fz.ts",
     "law:monitor:63fz": "node --no-warnings --experimental-strip-types scripts/monitor-63fz-amendments.ts",
+    "law:export:markdown": "tsx scripts/export-63fz-markdown.ts",
     "prisma:generate": "prisma generate",
     "prisma:validate": "DATABASE_URL=postgresql://postgres:postgres@localhost:5439/63fz_legal_tech prisma validate",
     "prisma:migrate": "prisma migrate dev",

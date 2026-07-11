@@ -45,6 +45,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </a>
             <a
               className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium"
+              href="/63fz/admin/export/markdown"
+            >
+              Markdown export
+            </a>
+            <a
+              className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium"
               href="/63fz"
             >
               Публичная страница
