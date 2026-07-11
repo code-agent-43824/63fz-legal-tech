@@ -1176,4 +1176,31 @@ Verified locally:
 
 Production deployment:
 
-- Pending in this log entry until the responsive release is pushed and switched on VDSina.
+- Code commit `4755ade` (`feat: harden responsive reader layouts`) was pushed to `master`.
+- Deployed release `4755ade` to
+  `/home/openclaw/services/63fz-legal-tech/releases/4755ade`.
+- Candidate preflight on `127.0.0.1:3918` returned HTTP 200 for `/63fz`.
+- Candidate unauthenticated `/63fz/admin` and `/63fz/admin/export/markdown` redirected to
+  `/63fz/admin/login`.
+- Switched `/home/openclaw/services/63fz-legal-tech/current` to release `4755ade` and restarted
+  `63fz-legal-tech.service`.
+
+CI verification:
+
+- GitHub Actions run `29144142974` completed successfully on `master`.
+
+Production verification:
+
+- `https://mescheryakov.pro/63fz` returns HTTP 200.
+- Filtered live change URL
+  `/63fz?changeArticle=18&changeType=introduced&changeStatus=published&changeSource=with`
+  returns HTTP 200 and contains the responsive wrapping classes.
+- unauthenticated `https://mescheryakov.pro/63fz/admin` redirects to `/63fz/admin/login`.
+- OpenClaw browser smoke checks on live production:
+  - `390px` filtered public reader URL: document `scrollWidth` equals `clientWidth`, no
+    document-level horizontal overflow;
+  - `390px` `/63fz/admin/login`: no document-level horizontal overflow;
+  - `390px` authenticated `/63fz/admin`: no document-level horizontal overflow;
+  - `390px` authenticated `/63fz/admin/changes?article=18`: no document-level horizontal overflow;
+  - `1280px` filtered public reader URL: no document-level horizontal overflow.
+- `63fz-legal-tech.service` is active with `NRestarts=0`.
