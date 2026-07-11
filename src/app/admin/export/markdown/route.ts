@@ -6,7 +6,10 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   if (!(await isAdminAuthenticated())) {
-    return NextResponse.redirect(new URL("/63fz/admin/login", request.url));
+    return new NextResponse(null, {
+      status: 307,
+      headers: { location: "/63fz/admin/login" },
+    });
   }
 
   const url = new URL(request.url);
