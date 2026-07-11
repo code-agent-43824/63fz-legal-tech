@@ -1,685 +1,398 @@
-# Development Roadmap
+# Product Development Plan
 
-This roadmap replaces the original linear MVP checklist. Completed work is kept as a short history,
-while active planning is organized by priority, dependency, status, and acceptance criteria.
+This document is the current product roadmap for the 63-FZ legal-tech reader and editorial CMS.
+Chronological implementation details stay in `docs/PROGRESS.md`; this file tracks what is already
+accepted, what remains intentionally deferred, and what should happen next.
 
-## Current Product Baseline
+## Current Baseline
 
-Status: test public deployment.
+Status: public test deployment at `https://mescheryakov.pro/63fz`.
 
-- The project is a Next.js/TypeScript/Prisma application for structured reading of Federal Law
-  63-FZ "On Electronic Signature".
-- The database contains the imported law text with detailed stable fragments and several real law
-  versions.
-- The public reader supports a version selector, tree navigation, focus/feed modes, and fragment
-  change history with `introduced`, `changed`, and `deleted` transition types.
-- The admin area uses one password-protected administrative account and can edit fragment
-  commentary, proposed revisions, issues, and change explanations.
-- Public reader data is filtered to public statuses, hides empty editorial sections, and uses a
-  cacheable snapshot for published reader data.
-- Article 18 has a completed editorial pilot for change explanations.
-- The current public placement under `/63fz` is a test placement. Do not treat the current host name
-  or path as the future permanent product domain.
+- The app is a Next.js/TypeScript/Prisma/PostgreSQL service deployed as an isolated `/63fz`
+  application behind Caddy.
+- The database contains real imported 63-FZ text with stable fragments down to article, part, point,
+  and paragraph where the parser can identify them.
+- Several real law versions are imported and can be compared by stable fragment identity.
+- The public reader supports version selection, tree navigation, focus/feed modes, change history,
+  source metadata, search, filters, change permalinks, feedback buttons, and hidden empty editorial
+  sections.
+- The admin area is protected by one password-based administrative account and supports fragment
+  editorial materials plus change explanations.
+- Article 18 has a completed editorial pilot for granular published change explanations.
+- Amendment monitoring is available as a safe CLI workflow and does not publish legal text
+  automatically.
+- Markdown export is protected/admin-only and limited to deterministic Markdown.
 
-## Completed History
+The current domain/path is still a test placement. Do not treat `/63fz` or `mescheryakov.pro` as
+the final product placement.
 
-These milestones are done and should remain historical context, not the shape of the active roadmap.
+## Completed And Accepted
 
-- Environment reconnaissance and isolated `/63fz` deployment approach.
-- Next.js application skeleton with `basePath: "/63fz"`.
-- Prisma schema, migrations, and PostgreSQL-backed deployment.
-- Public reader, stable fragment anchors, tree table of contents, and focus/feed modes.
-- Password-protected admin shell and fragment edit forms.
-- Verified import pipeline for the current 63-FZ text.
-- Detailed fragmentation into law, articles, parts, points, and paragraphs.
-- Multiple real law versions and version-aware reader behavior.
-- Computed change history for `introduced`, `changed`, and `deleted` transitions.
-- `FragmentChangeExplanation` storage, admin editor, and public rendering for published change
-  explanations.
-- Article 18 editorial pilot and aggregate-duplicate filtering.
-- Single-admin security hardening: secret validation, login rate limiting, logout, cookie hardening,
-  security headers, public-status filtering, server-side validation, and delete confirmations.
-- Lightweight test and CI baseline with fast Node tests, Prisma schema validation, typecheck, lint,
-  and production build.
-- Empty public editorial sections hidden from the reader.
-- Public reader query optimization and cacheable published-data snapshot.
-- Public freshness and source metadata in the reader.
-- Lightweight public search across loaded reader data.
-- Improved change-history filters, concrete change permalinks, highlighted changed text, and
-  anonymous change feedback.
-- Amendment monitoring and confirmed-import guardrails.
-- Protected deterministic Markdown export.
+The following points are complete and should not be re-opened as roadmap work unless a bug or a new
+requirement appears.
 
-See `docs/PROGRESS.md` for the chronological implementation log. Do not rewrite that log
-retroactively.
+### Foundation
 
-## Roadmap Order
+Status: done.
 
-1. Security Hardening.
-2. Lightweight Tests And CI.
-3. Hide Empty Editorial Sections.
-4. Reader Query Optimization And Cacheable Snapshot.
-5. Public Freshness And Source Metadata.
-6. Search Across Law Text And Change History.
-7. Improved Diff View, Filters, Permalinks, And Feedback.
-8. Amendment Monitoring And Confirmed Import.
-9. Markdown Export.
-10. Deferred Mobile Responsive Rework.
-11. Multi-User Authentication, Roles, And Audit.
+- Public GitHub repository and local project workspace.
+- Next.js application with `basePath: "/63fz"`.
+- Isolated production deployment as `63fz-legal-tech.service` on VDSina.
+- PostgreSQL-backed Prisma schema and production database.
+- Password-protected admin shell and fragment CRUD.
+- Real 63-FZ import pipeline with source metadata and checksums.
+- Detailed fragment parser and stable fragment hierarchy.
+- Public tree reader with focus/feed modes.
+- Version-aware reader with current/historical law versions.
+- Pairwise change history for `introduced`, `changed`, and `deleted`.
+- `FragmentChangeExplanation` storage, admin editor, and public rendering.
+- Article 18 editorial pilot and aggregate article duplicate filtering.
 
-Security comes first because later work will expand public and administrative surfaces. Tests and CI
-come next so subsequent changes have cheap regression coverage. Query optimization should happen
-before search and richer history screens, because those features will otherwise amplify the current
-"load everything" reader pattern.
+### Roadmap Points 1-9
 
-Preparing for a future domain move is tracked as a future infrastructure task, but it does not move
-public search, change-history work, amendment monitoring, or Markdown export down the product order.
+1. Security Hardening: done.
+   - Removed unsafe production auth fallback.
+   - Added secret validation, login rate limiting, logout, hardened cookies, security headers,
+     public-status filtering, server-side validation, and destructive-action confirmation.
 
-## Near-Term Required Work
+2. Lightweight Tests And CI: done.
+   - Added `pnpm test` with Node's test runner through `tsx`.
+   - Added Prisma validation, typecheck, lint, fast tests, and production build to GitHub Actions.
+   - Current fast suite has 26 tests after the Markdown export stage.
 
-### 1. Security Hardening
+3. Hide Empty Editorial Sections: done.
+   - Removed repeated empty placeholder editorial blocks from the public reader.
+   - Kept one concise empty state only where it helps orientation.
 
-Priority: P0.
-Status: completed for the single-admin-account hardening pass.
+4. Reader Query Optimization And Cacheable Snapshot: done for the current full-reader screen.
+   - Reader data loading is narrower than the original "load everything" approach.
+   - Published reader data has an in-process snapshot keyed by selected version plus an explicit
+     invalidation marker.
+   - Admin pages bypass the public snapshot.
 
-Goal:
+5. Public Freshness And Source Metadata: done for imported version metadata.
+   - Reader shows current/historical status, effective date, source, source check/retrieval date,
+     and safe source links.
+   - Official law text is visually separated from editorial material.
 
-- Make the current single-admin-account model safer before adding more public features.
+6. Search Across Law Text And Change History: done for lightweight in-reader search.
+   - Search covers public law text, stable IDs/titles, public editorial blocks, published change
+     explanations, and safe source links.
+   - Search results link back to focused stable fragments.
 
-Tasks:
+7. Improved Diff View, Filters, Permalinks, And Feedback: done for v1.
+   - Public change filters cover article, version pair, change type, explanation status, and source
+     presence.
+   - Concrete change permalinks are stable across refreshes.
+   - Changed word ranges are highlighted.
+   - Anonymous feedback is stored with salted client hashes, not raw IP/user-agent values.
 
-- Remove the unsafe production fallback for `AUTH_SECRET`.
-- Fail closed when required production secrets are missing, example-valued, or too weak.
-- Define and enforce minimum length and quality checks for `AUTH_SECRET` and `ADMIN_PASSWORD`.
-- Ensure draft proposed revisions are never shown publicly.
-- Publicly expose only statuses that are explicitly allowed for publication.
-- Add rate limiting for admin login attempts.
-- Add an administrative logout flow that reliably clears the session.
-- Review session cookie attributes: `httpOnly`, `secure`, `sameSite`, `path`, lifetime, and deletion
-  behavior under the `/63fz` base path.
-- Add basic security headers.
-- Disable unnecessary technology disclosure headers, including `X-Powered-By` where applicable.
-- Add server-side validation for enum values, stable IDs, version IDs, URLs, and field length limits.
-- Add confirmation for destructive admin actions such as delete operations.
-- Record a future task for real multi-user authentication with roles and an action audit log.
+8. Amendment Monitoring And Confirmed Import: done for the safe CLI workflow.
+   - `pnpm law:monitor:63fz` checks the consolidated source and writes state/report files.
+   - Importer no longer changes `currentVersionId` by default.
+   - Making a version current requires `--set-current --confirm-set-current <versionId>`.
+   - `--write` creates a database backup first and refuses to make older effective versions current.
 
-Dependencies:
+9. Markdown Export: done for protected Markdown-only export.
+   - Admin-only `/63fz/admin/export/markdown`.
+   - `pnpm law:export:markdown` in the repository.
+   - Export is deterministic, excludes non-public materials, includes version/source/checksum
+     metadata, and keeps official text separate from accepted proposed revisions.
+   - No public export endpoint was added.
 
-- Existing `src/lib/auth.ts` single-admin cookie flow.
-- Existing Prisma enums and admin server actions.
-- No user/role migration is required for this stage unless a small support table is needed for rate
-  limiting.
+## Current Known Gaps
 
-Acceptance criteria:
+These are product risks or limitations, not all immediate next steps.
 
-- In production mode, the app refuses to start or refuses protected auth operations when
-  `AUTH_SECRET` or `ADMIN_PASSWORD` is missing, example-valued, or below the documented minimum.
-- There is no code path that signs an admin session with a development-only fallback secret in
-  production.
-- Public reader data excludes `draft` proposed revisions and any other non-public statuses.
-- Login attempts are rate-limited by a practical key such as IP plus username/scope, with clear
-  behavior for temporary lockouts.
-- Admin has a visible logout action and the session is invalid after logout.
-- Cookie settings are documented and verified in production-like mode.
-- Basic security headers are present on public and admin responses; framework technology headers are
-  not unnecessarily exposed.
-- Invalid enum values, IDs, URLs, oversized fields, and malformed source links are rejected on the
-  server.
-- Delete/destructive actions require explicit confirmation in the UI.
-- `pnpm run typecheck`, `pnpm run lint`, and `pnpm run build` pass.
+- Mobile layout has known horizontal overflow and needs a dedicated responsive pass.
+- The admin model is still one shared password; there are no users, roles, or audit logs.
+- Change feedback has no moderation or analytics dashboard.
+- Search is lightweight in-reader search, not database full-text search.
+- Amendment monitoring is manual CLI work, not a scheduled alerting job.
+- There is no separate durable "last checked for newer amendments" database field beyond monitor
+  state files and imported source retrieval metadata.
+- Production database migration history is partly manual; the database has historically not used a
+  clean `_prisma_migrations` history table.
+- The deployment path is a test placement; base path and canonical URL are still effectively tied to
+  `/63fz` in several places.
+- Editorial coverage outside article 18 is still sparse.
+- The app has a pragmatic public snapshot, but no broader observability, error reporting, or
+  operational dashboard.
 
-Explicitly not included:
+## Future Roadmap
 
-- Full user accounts, OAuth, SSO, role management, or audit logs.
-- A public registration flow.
-- Broad redesign of admin screens.
+The next sequence should improve usability, editorial operations, and production readiness without
+opening a new public surface too early.
 
-Implementation note:
-
-- The current pass keeps the single administrative account but removes the unsafe auth-secret
-  fallback, adds fail-closed secret checks, login rate limiting, logout, stricter cookie settings,
-  basic security headers, public status filtering, server-side form validation, URL protocol
-  validation for source links, and delete confirmations.
-
-### 2. Lightweight Tests And CI
-
-Priority: P0.
-Status: completed for the lightweight fast-check pass.
-
-Goal:
-
-- Add cheap regression coverage without creating a heavy local test environment.
-
-Tasks:
-
-- Add unit tests for law-version comparison and transition classification:
-  `introduced`, `changed`, `deleted`, and unchanged.
-- Add fixture/golden tests for critical importer behavior, including stable IDs and reconstruction
-  checksums.
-- Add a test that draft editorial materials do not appear in public reader data.
-- Add a test for authentication behavior when `AUTH_SECRET` is missing, example-valued, or invalid
-  for production.
-- Add a few smoke tests for key pages.
-- Add one minimal responsive test that either documents the known mobile overflow or prevents further
-  regression.
-- Add a lightweight Prisma schema/migration validation step that does not require a permanently
-  running heavy local environment.
-- Add CI that runs only:
-  - install with frozen lockfile;
-  - typecheck;
-  - lint;
-  - fast tests;
-  - production build.
-
-Dependencies:
-
-- Security hardening should define the expected auth failure behavior before auth tests are finalized.
-- A test runner must be selected and added to `package.json`.
-
-Acceptance criteria:
-
-- `pnpm test` exists and runs the fast suite locally without requiring a long-lived PostgreSQL
-  service.
-- CI uses `pnpm install --frozen-lockfile`.
-- CI completes the minimum checks without running optional PostgreSQL integration tests.
-- Importer fixture tests can run from local fixture files and do not fetch remote legal sources.
-- The responsive test is explicit about whether it is a known-issue guard or a no-regression guard.
-- PostgreSQL integration tests, if added, can be run separately or on demand.
-
-Explicitly not included:
-
-- Heavy browser matrices.
-- Mandatory PostgreSQL integration tests on every short local development cycle.
-- Load testing.
-- Large end-to-end suites that make ordinary edits slow.
-
-Implementation note:
-
-- The current pass uses Node's built-in test runner through `tsx --test`, without adding a heavy
-  browser or database dependency. Coverage includes change-transition classification, auth-secret
-  policy, public publication-status policy, importer fixture/golden behavior, and no-database smoke
-  fallbacks. CI runs install with frozen lockfile, Prisma schema validation with a dummy
-  `DATABASE_URL`, typecheck, lint, fast tests, and production build.
-
-### 3. Hide Empty Editorial Sections
+### 10. Responsive Reader And Admin Usability Pass
 
 Priority: P1.
-Status: completed.
+Status: deferred by Kirill for now; keep as the next product-quality implementation when resumed.
 
 Goal:
 
-- Reduce public reader noise by hiding empty editorial blocks and repeated placeholders.
+- Make the public reader and core admin screens usable on common mobile widths without horizontal
+  overflow.
 
 Tasks:
 
-- Do not render fully empty editorial sections.
-- Remove repeated "Пока не добавлено" blocks from every fragment.
-- Hide empty blocks for:
-  - "Простыми словами";
-  - "Комментарии экспертов";
-  - "Ошибки и спорные места";
-  - "Предложенная редакция".
-- Show one explanatory empty state at page level or selected-fragment level only when useful.
-- Check public visibility rules for each status separately.
-
-Dependencies:
-
-- Security hardening status-publication rules.
-- Existing reader block model in `src/lib/law-data.ts` and `src/app/law-reader.tsx`.
+- Audit public reader at common mobile widths.
+- Fix layout overflow in the table of contents, version controls, search, filter controls, change
+  history cards, source links, stable IDs, and law text.
+- Make focus/feed controls and change filters usable on touch screens.
+- Add a responsive smoke test or screenshot check that can be run cheaply.
+- Verify public `/63fz`, filtered change URLs, focus URLs, and admin login/admin list pages.
 
 Acceptance criteria:
 
-- A fragment with no published editorial material shows the official text without four repeated empty
-  cards.
-- A page or focused fragment may show one concise empty state when it helps orientation.
-- Draft and otherwise non-public materials remain absent from public output.
-- Existing published article 18 change explanations still render.
-- `pnpm run typecheck`, `pnpm run lint`, and `pnpm run build` pass.
+- No meaningful horizontal overflow at common mobile widths.
+- Long stable IDs, source links, and legal text wrap or truncate intentionally.
+- The reader remains usable without hiding legally important data.
+- Desktop layout does not regress.
+- Local checks and production smoke checks pass before deployment.
 
 Explicitly not included:
 
-- Rewriting editorial copy.
-- Adding new editorial data models.
-- Mobile layout fixes.
+- Visual redesign for a final brand/domain.
+- New reader features.
+- Public launch/domain migration.
 
-Implementation note:
-
-- Public reader data now includes only editorial blocks that have real public content. Empty
-  "Простыми словами", "Комментарии экспертов", "Ошибки и спорные места", and "Предложенная
-  редакция" cards are not generated. The reader shows one selected-scope empty state when no
-  editorial blocks are available at all, and fragments without any side content render as a
-  single-column law-text row.
-
-### 4. Reader Query Optimization And Cacheable Snapshot
+### 11. Feedback Review And Editorial Work Queue
 
 Priority: P1.
-Status: completed for the current full-reader screen.
+Status: future.
 
 Goal:
 
-- Stop loading all law versions, all fragments, and all related materials for every public reader
-  request.
+- Turn anonymous change feedback into an admin-reviewable editorial signal.
 
 Tasks:
 
-- Measure current HTML/RSC payload size, TTFB, and rendered DOM element count before changing the
-  data-loading strategy.
-- Load only the selected version and current version, or another minimal data set needed for the
-  current screen.
-- Separate data access for table of contents, selected fragment/subtree, and change history.
-- Choose server pagination, selective loading, or another approach that avoids sending the whole law
-  to the client unnecessarily.
-- Build a cacheable snapshot of published public data.
-- Invalidate the snapshot after publishing editorial material or importing a new law version.
-- Ensure admin pages are never served from the public snapshot cache.
-- Define behavior for temporary database unavailability.
-- Measure the same baseline metrics after the change and document the comparison.
-
-Dependencies:
-
-- Security/publication-status filtering.
-- Hidden empty sections should reduce payload noise first.
-- Existing `LawVersion.source*` fields and change explanation data.
+- Add an admin view for aggregated `ChangeFeedback`.
+- Show counts by change, kind, article, version pair, and time period.
+- Link feedback rows to the relevant admin change editor.
+- Add basic status handling such as open, reviewed, ignored, or fixed if a small table is justified.
+- Keep raw client identifiers private; do not expose client hashes unless needed for abuse handling.
 
 Acceptance criteria:
 
-- Baseline metrics are recorded before optimization.
-- Public reader requests no longer fetch every version with every fragment and every relation by
-  default.
-- The current screen has the data it needs for the selected mode without exposing non-public rows.
-- Published data snapshot generation and invalidation are explicit and testable.
-- Admin routes bypass public snapshot caching.
-- A temporary database failure produces a controlled response instead of a broken partial page.
-- Post-change metrics are recorded; no arbitrary hard performance target is claimed before the
-  baseline exists.
+- Admin can identify changes that readers mark as unclear or wrong.
+- Feedback review does not expose private client data.
+- Review state, if added, is server-validated and test-covered.
+- Public feedback submission behavior remains stable.
 
 Explicitly not included:
 
-- Search indexing.
-- CDN or domain migration.
-- Admin query optimization except where needed to avoid cache misuse.
-
-Implementation note:
-
-- Baseline before this pass: production `/63fz` returned `1,334,284` bytes, about `3,307` HTML tags,
-  and TTFB around `1.00-1.11s` on repeated uncached reads after the empty-section cleanup.
-- The reader now loads version metadata first, then only the selected version fragments, the current
-  version fragments when needed for comparison, and minimal history fragments for stable IDs visible
-  in the selected screen.
-- Published public reader data is cached in process and keyed by selected version plus an explicit
-  marker file. Admin writes and law imports invalidate the marker; admin pages do not read from this
-  public snapshot cache.
-- If the database is temporarily unavailable after a successful public read, the reader can continue
-  serving the last in-process snapshot for that selected version.
-- Post-change production measurements kept the same HTML size for the full reader screen, as
-  expected, but warmed public reads improved TTFB to roughly `0.26-0.37s`.
-
-## Next Product Stage
-
-### 5. Public Freshness And Source Metadata
-
-Priority: P1.
-Status: completed for imported version metadata.
-
-Goal:
-
-- Make the reader trustworthy by showing the date, source, and editorial boundary around legal data.
-
-Tasks:
-
-- Show which law version is current.
-- Show the effective date of the selected version.
-- Show the last freshness-check date when available.
-- Show source name and source link for the selected law version.
-- Make change-history sources clickable.
-- Validate allowed source-link protocols, for example `https:` only unless another protocol is
-  explicitly approved.
-- Show source and date near legally significant data.
-- Prefer official publication where possible, or explicitly mark when a non-official consolidated
-  source was used and how it was verified.
-- Visually and textually separate official law text from editorial explanations.
-
-Dependencies:
-
-- Existing `LawVersion.effectiveDate`, `sourceUrl`, `sourceName`, `sourceRetrievedAt`,
-  `sourceHtmlSha256`, and `sourceTextSha256` fields.
-- Security hardening URL validation.
-
-Acceptance criteria:
-
-- Reader UI shows selected/current version, effective date, source name, and source link when stored.
-- Change explanation source links render as safe clickable links, not raw unvalidated text.
-- Missing source metadata has a clear fallback state.
-- Official text and editorial commentary are visually distinct.
-- If "last checked" cannot be derived from existing fields, the plan for the minimal model addition
-  is documented before migration.
-
-Minimal model change if needed:
-
-- Prefer using existing `sourceRetrievedAt` for source retrieval.
-- Add a small freshness field only if the product needs a separate "last checked for newer
-  amendments" timestamp that differs from source retrieval.
-
-Explicitly not included:
-
-- Automatic amendment monitoring.
-- Automatic legal-text publication.
-- Domain migration.
-
-Implementation note:
-
-- The reader now shows whether the selected version is current or historical, its effective date,
-  source name/link, and `sourceRetrievedAt` as the current source-check timestamp.
-- The current law source is displayed as a consolidated source when it comes from `Контур.Норматив`;
-  official publication links remain attached to change explanations where those editorial cards
-  include official source URLs.
-- Change explanation source text is parsed into deduplicated safe `https:` links before rendering.
-  Raw unvalidated source text is not printed as a public link block.
-- Official law text is marked separately from editorial side panels in the reader.
-- No migration was added in this pass. A distinct "last checked for newer amendments" field remains
-  part of the future amendment-monitoring/import stage if it needs to differ from source retrieval.
-
-### 6. Search Across Law Text And Change History
-
-Priority: P2.
-Status: completed for lightweight in-reader search.
-
-Goal:
-
-- Let readers find law fragments and amendment explanations without scanning the tree manually.
-
-Tasks:
-
-- Search original law text.
-- Search published plain-language explanations and expert comments.
-- Search published change explanations and source labels.
-- Link every result to the exact fragment or concrete change.
-- Put public search before Markdown export in delivery order.
-
-Dependencies:
-
-- Query optimization and public snapshot strategy.
-- Publication-status filtering.
-
-Acceptance criteria:
-
-- Search results only include public, published material.
-- Results link to stable fragment URLs or change permalinks.
-- Search works for current and selected historical versions where supported.
-- Empty and no-result states are concise.
-- Baseline query behavior is measured before adding heavier indexing.
-
-Explicitly not included:
-
-- Full-text ranking perfection.
-- External search service unless a local database approach proves insufficient.
-- Markdown export.
-
-Implementation note:
-
-- Public search is implemented inside the reader over the already-loaded public snapshot. This keeps
-  the stage lightweight and avoids a separate search index.
-- The search covers original law text, stable IDs/titles, public editorial blocks, published change
-  explanations, and safe source-link labels/URLs that are already present in `ReaderData`.
-- The query is stored in the `q` URL parameter. Results link to `mode=focus&node=<stableId>` plus the
-  fragment anchor, preserving the selected law version.
-- Results are capped and intentionally simple. Ranking, dedicated database full-text search, change
-  permalinks, filters, and advanced diff search remain in the next roadmap stage.
-
-### 7. Improved Diff View, Filters, Permalinks, And Feedback
-
-Priority: P2.
-Status: completed for the v1 public/admin filtering and anonymous feedback pass.
-
-Goal:
-
-- Make change history easier to inspect, cite, filter, and improve.
-
-Minimum implementation:
-
-- Improve the "Было / Стало" presentation.
-- Highlight the directly changed text range, not only broad context snippets.
-- Add search and filters by:
-  - article;
-  - version pair;
-  - change type;
-  - explanation status;
-  - source presence.
-- Add a permanent link to a concrete change.
-- Encode the stable fragment ID plus from/to version pair in that link.
-- Remove irrelevant empty blocks from change screens.
-- Add simple feedback:
-  - "Полезно";
-  - "Непонятно";
-  - "Ошибка".
-- Add basic anti-spam protection for feedback.
-- Store anonymous or aggregated feedback first; user accounts are not required for v1.
-
-Dependencies:
-
-- Search and optimized change-history data access.
-- Security validation for IDs, enum filters, and URL parameters.
-- Optional minimal feedback storage model.
-
-Acceptance criteria:
-
-- A concrete change can be opened directly by URL and remains stable across page refreshes.
-- Filters can isolate article 18, a version pair, `introduced` changes, missing explanations, and
-  changes with/without sources.
-- Diff display highlights the changed fragment text clearly enough for editorial review.
-- Feedback can be submitted without an account and cannot be trivially spammed in bulk.
-- Feedback data does not expose private user information by default.
-
-Explicitly not included:
-
-- A separate public change-review page outside the reader.
-- A moderation or analytics dashboard for feedback.
-- User accounts or attribution for feedback.
-- Full moderation workflow.
-- User profiles.
+- User accounts.
 - Public comments.
+- Full moderation/community workflow.
 
-Implementation note:
+### 12. Editorial Coverage Expansion
 
-- The current pass keeps change review inside the existing reader and admin screens. Reader
-  `change*` URL parameters filter history by article, version pair, change type, published
-  explanation presence, and source presence; `change=<stableId..from..to>` opens a concrete
-  transition and anchors to its card. Changed snippets now carry highlighted changed word ranges.
-  Public feedback stores anonymous per-change `useful`, `unclear`, and `error` submissions in
-  `ChangeFeedback` with a salted client hash and short in-process rate limit. Admin change filters
-  now include change type, source presence, and version-pair fields.
-
-## Future Work
-
-### 8. Amendment Monitoring And Confirmed Import
-
-Priority: P3.
-Status: completed for the safe CLI monitoring and importer-guardrail pass.
-
-Goal:
-
-- Detect new 63-FZ amendments and import new law versions only through a reviewable,
-  confirmable operation.
-
-Tasks:
-
-- Periodically check for new 63-FZ amendments.
-- Notify when a possible new change is found.
-- Store check results and the last successful check date.
-- Never automatically publish legal text without review.
-- Add dry-run import for a new revision.
-- Report added, changed, and deleted fragments.
-- Require manual confirmation before making a new version current.
-- Create a backup before writes.
-- Provide a safe cancellation or rollback path.
-- Protect against accidentally reassigning an older version as current.
-- Ensure the ordinary importer does not silently change `currentVersionId` when that was not the
-  requested operation.
-
-Dependencies:
-
-- Source metadata/freshness UI.
-- Snapshot invalidation.
-- Importer validation and backup discipline.
-
-Acceptance criteria:
-
-- A monitoring run records when it checked and what it found.
-- Import dry-run produces a human-readable report before any write.
-- A write that changes `currentVersionId` requires explicit confirmation.
-- Backups are created before write operations.
-- Re-running the same import is idempotent or fails safely with a clear explanation.
-
-Explicitly not included:
-
-- Fully automatic publication of legal text.
-- Legal interpretation of amendments without editorial review.
-
-Implementation note:
-
-- The current pass adds `pnpm law:monitor:63fz`, which fetches/parses Контур.Норматив
-  `revisionsJSON`, records `state.json`, writes a human-readable monitor report, compares the latest
-  source revision with the current/imported DB versions when `DATABASE_URL` is available, and prints
-  a dry-run import command for review. The ordinary importer no longer changes `currentVersionId` by
-  default; changing current requires `--set-current --confirm-set-current <versionId>`. Every
-  `--write` creates a `pg_dump` backup first, and the importer refuses to make an older effective
-  version current.
-
-### 9. Markdown Export
-
-Priority: P3.
-Status: completed for the protected Markdown-only export pass.
-
-Goal:
-
-- Export an improved Markdown representation after the reader, search, and change-review workflow
-  are more stable.
-
-Tasks:
-
-- Add protected Markdown export.
-- Use accepted proposed revisions where appropriate.
-- Include change rationale and source metadata.
-- Keep official text and proposed/editorial text clearly separated.
-
-Dependencies:
-
-- Publication-status filtering.
-- Source metadata.
-- Improved change links and accepted proposed-revision workflow.
-
-Acceptance criteria:
-
-- Export is protected.
-- Export output is deterministic.
-- Export does not include drafts or non-public editorial material.
-- Export clearly distinguishes original law text from proposed improvements.
-
-Explicitly not included:
-
-- Public export endpoint.
-- Bulk document generation formats beyond Markdown.
-
-Implementation note:
-
-- The current pass adds an admin-only Markdown download endpoint and `pnpm law:export:markdown`.
-  Export data uses the same public visibility policy as the reader: only published explanations,
-  published expert comments, confirmed issues, accepted proposed revisions, and published change
-  explanations are included. The generated Markdown omits a generation timestamp so identical data
-  produces identical output, includes version/source/checksum metadata, and keeps accepted proposed
-  revisions in clearly separate blocks instead of replacing official text.
-
-### Future Domain Move Preparation
-
-Priority: P3.
+Priority: P1.
 Status: future.
 
 Goal:
 
-- Avoid hard dependencies on the current test placement and prepare for a later move to another
-  domain.
+- Move beyond the article 18 pilot and create a repeatable editorial workflow for important 63-FZ
+  changes.
 
 Tasks:
 
-- Keep current `/63fz` placement test-only.
-- Do not integrate with the main `mescheryakov.pro` navigation, sitemap, menu, design, or structure
-  at this stage.
-- Make base path configurable instead of assuming `/63fz` forever.
-- Make canonical URL configurable.
-- Audit hard-coded current-domain references in public metadata, import user agents, docs, and links.
-
-Dependencies:
-
-- Decision on the future domain and route shape.
+- Select the next high-value articles or change clusters.
+- Use admin filters to find missing published change explanations.
+- Fill granular explanations with source links.
+- Keep aggregate article duplicates unpublished unless they add unique value.
+- Track editorial coverage by article and version pair.
 
 Acceptance criteria:
 
-- App can be configured for a different base path/canonical URL without code edits.
-- Current test route still works until the move happens.
-- No main-site sitemap, menu, or design changes are made as part of this preparation.
+- Each selected article has no meaningful missing granular explanation for the chosen version pairs.
+- Public pages show published explanations and omit drafts.
+- Source links are safe `https:` links and preferably official publication links where available.
+- Progress is documented in `docs/PROGRESS.md` or a dedicated editorial coverage note.
 
 Explicitly not included:
 
-- The domain move itself.
-- Main-site integration.
+- Inventing legal interpretation without sources.
+- Bulk auto-generated explanations.
 
-### 11. Multi-User Authentication, Roles, And Audit
+### 13. Scheduled Amendment Monitoring And Notifications
 
-Priority: P3.
+Priority: P2.
 Status: future.
 
 Goal:
 
-- Replace the single administrative password with a proper administrative model.
+- Move the existing monitor from manual CLI use to a controlled scheduled check with clear
+  notifications.
 
 Tasks:
 
-- Add user accounts.
-- Add roles and permissions.
-- Add secure password/OAuth/SSO decision.
-- Add audit log for administrative actions.
-- Migrate the existing admin workflow without exposing drafts.
-
-Dependencies:
-
-- Security hardening.
-- Clear editorial roles and workflow.
+- Decide whether heartbeat or cron is the right scheduler for this project.
+- Store job-specific behavior in automation memory if cron is used.
+- Run `pnpm law:monitor:63fz` on a safe cadence.
+- Send a concise notification only when a newer source revision appears or the monitor fails.
+- Keep state and reports under the production imports directory.
 
 Acceptance criteria:
 
-- Every administrative action is attributable.
+- Routine checks do not spam the Telegram topic.
+- Failures are visible with enough detail to debug.
+- A detected new revision still requires manual dry-run review and explicit import confirmation.
+- The monitor never writes law text to the database by itself.
+
+Explicitly not included:
+
+- Automatic import.
+- Automatic publication of a new current version.
+
+### 14. Import And Migration Operations Hardening
+
+Priority: P2.
+Status: future.
+
+Goal:
+
+- Make production data operations easier to audit and less dependent on manual institutional memory.
+
+Tasks:
+
+- Document the current production migration reality, including the missing/partial Prisma migration
+  history.
+- Create a repeatable preflight checklist for schema changes, backups, owner/app-role permissions,
+  release deployment, and rollback.
+- Consider a small operations script for backup plus migration status reporting.
+- Ensure import/export/monitor scripts can run reliably in the intended environment.
+
+Acceptance criteria:
+
+- A future schema migration has an explicit runbook before it is applied.
+- Backups are named, located, and verified consistently.
+- App role and owner role responsibilities are documented.
+- Rollback boundaries are clear.
+
+Explicitly not included:
+
+- Rebuilding the production database from scratch.
+- Destructive migration history surgery without a separate approval.
+
+### 15. Multi-User Authentication, Roles, And Audit
+
+Priority: P2.
+Status: future.
+
+Goal:
+
+- Replace the single shared admin password with attributable administrative access.
+
+Tasks:
+
+- Define roles: owner/admin/editor/reviewer or a smaller set if enough.
+- Choose password auth, OAuth, SSO, or another appropriate model.
+- Add users and sessions.
+- Add server-enforced role checks for admin screens/actions.
+- Add audit logging for content and configuration changes.
+- Migrate the existing single-admin workflow without exposing drafts.
+
+Acceptance criteria:
+
+- Every administrative write is attributable.
 - Role boundaries are enforced on the server.
-- Existing content is preserved through migration.
+- Existing content and admin flows continue to work after migration.
+- Audit rows include enough context to review changes without storing secrets.
 
 Explicitly not included:
 
-- This is not part of the immediate security hardening stage.
+- Public registration.
+- Reader accounts.
 
-## Deferred Tasks
+### 16. Search Upgrade
 
-### 10. Mobile Responsive Rework
+Priority: P3.
+Status: future.
 
-Priority: deferred.
-Status: known issue, not in the next stage.
+Goal:
 
-Known problem:
+- Improve search quality when the lightweight in-reader search becomes insufficient.
 
-- At mobile widths, the interface can produce strong horizontal overflow.
-- The table of contents and main content can stretch the page significantly wider than the viewport.
-- The mobile version needs a dedicated responsive pass.
+Tasks:
 
-Dependencies:
+- Measure current search gaps against real queries.
+- Decide between PostgreSQL full-text search and a separate index only if the local approach is not
+  enough.
+- Add filters for article, version, content type, and change type if needed.
+- Preserve stable fragment/change links in results.
 
-- Reader layout decisions after empty sections and query optimization.
+Acceptance criteria:
 
-Acceptance criteria for the later mobile pass:
+- Search quality improves on documented real queries.
+- Search still excludes drafts and non-public materials.
+- Index/update behavior is clear after editorial writes and imports.
 
-- No significant horizontal overflow at common mobile widths.
-- The table of contents, version controls, change history, and law text remain usable on mobile.
-- Long stable IDs, source links, and legal text do not force the viewport wider than the device.
-- A responsive smoke test covers the core reader screen.
+Explicitly not included:
 
-Explicitly not included now:
+- External search service before local options are exhausted.
 
-- CSS fixes in the current documentation-only pass.
-- Moving mobile work into the immediate Security or CI stages.
+### 17. Domain Move And Public Launch Preparation
+
+Priority: P3.
+Status: future.
+
+Goal:
+
+- Prepare the app for a future permanent domain/path without disturbing the current test placement.
+
+Tasks:
+
+- Make base path and canonical URL configurable.
+- Audit hard-coded `mescheryakov.pro/63fz` references in metadata, docs, import user agents, and
+  source labels.
+- Decide final route/domain and whether main-site navigation should link to it.
+- Prepare SEO metadata, sitemap/robots behavior, and public launch checks only after the domain
+  decision.
+
+Acceptance criteria:
+
+- The app can run under a different base path/canonical URL without code edits.
+- Current `/63fz` test route keeps working until the move.
+- Main site integration happens only as a separate approved task.
+
+Explicitly not included:
+
+- The actual domain move.
+- Marketing/landing-page redesign.
+
+### 18. Observability And Operations
+
+Priority: P3.
+Status: future.
+
+Goal:
+
+- Make the production test service easier to monitor and recover.
+
+Tasks:
+
+- Add a lightweight health endpoint or documented health check.
+- Track service restart count, disk usage, backup freshness, and failed monitor/import attempts.
+- Decide where operational alerts should go.
+- Document restore steps for database backups and release rollback.
+
+Acceptance criteria:
+
+- Basic service health can be checked without logging into the app.
+- Restart/disk/backup problems are visible before they become emergencies.
+- Rollback and restore steps are written down and tested at least once in a safe way.
+
+Explicitly not included:
+
+- Heavy observability platform unless the project grows enough to justify it.
+
+## Current Recommendation
+
+Do not start new feature implementation until this plan is accepted. When work resumes, the most
+practical next implementation is still the responsive usability pass, but it is explicitly deferred
+for now. If the next task should avoid UI work, the strongest alternative is Feedback Review And
+Editorial Work Queue because it builds directly on the newly added feedback data and improves
+editorial operations without changing the public legal text.
