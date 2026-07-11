@@ -1018,3 +1018,62 @@ Production verification:
 - unauthenticated `https://mescheryakov.pro/63fz/admin` redirects to `/63fz/admin/login`.
 - `https://mescheryakov.pro/63fz/admin/login` returns security headers and no `X-Powered-By`.
 - `63fz-legal-tech.service` is active with `NRestarts=0`.
+
+## 2026-07-11. Amendment Monitoring And Confirmed Import
+
+- Implemented the v1 safe amendment-monitoring and confirmed-import workflow.
+- Added `pnpm law:monitor:63fz` through `scripts/monitor-63fz-amendments.ts`.
+- The monitor:
+  - fetches or reads the consolidated Контур.Норматив source;
+  - parses `revisionsJSON` without UTC date shifting;
+  - writes `state.json` and `latest-report.md`;
+  - records the check timestamp, latest revision/effective date/documentId/source URL, source HTML
+    checksum, previous check summary, and DB comparison when `DATABASE_URL` is available;
+  - prints the next safe `pnpm law:import:63fz -- --dry-run ...` command;
+  - never writes legal text to the database.
+- Hardened `scripts/import-63fz.ts`:
+  - `currentVersionId` is no longer changed by default;
+  - changing current requires `--set-current --confirm-set-current <versionId>`;
+  - every `--write` creates a `pg_dump` backup first;
+  - the importer refuses to make an older effective version current.
+- Added tests:
+  - `tests/amendment-monitor.test.ts`;
+  - `tests/import-confirmation.test.ts`.
+
+Verified locally:
+
+- `pnpm run prisma:validate`
+- `pnpm run typecheck`
+- `pnpm run lint`
+- `pnpm test` (`25` tests passed)
+- `pnpm law:monitor:63fz -- --source-file .import/63fz-current/source.html --output-dir .import/amendment-monitor-test`
+- `pnpm law:import:63fz -- --dry-run --source-file .import/63fz-current/source.html --import-dir .import/import-node-test --report-file .import/import-node-test/report.md`
+- `pnpm run build`
+
+Production deployment:
+
+- Code commits:
+  - `2e221c8` (`feat: add amendment monitor workflow`);
+  - `97b2228` (`chore: run monitor without tsx`).
+- Deployed release `97b2228` to
+  `/home/openclaw/services/63fz-legal-tech/releases/97b2228`.
+- Switched `/home/openclaw/services/63fz-legal-tech/current` to release `97b2228` and restarted
+  `63fz-legal-tech.service`.
+
+CI verification:
+
+- GitHub Actions run `29141780693` completed successfully on `master`.
+- GitHub Actions run `29141859523` completed successfully on `master`.
+
+Production verification:
+
+- Live monitor command on VDSina with production `DATABASE_URL` wrote:
+  - `/home/openclaw/services/63fz-legal-tech/imports/amendment-monitor/state.json`;
+  - `/home/openclaw/services/63fz-legal-tech/imports/amendment-monitor/latest-report.md`.
+- Monitor verdict: no newer revision detected.
+- Latest source revision: `2025-07-31`, effective `2026-03-01`, `documentId=504436`.
+- Current DB version: `63fz-current-2025-07-31`.
+- Latest source revision already imported: yes.
+- `https://mescheryakov.pro/63fz` returns HTTP 200.
+- unauthenticated `https://mescheryakov.pro/63fz/admin` redirects to `/63fz/admin/login`.
+- `63fz-legal-tech.service` is active with `NRestarts=0`.

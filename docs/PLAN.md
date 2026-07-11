@@ -47,6 +47,7 @@ These milestones are done and should remain historical context, not the shape of
 - Lightweight public search across loaded reader data.
 - Improved change-history filters, concrete change permalinks, highlighted changed text, and
   anonymous change feedback.
+- Amendment monitoring and confirmed-import guardrails.
 
 See `docs/PROGRESS.md` for the chronological implementation log. Do not rewrite that log
 retroactively.
@@ -492,7 +493,7 @@ Implementation note:
 ### 8. Amendment Monitoring And Confirmed Import
 
 Priority: P3.
-Status: future, not in the next implementation batch.
+Status: completed for the safe CLI monitoring and importer-guardrail pass.
 
 Goal:
 
@@ -532,6 +533,16 @@ Explicitly not included:
 
 - Fully automatic publication of legal text.
 - Legal interpretation of amendments without editorial review.
+
+Implementation note:
+
+- The current pass adds `pnpm law:monitor:63fz`, which fetches/parses Контур.Норматив
+  `revisionsJSON`, records `state.json`, writes a human-readable monitor report, compares the latest
+  source revision with the current/imported DB versions when `DATABASE_URL` is available, and prints
+  a dry-run import command for review. The ordinary importer no longer changes `currentVersionId` by
+  default; changing current requires `--set-current --confirm-set-current <versionId>`. Every
+  `--write` creates a `pg_dump` backup first, and the importer refuses to make an older effective
+  version current.
 
 ### 9. Markdown Export
 

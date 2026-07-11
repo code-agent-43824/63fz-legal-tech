@@ -25,6 +25,8 @@ future permanent production domain.
   change-history explanations.
 - Change history supports URL filters, stable links to concrete changes, highlighted changed text,
   and anonymous feedback buttons.
+- Amendment monitoring can check the consolidated source, persist check state/report files, and
+  propose a reviewable dry-run import command.
 - Article 18 has been used as the first editorial pilot for granular change explanations.
 
 ## Known Limitations
@@ -40,8 +42,9 @@ future permanent production domain.
 - Change feedback is anonymous/aggregated v1 storage; there is no moderation dashboard or user
   account attribution yet.
 - Mobile layout has a known horizontal overflow problem and needs a dedicated responsive pass.
-- Automatic monitoring of new amendments and confirmed import of a new current version are planned
-  but not implemented.
+- Amendment monitoring is a safe CLI workflow, not automatic publication. A new current version
+  still requires reviewed dry-run output, database backup, and explicit current-version
+  confirmation.
 - Public deployment is for testing the product shape, not a final domain or hosting commitment.
 
 ## Development Principles
@@ -76,6 +79,7 @@ Importer:
 
 ```bash
 pnpm law:import:63fz -- --dry-run
+pnpm law:monitor:63fz
 ```
 
 Prisma utilities:
