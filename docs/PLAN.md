@@ -48,6 +48,7 @@ These milestones are done and should remain historical context, not the shape of
 - Improved change-history filters, concrete change permalinks, highlighted changed text, and
   anonymous change feedback.
 - Amendment monitoring and confirmed-import guardrails.
+- Protected deterministic Markdown export.
 
 See `docs/PROGRESS.md` for the chronological implementation log. Do not rewrite that log
 retroactively.
@@ -547,7 +548,7 @@ Implementation note:
 ### 9. Markdown Export
 
 Priority: P3.
-Status: future.
+Status: completed for the protected Markdown-only export pass.
 
 Goal:
 
@@ -578,6 +579,15 @@ Explicitly not included:
 
 - Public export endpoint.
 - Bulk document generation formats beyond Markdown.
+
+Implementation note:
+
+- The current pass adds an admin-only Markdown download endpoint and `pnpm law:export:markdown`.
+  Export data uses the same public visibility policy as the reader: only published explanations,
+  published expert comments, confirmed issues, accepted proposed revisions, and published change
+  explanations are included. The generated Markdown omits a generation timestamp so identical data
+  produces identical output, includes version/source/checksum metadata, and keeps accepted proposed
+  revisions in clearly separate blocks instead of replacing official text.
 
 ### Future Domain Move Preparation
 

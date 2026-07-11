@@ -1077,3 +1077,37 @@ Production verification:
 - `https://mescheryakov.pro/63fz` returns HTTP 200.
 - unauthenticated `https://mescheryakov.pro/63fz/admin` redirects to `/63fz/admin/login`.
 - `63fz-legal-tech.service` is active with `NRestarts=0`.
+
+## 2026-07-11. Markdown Export
+
+- Implemented the protected Markdown export pass.
+- Added `src/lib/markdown-export.ts` for deterministic Markdown generation from filtered export
+  data.
+- Added admin-only download route `/63fz/admin/export/markdown`.
+- Added `pnpm law:export:markdown` through `scripts/export-63fz-markdown.ts` for server-side
+  export to a file.
+- Export output includes:
+  - selected version metadata;
+  - source name/link/check date and text checksum;
+  - official law text by stable fragment;
+  - public plain explanations;
+  - public expert comments;
+  - confirmed issues;
+  - published change explanations with safe source links;
+  - accepted proposed revisions in clearly separate blocks.
+- Export output intentionally omits a generation timestamp so identical data produces identical
+  Markdown.
+- Export does not add a public endpoint.
+- Added `tests/markdown-export.test.ts`; fast suite now has `26` tests.
+
+Verified locally:
+
+- `pnpm run prisma:validate`
+- `pnpm run typecheck`
+- `pnpm run lint`
+- `pnpm test` (`26` tests passed)
+- `pnpm run build`
+
+Production deployment:
+
+- Pending in this log entry until the release is pushed and switched on VDSina.

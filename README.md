@@ -27,6 +27,9 @@ future permanent production domain.
   and anonymous feedback buttons.
 - Amendment monitoring can check the consolidated source, persist check state/report files, and
   propose a reviewable dry-run import command.
+- Admin-only Markdown export can produce a deterministic current-version Markdown file with public
+  editorial material, published change rationale, source metadata, and accepted proposed revisions
+  separated from official law text.
 - Article 18 has been used as the first editorial pilot for granular change explanations.
 
 ## Known Limitations
@@ -45,6 +48,8 @@ future permanent production domain.
 - Amendment monitoring is a safe CLI workflow, not automatic publication. A new current version
   still requires reviewed dry-run output, database backup, and explicit current-version
   confirmation.
+- Markdown export is protected/admin-only and intentionally limited to Markdown, not public bulk
+  document generation.
 - Public deployment is for testing the product shape, not a final domain or hosting commitment.
 
 ## Development Principles
@@ -80,6 +85,7 @@ Importer:
 ```bash
 pnpm law:import:63fz -- --dry-run
 pnpm law:monitor:63fz
+pnpm law:export:markdown
 ```
 
 Prisma utilities:
