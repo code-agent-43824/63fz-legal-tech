@@ -2,7 +2,10 @@ import { Prisma } from "@prisma/client";
 import { getTransitionChangeType, normalizeForComparison } from "@/lib/change-history";
 import { PUBLIC_READER_STATUSES } from "@/lib/publication-policy";
 import { prisma } from "@/lib/prisma";
-import { getPublicReaderCacheMarker } from "@/lib/reader-cache";
+import {
+  BoundedMemoryCache,
+  getPublicReaderCacheMarker,
+} from "@/lib/reader-cache";
 import {
   makeSafeSourceLink,
   parseSafeSourceLinks,
@@ -131,7 +134,26 @@ type ReaderCacheEntry = {
   marker: number;
 };
 
-const readerDataCache = new Map<string, ReaderCacheEntry>();
+type ReaderVersionRecord = {
+  createdAt: Date;
+  effectiveDate: Date | null;
+  id: string;
+  sourceName: string | null;
+  sourceRetrievedAt: Date | null;
+  sourceUrl: string | null;
+  status: string;
+  title: string;
+};
+
+type ReaderLawRecord = {
+  currentVersion: ReaderVersionRecord | null;
+  id: string;
+  title: string;
+  versions: ReaderVersionRecord[];
+};
+
+const readerDataCache = new BoundedMemoryCache<ReaderCacheEntry>();
+let lastReaderCacheMarker: number | null = null;
 
 const fragmentInclude = Prisma.validator<Prisma.LawFragmentInclude>()({
   plainExplanations: {
@@ -157,19 +179,30 @@ export async function getReaderData(requestedVersionId?: string): Promise<Reader
     return getDemoReaderData();
   }
 
-  const cacheKey = requestedVersionId || "__current__";
   const marker = await getPublicReaderCacheMarker();
-  const cached = readerDataCache.get(cacheKey);
-  if (cached?.marker === marker) {
-    return cached.data;
+  if (lastReaderCacheMarker !== null && lastReaderCacheMarker !== marker) {
+    readerDataCache.clear();
   }
+  lastReaderCacheMarker = marker;
 
   try {
-    const data = await getReaderDataFromDatabase(requestedVersionId);
+    const selection = await getReaderVersionSelection(requestedVersionId);
+    if (!selection) {
+      return getDemoReaderData();
+    }
+
+    const cacheKey = selection.selectedVersion.id;
+    const cached = readerDataCache.get(cacheKey);
+    if (cached?.marker === marker) {
+      return cached.data;
+    }
+
+    const data = await getReaderDataFromDatabase(selection);
     readerDataCache.set(cacheKey, { data, marker });
     return data;
   } catch (error) {
-    if (cached) {
+    const cached = readerDataCache.newestValue();
+    if (cached?.marker === marker) {
       return cached.data;
     }
 
@@ -179,32 +212,77 @@ export async function getReaderData(requestedVersionId?: string): Promise<Reader
 
 export function clearReaderDataMemoryCache() {
   readerDataCache.clear();
+  lastReaderCacheMarker = null;
 }
 
-async function getReaderDataFromDatabase(requestedVersionId?: string): Promise<ReaderData> {
+export function getReaderDataMemoryCacheState() {
+  return readerDataCache.state();
+}
+
+async function getReaderVersionSelection(requestedVersionId?: string) {
   const law = await prisma.law.findUnique({
     where: { slug: "63fz" },
-    include: {
-      currentVersion: true,
+    select: {
+      id: true,
+      title: true,
+      currentVersion: {
+        select: readerVersionSelect,
+      },
       versions: {
         where: { status: { in: ["published", "archived"] } },
         orderBy: [{ effectiveDate: "desc" }, { createdAt: "desc" }],
+        select: readerVersionSelect,
       },
     },
   });
 
   const currentVersion = law?.currentVersion ?? null;
   const versions = (law?.versions ?? []).filter((version) => !isDemoVersion(version.title));
-  const selectedVersion =
-    versions.find((version) => version.id === requestedVersionId) ??
-    currentVersion ??
-    versions[0] ??
-    null;
+  const selectedVersionId = resolveReaderVersionCacheKey({
+    currentVersionId: currentVersion?.id ?? null,
+    requestedVersionId,
+    versionIds: versions.map((version) => version.id),
+  });
+  const selectedVersion = versions.find((version) => version.id === selectedVersionId) ?? null;
 
   if (!law || !selectedVersion) {
-    return getDemoReaderData();
+    return null;
   }
 
+  return { law, versions, currentVersion, selectedVersion };
+}
+
+export function resolveReaderVersionCacheKey({
+  currentVersionId,
+  requestedVersionId,
+  versionIds,
+}: {
+  currentVersionId: string | null;
+  requestedVersionId?: string;
+  versionIds: string[];
+}) {
+  if (requestedVersionId && versionIds.includes(requestedVersionId)) {
+    return requestedVersionId;
+  }
+
+  if (currentVersionId && versionIds.includes(currentVersionId)) {
+    return currentVersionId;
+  }
+
+  return versionIds[0] ?? null;
+}
+
+async function getReaderDataFromDatabase({
+  currentVersion,
+  law,
+  selectedVersion,
+  versions,
+}: {
+  currentVersion: ReaderVersionRecord | null;
+  law: ReaderLawRecord;
+  selectedVersion: ReaderVersionRecord;
+  versions: ReaderVersionRecord[];
+}): Promise<ReaderData> {
   const fragments = await prisma.lawFragment.findMany({
     where: { lawVersionId: selectedVersion.id },
     orderBy: { order: "asc" },
@@ -307,6 +385,17 @@ async function getReaderDataFromDatabase(requestedVersionId?: string): Promise<R
     }),
   };
 }
+
+const readerVersionSelect = Prisma.validator<Prisma.LawVersionSelect>()({
+  createdAt: true,
+  effectiveDate: true,
+  id: true,
+  sourceName: true,
+  sourceRetrievedAt: true,
+  sourceUrl: true,
+  status: true,
+  title: true,
+});
 
 function isDemoVersion(title: string) {
   return title.toUpperCase().includes("DEMO DATA");

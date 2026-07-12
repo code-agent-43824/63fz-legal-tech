@@ -3,12 +3,20 @@
 import { createHash } from "node:crypto";
 import { headers } from "next/headers";
 import { readRecordId, readStableId } from "@/lib/admin-validation";
+import {
+  createBoundedFeedbackRateLimiter,
+  isFeedbackKind,
+  validateChangeFeedbackTransition,
+} from "@/lib/change-feedback";
 import { prisma } from "@/lib/prisma";
 
-const FEEDBACK_KINDS = new Set(["useful", "unclear", "error"]);
-const recentFeedback = new Map<string, number[]>();
 const FEEDBACK_WINDOW_MS = 10 * 60 * 1000;
 const FEEDBACK_LIMIT = 20;
+const feedbackRateLimiter = createBoundedFeedbackRateLimiter({
+  limit: FEEDBACK_LIMIT,
+  maxBuckets: 1000,
+  windowMs: FEEDBACK_WINDOW_MS,
+});
 
 export async function submitChangeFeedback(formData: FormData) {
   if (!process.env.DATABASE_URL) {
@@ -19,32 +27,48 @@ export async function submitChangeFeedback(formData: FormData) {
   const fromVersionId = readRecordId(formData, "fromVersionId");
   const toVersionId = readRecordId(formData, "toVersionId");
   const kind = String(formData.get("kind") ?? "");
-  if (!FEEDBACK_KINDS.has(kind)) {
-    throw new Error("Unsupported feedback kind");
+  if (!isFeedbackKind(kind)) {
+    throw new Error("Feedback could not be saved.");
   }
 
   const clientHash = await getClientHash();
-  enforceFeedbackRateLimit(clientHash);
+  if (!feedbackRateLimiter.enforce(clientHash)) {
+    throw new Error("Please try again later.");
+  }
 
-  await prisma.changeFeedback.upsert({
-    where: {
-      stableId_fromVersionId_toVersionId_kind_clientHash: {
+  const isValidTransition = await validateFeedbackTransition({
+    fromVersionId,
+    kind,
+    stableId,
+    toVersionId,
+  });
+  if (!isValidTransition) {
+    throw new Error("Feedback could not be saved.");
+  }
+
+  try {
+    await prisma.changeFeedback.upsert({
+      where: {
+        stableId_fromVersionId_toVersionId_kind_clientHash: {
+          stableId,
+          fromVersionId,
+          toVersionId,
+          kind,
+          clientHash,
+        },
+      },
+      create: {
         stableId,
         fromVersionId,
         toVersionId,
         kind,
         clientHash,
       },
-    },
-    create: {
-      stableId,
-      fromVersionId,
-      toVersionId,
-      kind,
-      clientHash,
-    },
-    update: {},
-  });
+      update: {},
+    });
+  } catch {
+    throw new Error("Feedback could not be saved.");
+  }
 }
 
 async function getClientHash() {
@@ -58,15 +82,70 @@ async function getClientHash() {
     .digest("hex");
 }
 
-function enforceFeedbackRateLimit(clientHash: string) {
-  const now = Date.now();
-  const recent = (recentFeedback.get(clientHash) ?? []).filter(
-    (timestamp) => now - timestamp < FEEDBACK_WINDOW_MS,
-  );
-  if (recent.length >= FEEDBACK_LIMIT) {
-    throw new Error("Too many feedback submissions");
-  }
+async function validateFeedbackTransition({
+  fromVersionId,
+  kind,
+  stableId,
+  toVersionId,
+}: {
+  fromVersionId: string;
+  kind: string;
+  stableId: string;
+  toVersionId: string;
+}) {
+  const [versions, fragments] = await Promise.all([
+    prisma.lawVersion.findMany({
+      where: {
+        OR: [{ id: fromVersionId }, { id: toVersionId }],
+      },
+      select: {
+        createdAt: true,
+        effectiveDate: true,
+        id: true,
+        lawId: true,
+        status: true,
+      },
+    }),
+    prisma.lawFragment.findMany({
+      where: {
+        stableId,
+        lawVersionId: { in: [fromVersionId, toVersionId] },
+      },
+      select: {
+        lawVersionId: true,
+        stableId: true,
+        text: true,
+      },
+    }),
+  ]);
+  const fromVersion = versions.find((version) => version.id === fromVersionId) ?? null;
+  const toVersion = versions.find((version) => version.id === toVersionId) ?? null;
+  const publicVersions =
+    fromVersion && toVersion && fromVersion.lawId === toVersion.lawId
+      ? await prisma.lawVersion.findMany({
+          where: {
+            lawId: fromVersion.lawId,
+            status: { in: ["published", "archived"] },
+          },
+          orderBy: [{ effectiveDate: "asc" }, { createdAt: "asc" }],
+          select: {
+            createdAt: true,
+            effectiveDate: true,
+            id: true,
+            lawId: true,
+            status: true,
+          },
+        })
+      : [];
 
-  recent.push(now);
-  recentFeedback.set(clientHash, recent);
+  const result = validateChangeFeedbackTransition({
+    fragments,
+    fromVersion,
+    kind,
+    publicVersions,
+    stableId,
+    toVersion,
+  });
+
+  return result.ok;
 }

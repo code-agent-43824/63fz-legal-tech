@@ -2,8 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  extractKonturSourceIds,
+  getLawVersionSourceIdentity,
   getLatestRevision,
+  getMonitorRevisionAvailability,
+  getSourceRevisionIdentity,
   parseSourceRevisions,
+  sourceIdentitiesMatch,
 } from "../scripts/monitor-63fz-amendments";
 
 const fixtureHtml = `
@@ -36,4 +41,72 @@ test("selects latest source revision by effective date", () => {
   const latest = getLatestRevision(parseSourceRevisions(fixtureHtml));
 
   assert.equal(latest.documentId, 101);
+});
+
+test("recognizes Kontur source IDs regardless of query parameter order", () => {
+  assert.deepEqual(
+    extractKonturSourceIds("https://normativ.kontur.ru/document?documentId=504436&moduleId=1"),
+    { documentId: 504436, moduleId: 1 },
+  );
+  assert.deepEqual(
+    extractKonturSourceIds("https://normativ.kontur.ru/document?moduleId=1&documentId=504436"),
+    { documentId: 504436, moduleId: 1 },
+  );
+});
+
+test("matches imported versions only by exact source identity", () => {
+  const latest = getSourceRevisionIdentity({
+    documentId: 504436,
+    effectiveDate: "2026-03-01",
+    hasEntryDate: true,
+    moduleId: 1,
+    revisionDate: "2025-07-31",
+    sourceUrl: "https://normativ.kontur.ru/document?moduleId=1&documentId=504436",
+    status: 0,
+  });
+  const imported = getLawVersionSourceIdentity({
+    effectiveDate: "2026-03-01",
+    sourceUrl: "https://normativ.kontur.ru/document?documentId=504436&moduleId=1",
+    title: "63-ФЗ (ред. от 31.07.2025)",
+  });
+
+  assert.equal(sourceIdentitiesMatch(latest, imported), true);
+  assert.equal(
+    sourceIdentitiesMatch(latest, {
+      ...latest,
+      effectiveDate: "2025-09-01",
+    }),
+    false,
+  );
+  assert.equal(
+    sourceIdentitiesMatch(latest, {
+      ...latest,
+      documentId: 501137,
+    }),
+    false,
+  );
+});
+
+test("does not report an already imported exact source identity as newly available", () => {
+  assert.equal(
+    getMonitorRevisionAvailability({
+      currentVersion: {
+        effectiveDate: "2025-09-01",
+        id: "older-current",
+        revisionDate: "2025-04-21",
+        sourceUrl: "https://normativ.kontur.ru/document?moduleId=1&documentId=501137",
+      },
+      latestRevision: {
+        documentId: 504436,
+        effectiveDate: "2026-03-01",
+        hasEntryDate: true,
+        moduleId: 1,
+        revisionDate: "2025-07-31",
+        sourceUrl: "https://normativ.kontur.ru/document?moduleId=1&documentId=504436",
+        status: 0,
+      },
+      latestVersionAlreadyImported: true,
+    }),
+    false,
+  );
 });

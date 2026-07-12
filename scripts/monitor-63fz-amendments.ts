@@ -20,6 +20,13 @@ export type SourceRevision = {
   sourceUrl: string;
 };
 
+export type SourceRevisionIdentity = {
+  documentId: number;
+  effectiveDate: string | null;
+  moduleId: number;
+  revisionDate: string;
+};
+
 type MonitorOptions = {
   outputDir: string;
   reportFile?: string;
@@ -61,13 +68,18 @@ async function main() {
   const revisions = parseSourceRevisions(html);
   const latestRevision = getLatestRevision(revisions);
   const databaseState = await getDatabaseState(latestRevision);
+  const newRevisionAvailable = getMonitorRevisionAvailability({
+    currentVersion: databaseState.currentVersion,
+    latestRevision,
+    latestVersionAlreadyImported: databaseState.latestVersionAlreadyImported,
+  });
   const state: MonitorState = {
     checkedAt,
     currentVersion: databaseState.currentVersion,
     latestSourceRevision: latestRevision,
     latestSourceHtmlSha256: sha256(html),
     latestVersionAlreadyImported: databaseState.latestVersionAlreadyImported,
-    newRevisionAvailable: isNewerThanCurrent(latestRevision, databaseState.currentVersion),
+    newRevisionAvailable,
     knownVersionCount: databaseState.knownVersionCount,
     previousCheck: previousState
       ? {
@@ -211,6 +223,7 @@ async function getDatabaseState(latestRevision: SourceRevision) {
         versions: {
           where: { status: { in: ["published", "archived"] } },
           select: {
+            effectiveDate: true,
             id: true,
             sourceUrl: true,
             title: true,
@@ -227,11 +240,17 @@ async function getDatabaseState(latestRevision: SourceRevision) {
           sourceUrl: law.currentVersion.sourceUrl,
         }
       : null;
+    const latestIdentity = getSourceRevisionIdentity(latestRevision);
     const latestVersionAlreadyImported = Boolean(
-      law?.versions.some(
-        (version) =>
-          version.sourceUrl === latestRevision.sourceUrl ||
-          extractRevisionDate(version.title) === latestRevision.revisionDate,
+      law?.versions.some((version) =>
+        sourceIdentitiesMatch(
+          latestIdentity,
+          getLawVersionSourceIdentity({
+            effectiveDate: version.effectiveDate?.toISOString().slice(0, 10) ?? null,
+            sourceUrl: version.sourceUrl,
+            title: version.title,
+          }),
+        ),
       ),
     );
 
@@ -262,6 +281,79 @@ function isNewerThanCurrent(
   const latestRevisionTime = Date.parse(latestRevision.revisionDate);
   const currentRevisionTime = Date.parse(currentVersion.revisionDate ?? "");
   return Number.isFinite(currentRevisionTime) ? latestRevisionTime > currentRevisionTime : true;
+}
+
+export function getMonitorRevisionAvailability({
+  currentVersion,
+  latestRevision,
+  latestVersionAlreadyImported,
+}: {
+  currentVersion: MonitorState["currentVersion"];
+  latestRevision: SourceRevision;
+  latestVersionAlreadyImported: boolean;
+}) {
+  return !latestVersionAlreadyImported && isNewerThanCurrent(latestRevision, currentVersion);
+}
+
+export function getSourceRevisionIdentity(revision: SourceRevision): SourceRevisionIdentity {
+  return {
+    documentId: revision.documentId,
+    effectiveDate: revision.effectiveDate,
+    moduleId: revision.moduleId,
+    revisionDate: revision.revisionDate,
+  };
+}
+
+export function getLawVersionSourceIdentity(version: {
+  effectiveDate: string | null;
+  sourceUrl: string | null;
+  title: string;
+}): SourceRevisionIdentity | null {
+  const sourceIds = extractKonturSourceIds(version.sourceUrl);
+  const revisionDate = extractRevisionDate(version.title);
+  if (!sourceIds || !revisionDate) {
+    return null;
+  }
+
+  return {
+    documentId: sourceIds.documentId,
+    effectiveDate: version.effectiveDate,
+    moduleId: sourceIds.moduleId,
+    revisionDate,
+  };
+}
+
+export function sourceIdentitiesMatch(
+  left: SourceRevisionIdentity | null,
+  right: SourceRevisionIdentity | null,
+) {
+  return Boolean(
+    left &&
+      right &&
+      left.moduleId === right.moduleId &&
+      left.documentId === right.documentId &&
+      left.revisionDate === right.revisionDate &&
+      left.effectiveDate === right.effectiveDate,
+  );
+}
+
+export function extractKonturSourceIds(sourceUrl: string | null) {
+  if (!sourceUrl) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(sourceUrl);
+    const moduleId = Number(parsed.searchParams.get("moduleId"));
+    const documentId = Number(parsed.searchParams.get("documentId"));
+    if (!Number.isInteger(moduleId) || !Number.isInteger(documentId)) {
+      return null;
+    }
+
+    return { documentId, moduleId };
+  } catch {
+    return null;
+  }
 }
 
 async function readPreviousState(statePath: string): Promise<MonitorState | null> {

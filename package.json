@@ -9,8 +9,10 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "test": "tsx --test tests/**/*.test.ts",
+    "pretypecheck": "prisma generate",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
+    "security:audit": "pnpm audit --prod",
     "law:import:63fz": "tsx scripts/import-63fz.ts",
     "law:monitor:63fz": "node --no-warnings --experimental-strip-types scripts/monitor-63fz-amendments.ts",
     "law:export:markdown": "tsx scripts/export-63fz-markdown.ts",
@@ -21,7 +23,7 @@
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
-    "next": "^16.0.5",
+    "next": "^16.2.10",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
@@ -34,7 +36,7 @@
     "@types/react": "^19.2.6",
     "@types/react-dom": "^19.2.3",
     "eslint": "^9.39.1",
-    "eslint-config-next": "^16.0.5",
+    "eslint-config-next": "^16.2.10",
     "node-html-parser": "^7.1.0",
     "prisma": "^6.19.3",
     "tailwindcss": "^4.1.17",
