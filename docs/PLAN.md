@@ -28,8 +28,8 @@ the final product placement.
 
 ## Completed And Accepted
 
-The following points are complete and should not be re-opened as roadmap work unless a bug or a new
-requirement appears.
+The following points are accepted as the current baseline and reopened when a regression, new risk,
+or new requirement appears.
 
 ### Foundation
 
@@ -50,12 +50,12 @@ Status: done.
 
 ### Roadmap Points 1-10
 
-1. Security Hardening: done.
+1. Security Hardening: v1 complete.
    - Removed unsafe production auth fallback.
    - Added secret validation, login rate limiting, logout, hardened cookies, security headers,
      public-status filtering, server-side validation, and destructive-action confirmation.
 
-2. Lightweight Tests And CI: done.
+2. Lightweight Tests And CI: v1 complete.
    - Added `pnpm test` with Node's test runner through `tsx`.
    - Added Prisma validation, typecheck, lint, fast tests, and production build to GitHub Actions.
    - Current fast suite has 26 tests after the Markdown export stage.
@@ -64,7 +64,7 @@ Status: done.
    - Removed repeated empty placeholder editorial blocks from the public reader.
    - Kept one concise empty state only where it helps orientation.
 
-4. Reader Query Optimization And Cacheable Snapshot: done for the current full-reader screen.
+4. Reader Query Optimization / In-Process Snapshot: v1 complete for the current full-reader screen.
    - Reader data loading is narrower than the original "load everything" approach.
    - Published reader data has an in-process snapshot keyed by selected version plus an explicit
      invalidation marker.
@@ -87,7 +87,7 @@ Status: done.
    - Changed word ranges are highlighted.
    - Anonymous feedback is stored with salted client hashes, not raw IP/user-agent values.
 
-8. Amendment Monitoring And Confirmed Import: done for the safe CLI workflow.
+8. Amendment Monitoring CLI And Confirmed Import: v1 complete for the safe CLI workflow.
    - `pnpm law:monitor:63fz` checks the consolidated source and writes state/report files.
    - Importer no longer changes `currentVersionId` by default.
    - Making a version current requires `--set-current --confirm-set-current <versionId>`.
@@ -100,18 +100,32 @@ Status: done.
      metadata, and keeps official text separate from accepted proposed revisions.
    - No public export endpoint was added.
 
-10. Responsive Reader And Admin Usability Pass: done for the core overflow-hardening pass.
+10. Responsive Hardening: v1 complete for the core overflow-hardening pass.
     - Core public reader and admin screens use safer mobile padding, wrapping, and grid/flex
       constraints.
     - Long stable IDs, source links, snippets, and version labels no longer force document-level
       horizontal overflow in the checked responsive cases.
 
+11. Residual Correctness And Security Cleanup: complete for the accepted scope.
+    - Reader snapshot keys are normalized to the selected published/archived version and stored in
+      a bounded in-process cache.
+    - Public change feedback validates the concrete adjacent public law transition before writing.
+    - Feedback rate-limit buckets are bounded and stale buckets are pruned.
+    - Amendment monitor import detection uses exact source identity: `moduleId`, `documentId`,
+      `revisionDate`, and `effectiveDate`.
+    - Production dependency advisories are currently clear after a compatible Next.js update plus
+      a focused PostCSS override.
+    - Standalone tracing no longer emits the `unexpected file in NFT list` warning for the reader
+      cache marker.
+    - `pnpm run typecheck` regenerates Prisma Client first, so schema changes after pull are less
+      likely to use a stale generated client.
+
 ## Current Known Gaps
 
 These are product risks or limitations, not all immediate next steps.
 
-- Core reader and admin screens have had a responsive overflow pass, but final visual polish remains
-  a public-launch concern.
+- Core reader and admin screens have had a responsive overflow pass; final visual polish remains a
+  public-launch concern, not a duplicate implementation stage.
 - The admin model is still one shared password; there are no users, roles, or audit logs.
 - Change feedback has no moderation or analytics dashboard.
 - Search is lightweight in-reader search, not database full-text search.
@@ -125,84 +139,78 @@ These are product risks or limitations, not all immediate next steps.
 - Editorial coverage outside article 18 is still sparse.
 - The app has a pragmatic public snapshot, but no broader observability, error reporting, or
   operational dashboard.
+- The current reader still renders the full selected reader view; further payload reduction may be
+  needed if real usage shows page weight or interaction latency problems.
 
 ## Future Roadmap
 
-The next sequence should improve usability, editorial operations, and production readiness without
+The next sequence should improve legal freshness, operating discipline, and product evidence without
 opening a new public surface too early.
 
-### 10. Responsive Reader And Admin Usability Pass
-
-Priority: P1.
-Status: completed for the core overflow-hardening pass.
-
-Goal:
-
-- Make the public reader and core admin screens usable on common mobile widths without horizontal
-  overflow.
-
-Tasks:
-
-- Audit public reader at common mobile widths.
-- Fix layout overflow in the table of contents, version controls, search, filter controls, change
-  history cards, source links, stable IDs, and law text.
-- Make focus/feed controls and change filters usable on touch screens.
-- Add a responsive smoke test or screenshot check that can be run cheaply.
-- Verify public `/63fz`, filtered change URLs, focus URLs, and admin login/admin list pages.
-
-Acceptance criteria:
-
-- No meaningful horizontal overflow at common mobile widths.
-- Long stable IDs, source links, and legal text wrap or truncate intentionally.
-- The reader remains usable without hiding legally important data.
-- Desktop layout does not regress.
-- Local checks and production smoke checks pass before deployment.
-
-Explicitly not included:
-
-- Visual redesign for a final brand/domain.
-- New reader features.
-- Public launch/domain migration.
-
-Implementation note:
-
-- The current pass tightened the core reader and admin layouts for mobile widths: smaller mobile page
-  padding, `min-w-0` on grid/flex containers, safer `minmax(0, 1fr)` column tracks, wrapping for
-  long stable IDs/source links/version labels/snippets, and capped form controls. Local browser
-  smoke checks at 390px showed no document-level horizontal overflow for the reader fallback and
-  admin login; production checks are recorded in `docs/PROGRESS.md`.
-
-### 11. Feedback Review And Editorial Work Queue
+### 12. Scheduled Amendment Monitoring And Lightweight Operational Visibility
 
 Priority: P1.
 Status: future.
 
 Goal:
 
-- Turn anonymous change feedback into an admin-reviewable editorial signal.
+- Move the existing monitor from manual CLI use to controlled scheduled checks and basic operational
+  visibility.
 
 Tasks:
 
-- Add an admin view for aggregated `ChangeFeedback`.
-- Show counts by change, kind, article, version pair, and time period.
-- Link feedback rows to the relevant admin change editor.
-- Add basic status handling such as open, reviewed, ignored, or fixed if a small table is justified.
-- Keep raw client identifiers private; do not expose client hashes unless needed for abuse handling.
+- Decide whether heartbeat or cron is the right scheduler for this project.
+- Store job-specific behavior in automation memory if cron is used.
+- Run `pnpm law:monitor:63fz` on a safe cadence.
+- Notify only when a newer source revision appears or the monitor fails.
+- Track lightweight operational signals: health check, disk usage, backup freshness, and failed
+  monitor/import attempts.
+- Keep state and reports under the production imports directory.
 
 Acceptance criteria:
 
-- Admin can identify changes that readers mark as unclear or wrong.
-- Feedback review does not expose private client data.
-- Review state, if added, is server-validated and test-covered.
-- Public feedback submission behavior remains stable.
+- Routine checks do not spam the Telegram topic.
+- Failures are visible with enough detail to debug.
+- A detected new revision still requires manual dry-run review and explicit import confirmation.
+- The monitor never writes law text to the database by itself.
+- Basic health/disk/backup freshness can be checked without a heavy observability platform.
 
 Explicitly not included:
 
-- User accounts.
-- Public comments.
-- Full moderation/community workflow.
+- Automatic import.
+- Automatic publication of a new current version.
+- Heavy observability platform.
 
-### 12. Editorial Coverage Expansion
+### 13. Product Validation And Usage Evidence
+
+Priority: P1.
+Status: future.
+
+Goal:
+
+- Validate that the product solves a real problem for a clearly defined user segment before building
+  more workflow around assumptions.
+
+Tasks:
+
+- Define the primary user segment.
+- Run 5-8 interviews with likely users or buyers.
+- Collect real search queries and article/change-navigation tasks.
+- Define lightweight usefulness metrics.
+- Identify which articles, changes, and explanations are actually demanded.
+- Avoid collecting or retaining unnecessary personal data.
+
+Acceptance criteria:
+
+- Future editorial and search work is tied to observed user needs.
+- The project has documented signals for what readers find useful or confusing.
+- No unnecessary personal data is introduced as part of validation.
+
+Explicitly not included:
+
+- Broad analytics collection before there is a privacy-conscious measurement plan.
+
+### 14. Editorial Coverage Expansion
 
 Priority: P1.
 Status: future.
@@ -214,7 +222,7 @@ Goal:
 
 Tasks:
 
-- Select the next high-value articles or change clusters.
+- Select the next high-value articles or change clusters using validation evidence where possible.
 - Use admin filters to find missing published change explanations.
 - Fill granular explanations with source links.
 - Keep aggregate article duplicates unpublished unless they add unique value.
@@ -232,37 +240,43 @@ Explicitly not included:
 - Inventing legal interpretation without sources.
 - Bulk auto-generated explanations.
 
-### 13. Scheduled Amendment Monitoring And Notifications
+### 15. Feedback Review Dashboard
 
-Priority: P2.
+Priority: P2, gated.
 Status: future.
+
+Dependency/gate:
+
+- Build this only after enough real feedback accumulates to justify a dashboard or after a regular
+  editorial review process exists.
 
 Goal:
 
-- Move the existing monitor from manual CLI use to a controlled scheduled check with clear
-  notifications.
+- Turn anonymous change feedback into an admin-reviewable editorial signal when there is enough data
+  to review.
 
 Tasks:
 
-- Decide whether heartbeat or cron is the right scheduler for this project.
-- Store job-specific behavior in automation memory if cron is used.
-- Run `pnpm law:monitor:63fz` on a safe cadence.
-- Send a concise notification only when a newer source revision appears or the monitor fails.
-- Keep state and reports under the production imports directory.
+- Add an admin view for aggregated `ChangeFeedback`.
+- Show counts by change, kind, article, version pair, and time period.
+- Link feedback rows to the relevant admin change editor.
+- Add basic review status only if a small table is justified.
+- Keep raw client identifiers private; do not expose client hashes unless needed for abuse handling.
 
 Acceptance criteria:
 
-- Routine checks do not spam the Telegram topic.
-- Failures are visible with enough detail to debug.
-- A detected new revision still requires manual dry-run review and explicit import confirmation.
-- The monitor never writes law text to the database by itself.
+- Admin can identify changes that readers mark as unclear or wrong.
+- Feedback review does not expose private client data.
+- Review state, if added, is server-validated and test-covered.
+- Public feedback submission behavior remains stable.
 
 Explicitly not included:
 
-- Automatic import.
-- Automatic publication of a new current version.
+- User accounts.
+- Public comments.
+- Full moderation/community workflow.
 
-### 14. Import And Migration Operations Hardening
+### 16. Import And Migration Operations Hardening
 
 Priority: P2.
 Status: future.
@@ -292,7 +306,34 @@ Explicitly not included:
 - Rebuilding the production database from scratch.
 - Destructive migration history surgery without a separate approval.
 
-### 15. Multi-User Authentication, Roles, And Audit
+### 17. Further Reader Payload Reduction
+
+Priority: P2.
+Status: future.
+
+Goal:
+
+- Reduce public reader payload and client work if real usage or measurements show the full selected
+  reader view is too heavy.
+
+Tasks:
+
+- Measure current page payload and interaction cost on real reader paths.
+- Consider fragment-level loading, server-rendered focus view, or another progressive loading model.
+- Preserve stable fragment/change permalinks.
+- Keep public-status filtering server-side.
+
+Acceptance criteria:
+
+- Payload or interaction improvements are measurable.
+- Legal text remains accessible and linkable.
+- Search/change-history behavior does not expose drafts or internal data.
+
+Explicitly not included:
+
+- Implementing this before there is evidence that the current payload is a real problem.
+
+### 18. Multi-User Authentication, Roles, And Audit
 
 Priority: P2.
 Status: future.
@@ -322,14 +363,14 @@ Explicitly not included:
 - Public registration.
 - Reader accounts.
 
-### 16. Search Upgrade
+### 19. Search Upgrade
 
 Priority: P3.
 Status: future.
 
 Goal:
 
-- Improve search quality when the lightweight in-reader search becomes insufficient.
+- Improve search quality only when lightweight in-reader search is measurably insufficient.
 
 Tasks:
 
@@ -349,7 +390,7 @@ Explicitly not included:
 
 - External search service before local options are exhausted.
 
-### 17. Domain Move And Public Launch Preparation
+### 20. Domain Move And Public Launch Preparation
 
 Priority: P3.
 Status: future.
@@ -366,6 +407,8 @@ Tasks:
 - Decide final route/domain and whether main-site navigation should link to it.
 - Prepare SEO metadata, sitemap/robots behavior, and public launch checks only after the domain
   decision.
+- Treat final visual polish, including any responsive refinements beyond the accepted v1 pass, as a
+  launch concern.
 
 Acceptance criteria:
 
@@ -376,37 +419,15 @@ Acceptance criteria:
 Explicitly not included:
 
 - The actual domain move.
+- Integration with the main site.
 - Marketing/landing-page redesign.
-
-### 18. Observability And Operations
-
-Priority: P3.
-Status: future.
-
-Goal:
-
-- Make the production test service easier to monitor and recover.
-
-Tasks:
-
-- Add a lightweight health endpoint or documented health check.
-- Track service restart count, disk usage, backup freshness, and failed monitor/import attempts.
-- Decide where operational alerts should go.
-- Document restore steps for database backups and release rollback.
-
-Acceptance criteria:
-
-- Basic service health can be checked without logging into the app.
-- Restart/disk/backup problems are visible before they become emergencies.
-- Rollback and restore steps are written down and tested at least once in a safe way.
-
-Explicitly not included:
-
-- Heavy observability platform unless the project grows enough to justify it.
 
 ## Current Recommendation
 
-The strongest next implementation is Feedback Review And Editorial Work Queue because it builds
-directly on the newly added feedback data and improves editorial operations without changing the
-public legal text. If editorial operations should wait, the next infrastructure-focused alternative
-is Scheduled Amendment Monitoring And Notifications.
+Recommended order after the residual cleanup:
+
+1. Scheduled monitoring and lightweight operational visibility.
+2. Product validation and editorial coverage expansion.
+3. Feedback review only after enough real feedback accumulates or a regular editorial process exists.
+4. Migration operations hardening.
+5. Remaining future tasks in evidence-driven order.

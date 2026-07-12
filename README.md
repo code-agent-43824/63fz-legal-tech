@@ -17,8 +17,8 @@ future permanent production domain.
   explanations.
 - Published change explanations and other editorial materials are filtered by explicit public
   statuses.
-- Public reader data uses a cacheable published-data snapshot and no longer loads every law version
-  with every fragment relation on each request.
+- Public reader data uses a normalized, bounded in-process published snapshot; this is not an
+  HTTP/CDN cache.
 - Public reader shows selected/current version status, effective date, source metadata, and clickable
   safe source links where available.
 - Public reader has lightweight search across law text, public editorial blocks, and published
@@ -31,6 +31,9 @@ future permanent production domain.
   editorial material, published change rationale, source metadata, and accepted proposed revisions
   separated from official law text.
 - Core reader and admin screens have a responsive overflow hardening pass for mobile widths.
+- Residual correctness/security cleanup has tightened reader-cache keys, change-feedback validation,
+  amendment source identity, standalone tracing, dependency audit status, and Prisma generation
+  workflow.
 - Article 18 has been used as the first editorial pilot for granular change explanations.
 
 ## Known Limitations
@@ -53,6 +56,8 @@ future permanent production domain.
 - Markdown export is protected/admin-only and intentionally limited to Markdown, not public bulk
   document generation.
 - Public deployment is for testing the product shape, not a final domain or hosting commitment.
+- Security advisories should be checked with `pnpm run security:audit`; do not treat security as
+  permanently closed just because the current audit is clear.
 
 ## Development Principles
 
@@ -76,10 +81,13 @@ pnpm install --frozen-lockfile
 Useful checks:
 
 ```bash
+pnpm run prisma:generate
+pnpm run prisma:validate
 pnpm run typecheck
 pnpm run lint
 pnpm test
 pnpm run build
+pnpm run security:audit
 ```
 
 Importer:
@@ -98,6 +106,10 @@ pnpm run prisma:validate
 pnpm run prisma:migrate
 pnpm run prisma:seed
 ```
+
+After pulling a schema change, `pnpm run typecheck` runs `prisma generate` first through
+`pretypecheck`. Running `pnpm run prisma:generate` explicitly is still useful before focused Prisma
+work or when diagnosing generated-client issues.
 
 ## Documentation
 

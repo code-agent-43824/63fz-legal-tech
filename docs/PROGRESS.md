@@ -1204,3 +1204,59 @@ Production verification:
   - `390px` authenticated `/63fz/admin/changes?article=18`: no document-level horizontal overflow;
   - `1280px` filtered public reader URL: no document-level horizontal overflow.
 - `63fz-legal-tech.service` is active with `NRestarts=0`.
+
+## 2026-07-12. Residual Correctness And Security Cleanup
+
+- Fixed public reader snapshot caching:
+  - normalized requested `version` values to the selected existing public version before cache use;
+  - invalid version IDs now share the current-version cache entry instead of creating unbounded
+    entries;
+  - replaced the raw in-memory `Map` with a bounded LRU-style cache;
+  - cache invalidation clears stale in-process entries when the marker changes;
+  - fallback to the last successful snapshot remains limited to already-built public reader data.
+- Hardened public change feedback:
+  - validates feedback kind before write;
+  - verifies both versions exist, belong to the same law, are public, and are an adjacent public
+    transition;
+  - verifies the stable ID exists in at least one side of the pair and that the transition is really
+    `changed`, `introduced`, or `deleted`;
+  - rejects unchanged, unknown, non-adjacent, and cross-law combinations;
+  - bounds and prunes in-memory rate-limit buckets;
+  - continues storing only salted client hashes, not raw IP or user-agent data.
+- Fixed amendment monitor imported-version detection:
+  - compares exact source identity by `moduleId`, `documentId`, `revisionDate`, and
+    `effectiveDate`;
+  - parses Контур source IDs from URLs so query parameter order does not matter;
+  - avoids reporting an already imported exact latest source identity as newly available.
+- Updated dependencies/workflow:
+  - updated compatible Next.js packages to `16.2.10`;
+  - added a focused `postcss` override to a patched `8.5.x`;
+  - added `pnpm run security:audit`;
+  - added `pretypecheck` so `pnpm run typecheck` regenerates Prisma Client before checking.
+- Fixed standalone tracing for the reader cache marker by marking the runtime marker file operations
+  as ignored for Turbopack tracing.
+- Updated `README.md` and `docs/PLAN.md` for the accepted residual cleanup, v1-complete wording,
+  revised future priorities, and current test-placement status.
+- Added tests:
+  - `tests/change-feedback.test.ts`;
+  - additional reader-cache tests in `tests/reader-cache.test.ts`;
+  - additional amendment-monitor source identity tests in `tests/amendment-monitor.test.ts`.
+
+Verified locally:
+
+- `pnpm install --frozen-lockfile`
+- `pnpm run prisma:generate`
+- `pnpm run prisma:validate`
+- `pnpm run typecheck`
+- `pnpm run lint`
+- `pnpm test` (`38` tests passed)
+- `pnpm run build`
+- `pnpm audit --prod` (`No known vulnerabilities found`)
+- production build no longer emits `Encountered unexpected file in NFT list`.
+- `.next/standalone` does not contain top-level `tests`, `docs`, or `scripts` directories in the
+  checked artifact.
+- Prisma runtime files are still present in `.next/standalone`.
+
+Production deployment:
+
+- Not performed for this cleanup task.
