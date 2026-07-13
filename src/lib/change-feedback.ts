@@ -1,4 +1,6 @@
 import { getTransitionChangeType, type TransitionChangeType } from "@/lib/change-history";
+import { compareLawVersionsChronologically } from "@/lib/law-version-order";
+import { PUBLIC_LAW_SLUG, isPublicVersionStatus } from "@/lib/law-scope";
 
 export const FEEDBACK_KINDS = ["useful", "unclear", "error"] as const;
 export type FeedbackKind = (typeof FEEDBACK_KINDS)[number];
@@ -8,6 +10,7 @@ export type FeedbackValidationVersion = {
   effectiveDate: Date | string | null;
   id: string;
   lawId: string;
+  lawSlug: string;
   status: string;
 };
 
@@ -44,6 +47,10 @@ export function validateChangeFeedbackTransition(
 
   if (fromVersion.lawId !== toVersion.lawId) {
     return { ok: false, reason: "cross-law-transition" };
+  }
+
+  if (fromVersion.lawSlug !== PUBLIC_LAW_SLUG || toVersion.lawSlug !== PUBLIC_LAW_SLUG) {
+    return { ok: false, reason: "unsupported-law" };
   }
 
   if (!isPublicVersionStatus(fromVersion.status) || !isPublicVersionStatus(toVersion.status)) {
@@ -116,49 +123,22 @@ export function createBoundedFeedbackRateLimiter({
   };
 }
 
-function isPublicVersionStatus(status: string) {
-  return status === "published" || status === "archived";
-}
-
 function isAdjacentPublicTransition(
   publicVersions: FeedbackValidationVersion[],
   fromVersion: FeedbackValidationVersion,
   toVersion: FeedbackValidationVersion,
 ) {
   const sameLawVersions = publicVersions
-    .filter((version) => version.lawId === fromVersion.lawId && isPublicVersionStatus(version.status))
-    .sort(compareVersionsAscending);
+    .filter(
+      (version) =>
+        version.lawId === fromVersion.lawId &&
+        version.lawSlug === PUBLIC_LAW_SLUG &&
+        isPublicVersionStatus(version.status),
+    )
+    .sort(compareLawVersionsChronologically);
   const fromIndex = sameLawVersions.findIndex((version) => version.id === fromVersion.id);
 
   return fromIndex >= 0 && sameLawVersions[fromIndex + 1]?.id === toVersion.id;
-}
-
-function compareVersionsAscending(
-  left: Pick<FeedbackValidationVersion, "createdAt" | "effectiveDate" | "id">,
-  right: Pick<FeedbackValidationVersion, "createdAt" | "effectiveDate" | "id">,
-) {
-  const leftTime = getDateTime(left.effectiveDate) ?? 0;
-  const rightTime = getDateTime(right.effectiveDate) ?? 0;
-  if (leftTime !== rightTime) {
-    return leftTime - rightTime;
-  }
-
-  const leftCreatedAt = getDateTime(left.createdAt) ?? 0;
-  const rightCreatedAt = getDateTime(right.createdAt) ?? 0;
-  if (leftCreatedAt !== rightCreatedAt) {
-    return leftCreatedAt - rightCreatedAt;
-  }
-
-  return left.id.localeCompare(right.id);
-}
-
-function getDateTime(value: Date | string | null) {
-  if (!value) {
-    return null;
-  }
-
-  const time = value instanceof Date ? value.getTime() : Date.parse(value);
-  return Number.isFinite(time) ? time : null;
 }
 
 function pruneBuckets(

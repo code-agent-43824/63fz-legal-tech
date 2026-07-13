@@ -1,7 +1,8 @@
 import { mkdir, stat, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
 const DEFAULT_MARKER_FILE = "/tmp/63fz-legal-tech-reader-cache.invalidate";
-const ALLOWED_MARKER_DIRECTORIES = ["/tmp/", "/var/tmp/"];
 
 export const DEFAULT_READER_DATA_CACHE_LIMIT = 12;
 
@@ -49,11 +50,6 @@ export class BoundedMemoryCache<T> {
     this.entries.clear();
   }
 
-  newestValue() {
-    const values = Array.from(this.entries.values());
-    return values.at(-1);
-  }
-
   state(): BoundedCacheState {
     return {
       keys: Array.from(this.entries.keys()),
@@ -81,19 +77,39 @@ export async function invalidatePublicReaderCache() {
 }
 
 function getMarkerFile() {
-  const configured = process.env.READER_SNAPSHOT_MARKER_FILE;
+  return resolveReaderCacheMarkerFile(process.env.READER_SNAPSHOT_MARKER_FILE);
+}
+
+function getDirectoryName(filePath: string) {
+  return path.dirname(filePath);
+}
+
+export function resolveReaderCacheMarkerFile(configured?: string | null) {
   if (!configured) {
     return DEFAULT_MARKER_FILE;
   }
 
-  if (ALLOWED_MARKER_DIRECTORIES.some((directory) => configured.startsWith(directory))) {
-    return configured;
+  const markerFile = path.resolve(/*turbopackIgnore: true*/ configured);
+  if (isAllowedMarkerFile(markerFile)) {
+    return markerFile;
   }
 
   return DEFAULT_MARKER_FILE;
 }
 
-function getDirectoryName(filePath: string) {
-  const lastSlashIndex = filePath.lastIndexOf("/");
-  return lastSlashIndex > 0 ? filePath.slice(0, lastSlashIndex) : "";
+function isAllowedMarkerFile(markerFile: string) {
+  return getAllowedMarkerDirectories().some((directory) => {
+    const relative = path.relative(directory, markerFile);
+    return Boolean(relative) && !relative.startsWith("..") && !path.isAbsolute(relative);
+  });
+}
+
+function getAllowedMarkerDirectories() {
+  return Array.from(
+    new Set(
+      ["/tmp", "/var/tmp", tmpdir()].map((directory) =>
+        path.resolve(/*turbopackIgnore: true*/ directory),
+      ),
+    ),
+  );
 }

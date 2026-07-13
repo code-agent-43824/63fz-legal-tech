@@ -31,9 +31,9 @@ future permanent production domain.
   editorial material, published change rationale, source metadata, and accepted proposed revisions
   separated from official law text.
 - Core reader and admin screens have a responsive overflow hardening pass for mobile widths.
-- Residual correctness/security cleanup has tightened reader-cache keys, change-feedback validation,
-  amendment source identity, standalone tracing, dependency audit status, and Prisma generation
-  workflow.
+- Residual correctness/security cleanup has tightened reader-cache keys, exact-version cache
+  fallback, marker-path handling, change-feedback validation, amendment source identity, standalone
+  tracing, dependency audit status, and Prisma generation workflow.
 - Article 18 has been used as the first editorial pilot for granular change explanations.
 
 ## Known Limitations
@@ -110,6 +110,11 @@ pnpm run prisma:seed
 After pulling a schema change, `pnpm run typecheck` runs `prisma generate` first through
 `pretypecheck`. Running `pnpm run prisma:generate` explicitly is still useful before focused Prisma
 work or when diagnosing generated-client issues.
+
+## Reader Snapshot Marker
+
+`READER_SNAPSHOT_MARKER_FILE` is optional. When set, it must resolve inside `/tmp`, `/var/tmp`, or
+the current OS temp directory. Invalid paths fall back to the safe default marker under `/tmp`.
 
 ## Documentation
 

@@ -3,6 +3,11 @@ import {
   getTransitionChangeType,
   type TransitionChangeType,
 } from "@/lib/change-history";
+import {
+  compareLawVersionsChronologically,
+  lawVersionOrderByAscending,
+} from "@/lib/law-version-order";
+import { PUBLIC_LAW_SLUG, PUBLIC_VERSION_STATUSES } from "@/lib/law-scope";
 import { buildFullTextSnippet, buildTextDiffSummary } from "@/lib/text-diff";
 
 export type AdminFragmentListItem = {
@@ -104,7 +109,7 @@ export async function getAdminFragments(): Promise<AdminFragmentListItem[]> {
   }
 
   const law = await prisma.law.findUnique({
-    where: { slug: "63fz" },
+    where: { slug: PUBLIC_LAW_SLUG },
     include: { currentVersion: true },
   });
 
@@ -223,11 +228,11 @@ export async function getAdminChangeTransitions(
   }
 
   const law = await prisma.law.findUnique({
-    where: { slug: "63fz" },
+    where: { slug: PUBLIC_LAW_SLUG },
     include: {
       versions: {
-        where: { status: { in: ["published", "archived"] } },
-        orderBy: [{ effectiveDate: "asc" }, { createdAt: "asc" }],
+        where: { status: { in: [...PUBLIC_VERSION_STATUSES] } },
+        orderBy: lawVersionOrderByAscending,
         include: {
           fragments: {
             orderBy: { order: "asc" },
@@ -248,7 +253,9 @@ export async function getAdminChangeTransitions(
     return [];
   }
 
-  const versions = law.versions.filter((version) => !isDemoVersion(version.title));
+  const versions = law.versions
+    .filter((version) => !isDemoVersion(version.title))
+    .sort(compareLawVersionsChronologically);
   const explanations = await prisma.fragmentChangeExplanation.findMany({
     where: {
       fromVersion: { lawId: law.id },

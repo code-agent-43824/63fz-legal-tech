@@ -1,3 +1,5 @@
+import { lawVersionOrderByDescending } from "@/lib/law-version-order";
+import { PUBLIC_LAW_SLUG, PUBLIC_VERSION_STATUSES } from "@/lib/law-scope";
 import { PUBLIC_READER_STATUSES } from "@/lib/publication-policy";
 import { prisma } from "@/lib/prisma";
 import { makeSafeSourceLink, parseSafeSourceLinks } from "@/lib/source-links";
@@ -54,12 +56,12 @@ export async function getMarkdownExportData(versionId?: string): Promise<Markdow
   }
 
   const law = await prisma.law.findUnique({
-    where: { slug: "63fz" },
+    where: { slug: PUBLIC_LAW_SLUG },
     include: {
       currentVersion: true,
       versions: {
-        where: { status: { in: ["published", "archived"] } },
-        orderBy: [{ effectiveDate: "desc" }, { createdAt: "desc" }],
+        where: { status: { in: [...PUBLIC_VERSION_STATUSES] } },
+        orderBy: lawVersionOrderByDescending,
       },
     },
   });

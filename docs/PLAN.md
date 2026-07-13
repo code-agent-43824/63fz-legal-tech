@@ -58,7 +58,8 @@ Status: done.
 2. Lightweight Tests And CI: v1 complete.
    - Added `pnpm test` with Node's test runner through `tsx`.
    - Added Prisma validation, typecheck, lint, fast tests, and production build to GitHub Actions.
-   - Current fast suite has 26 tests after the Markdown export stage.
+   - The fast suite is kept intentionally lightweight and grows only for targeted regression
+     coverage.
 
 3. Hide Empty Editorial Sections: done.
    - Removed repeated empty placeholder editorial blocks from the public reader.
@@ -108,11 +109,19 @@ Status: done.
 
 11. Residual Correctness And Security Cleanup: complete for the accepted scope.
     - Reader snapshot keys are normalized to the selected published/archived version and stored in
-      a bounded in-process cache.
-    - Public change feedback validates the concrete adjacent public law transition before writing.
+      a bounded in-process cache; database-error fallback is allowed only for the exact selected
+      version cache key and otherwise fails closed.
+    - Reader cache marker paths are normalized and restricted to approved temporary directories,
+      including the current OS temp directory for portable local tests.
+    - Public change feedback validates the concrete adjacent public `63fz` transition before
+      writing.
+    - Reader, admin change history, and feedback use the same deterministic public-version order:
+      `effectiveDate`, then `createdAt`, then `id`.
     - Feedback rate-limit buckets are bounded and stale buckets are pruned.
     - Amendment monitor import detection uses exact source identity: `moduleId`, `documentId`,
       `revisionDate`, and `effectiveDate`.
+    - Kontur source URL parsing accepts only `https://normativ.kontur.ru` with present positive
+      safe-integer `moduleId` and `documentId`.
     - Production dependency advisories are currently clear after a compatible Next.js update plus
       a focused PostCSS override.
     - Standalone tracing no longer emits the `unexpected file in NFT list` warning for the reader

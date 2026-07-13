@@ -116,6 +116,65 @@ test("rejects cross-law and non-adjacent transitions", () => {
   );
 });
 
+test("rejects transitions for a different law slug", () => {
+  const foreignVersions = [
+    version("foreign-old", "law-other", "2024-01-01", "published", "other-law"),
+    version("foreign-new", "law-other", "2025-01-01", "published", "other-law"),
+  ];
+
+  assert.deepEqual(
+    validateChangeFeedbackTransition({
+      fragments: [
+        fragment("foreign-old", "63fz.article_1", "old text"),
+        fragment("foreign-new", "63fz.article_1", "new text"),
+      ],
+      fromVersion: foreignVersions[0],
+      kind: "useful",
+      publicVersions: foreignVersions,
+      stableId: "63fz.article_1",
+      toVersion: foreignVersions[1],
+    }),
+    { ok: false, reason: "unsupported-law" },
+  );
+});
+
+test("uses createdAt as the shared tie-breaker for adjacent same-effective-date versions", () => {
+  const tiedVersions = [
+    version("first", "law-63fz", "2025-01-01", "published", "63fz", "2025-01-02"),
+    version("second", "law-63fz", "2025-01-01", "published", "63fz", "2025-01-03"),
+    version("third", "law-63fz", "2025-01-01", "published", "63fz", "2025-01-04"),
+  ];
+
+  assert.equal(
+    validateChangeFeedbackTransition({
+      fragments: [
+        fragment("first", "63fz.article_1", "first text"),
+        fragment("second", "63fz.article_1", "second text"),
+      ],
+      fromVersion: tiedVersions[0],
+      kind: "useful",
+      publicVersions: tiedVersions,
+      stableId: "63fz.article_1",
+      toVersion: tiedVersions[1],
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateChangeFeedbackTransition({
+      fragments: [
+        fragment("first", "63fz.article_1", "first text"),
+        fragment("third", "63fz.article_1", "third text"),
+      ],
+      fromVersion: tiedVersions[0],
+      kind: "useful",
+      publicVersions: tiedVersions,
+      stableId: "63fz.article_1",
+      toVersion: tiedVersions[2],
+    }).ok,
+    false,
+  );
+});
+
 test("rejects unsupported feedback kind", () => {
   assert.equal(
     validateChangeFeedbackTransition({
@@ -157,12 +216,15 @@ function version(
   lawId: string,
   effectiveDate: string,
   status = "published",
+  lawSlug = "63fz",
+  createdAt = effectiveDate,
 ): FeedbackValidationVersion {
   return {
-    createdAt: `${effectiveDate}T00:00:00.000Z`,
+    createdAt: `${createdAt}T00:00:00.000Z`,
     effectiveDate: `${effectiveDate}T00:00:00.000Z`,
     id,
     lawId,
+    lawSlug,
     status,
   };
 }

@@ -9,6 +9,7 @@ const DEFAULT_SOURCE_URL =
   "https://normativ.kontur.ru/document?documentId=504436&moduleId=1";
 const DEFAULT_OUTPUT_DIR = ".import/amendment-monitor";
 const LAW_SLUG = "63fz";
+const PUBLIC_VERSION_STATUSES = ["published", "archived"] as const;
 
 export type SourceRevision = {
   moduleId: number;
@@ -221,7 +222,7 @@ async function getDatabaseState(latestRevision: SourceRevision) {
       include: {
         currentVersion: true,
         versions: {
-          where: { status: { in: ["published", "archived"] } },
+          where: { status: { in: [...PUBLIC_VERSION_STATUSES] } },
           select: {
             effectiveDate: true,
             id: true,
@@ -344,9 +345,13 @@ export function extractKonturSourceIds(sourceUrl: string | null) {
 
   try {
     const parsed = new URL(sourceUrl);
-    const moduleId = Number(parsed.searchParams.get("moduleId"));
-    const documentId = Number(parsed.searchParams.get("documentId"));
-    if (!Number.isInteger(moduleId) || !Number.isInteger(documentId)) {
+    if (parsed.protocol !== "https:" || parsed.hostname !== "normativ.kontur.ru") {
+      return null;
+    }
+
+    const moduleId = parsePositiveSafeInteger(parsed.searchParams.get("moduleId"));
+    const documentId = parsePositiveSafeInteger(parsed.searchParams.get("documentId"));
+    if (moduleId === null || documentId === null) {
       return null;
     }
 
@@ -354,6 +359,15 @@ export function extractKonturSourceIds(sourceUrl: string | null) {
   } catch {
     return null;
   }
+}
+
+function parsePositiveSafeInteger(value: string | null) {
+  if (!value || !/^\d+$/.test(value)) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 async function readPreviousState(statePath: string): Promise<MonitorState | null> {

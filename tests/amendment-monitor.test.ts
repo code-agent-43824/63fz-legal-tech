@@ -54,6 +54,27 @@ test("recognizes Kontur source IDs regardless of query parameter order", () => {
   );
 });
 
+test("rejects malformed or unsafe Kontur source URLs", () => {
+  const rejected = [
+    null,
+    "not a url",
+    "http://normativ.kontur.ru/document?moduleId=1&documentId=504436",
+    "https://example.com/document?moduleId=1&documentId=504436",
+    "https://normativ.kontur.ru.evil.test/document?moduleId=1&documentId=504436",
+    "https://normativ.kontur.ru/document?documentId=504436",
+    "https://normativ.kontur.ru/document?moduleId=1",
+    "https://normativ.kontur.ru/document?moduleId=&documentId=504436",
+    "https://normativ.kontur.ru/document?moduleId=0&documentId=504436",
+    "https://normativ.kontur.ru/document?moduleId=-1&documentId=504436",
+    "https://normativ.kontur.ru/document?moduleId=1.5&documentId=504436",
+    "https://normativ.kontur.ru/document?moduleId=9007199254740992&documentId=504436",
+  ];
+
+  for (const sourceUrl of rejected) {
+    assert.equal(extractKonturSourceIds(sourceUrl), null, sourceUrl ?? "null");
+  }
+});
+
 test("matches imported versions only by exact source identity", () => {
   const latest = getSourceRevisionIdentity({
     documentId: 504436,

@@ -1281,3 +1281,49 @@ Production verification:
 - existing `https://mescheryakov.pro/` and `https://mescheryakov.pro/pdf-signing/` return HTTP 200.
 - public `/63fz` does not contain `DEMO DATA`.
 - `63fz-legal-tech.service` is active with `NRestarts=0`.
+
+## 2026-07-13. Post-b888 Correctness Fixes
+
+- Fixed reader cache fallback after database errors:
+  - removed arbitrary newest-snapshot fallback from `BoundedMemoryCache`;
+  - database-error fallback now returns only the exact already selected public version cache entry;
+  - if version selection/normalization fails before a trustworthy selected version is known, the
+    request fails instead of silently substituting another version.
+- Hardened reader cache marker path handling:
+  - marker paths are resolved through `node:path`;
+  - allowed marker files must be inside `/tmp`, `/var/tmp`, or the current OS temp directory;
+  - traversal outside those directories, sibling-prefix paths such as `/tmp-other/...`, and the temp
+    directory itself are rejected back to the safe default marker.
+- Scoped public change feedback to the public `63fz` law:
+  - selected versions now include their law slug;
+  - validation rejects transitions for other law slugs even if the version IDs and fragments are
+    otherwise well formed.
+- Unified public law-version chronology for reader/admin change history and feedback:
+  `effectiveDate`, then `createdAt`, then `id`.
+- Hardened Kontur source URL parsing:
+  - accepts only `https://normativ.kontur.ru`;
+  - requires present positive safe-integer `moduleId` and `documentId`;
+  - malformed, missing, zero, negative, fractional, oversized, `http:`, foreign-host, and lookalike
+    host URLs resolve to `null`.
+- Updated `README.md` and `docs/PLAN.md` to match the implemented cache fallback, marker safety,
+  feedback scope, shared version chronology, and Kontur URL parsing behavior.
+- Release `b88885a` remains recorded as the prior deployed residual-cleanup release.
+
+Verified locally:
+
+- `pnpm install --frozen-lockfile`
+- `pnpm run prisma:generate`
+- `pnpm run prisma:validate`
+- `pnpm run typecheck`
+- `pnpm run lint`
+- first `pnpm test` (`45` tests passed)
+- second `pnpm test` (`45` tests passed)
+- `pnpm run build`
+- `pnpm audit --prod` (`No known vulnerabilities found`)
+- production build did not emit `Encountered unexpected file in NFT list`.
+- `.next/standalone` does not contain top-level `tests`, `docs`, or `scripts` directories in the
+  checked artifact.
+
+Deployment status:
+
+- This fixing commit was approved for deployment in the same task and deployed after CI passed.

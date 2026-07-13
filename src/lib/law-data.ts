@@ -1,5 +1,11 @@
 import { Prisma } from "@prisma/client";
 import { getTransitionChangeType, normalizeForComparison } from "@/lib/change-history";
+import {
+  compareLawVersionsChronologically,
+  lawVersionOrderByAscending,
+  lawVersionOrderByDescending,
+} from "@/lib/law-version-order";
+import { PUBLIC_LAW_SLUG, PUBLIC_VERSION_STATUSES } from "@/lib/law-scope";
 import { PUBLIC_READER_STATUSES } from "@/lib/publication-policy";
 import { prisma } from "@/lib/prisma";
 import {
@@ -185,25 +191,29 @@ export async function getReaderData(requestedVersionId?: string): Promise<Reader
   }
   lastReaderCacheMarker = marker;
 
+  const selection = await getReaderVersionSelection(requestedVersionId);
+  if (!selection) {
+    return getDemoReaderData();
+  }
+
+  const cacheKey = selection.selectedVersion.id;
+  const cached = readerDataCache.get(cacheKey);
+  if (cached?.marker === marker) {
+    return cached.data;
+  }
+
   try {
-    const selection = await getReaderVersionSelection(requestedVersionId);
-    if (!selection) {
-      return getDemoReaderData();
-    }
-
-    const cacheKey = selection.selectedVersion.id;
-    const cached = readerDataCache.get(cacheKey);
-    if (cached?.marker === marker) {
-      return cached.data;
-    }
-
     const data = await getReaderDataFromDatabase(selection);
     readerDataCache.set(cacheKey, { data, marker });
     return data;
   } catch (error) {
-    const cached = readerDataCache.newestValue();
-    if (cached?.marker === marker) {
-      return cached.data;
+    const fallback = getSafeReaderDataCacheFallback({
+      cacheKey,
+      cached,
+      marker,
+    });
+    if (fallback) {
+      return fallback;
     }
 
     throw error;
@@ -219,9 +229,25 @@ export function getReaderDataMemoryCacheState() {
   return readerDataCache.state();
 }
 
+export function getSafeReaderDataCacheFallback({
+  cacheKey,
+  cached,
+  marker,
+}: {
+  cacheKey: string | null;
+  cached: ReaderCacheEntry | undefined;
+  marker: number;
+}) {
+  if (!cacheKey || cached?.marker !== marker) {
+    return null;
+  }
+
+  return cached.data;
+}
+
 async function getReaderVersionSelection(requestedVersionId?: string) {
   const law = await prisma.law.findUnique({
-    where: { slug: "63fz" },
+    where: { slug: PUBLIC_LAW_SLUG },
     select: {
       id: true,
       title: true,
@@ -229,8 +255,8 @@ async function getReaderVersionSelection(requestedVersionId?: string) {
         select: readerVersionSelect,
       },
       versions: {
-        where: { status: { in: ["published", "archived"] } },
-        orderBy: [{ effectiveDate: "desc" }, { createdAt: "desc" }],
+        where: { status: { in: [...PUBLIC_VERSION_STATUSES] } },
+        orderBy: lawVersionOrderByDescending,
         select: readerVersionSelect,
       },
     },
@@ -319,8 +345,9 @@ async function getReaderDataFromDatabase({
       where: {
         id: { in: versions.map((version) => version.id) },
       },
-      orderBy: [{ effectiveDate: "asc" }, { createdAt: "asc" }],
+      orderBy: lawVersionOrderByAscending,
       select: {
+        createdAt: true,
         effectiveDate: true,
         id: true,
         title: true,
@@ -495,6 +522,7 @@ function mapReaderFragment({
 
 function buildChangeHistoriesByStableId(
   versions: Array<{
+    createdAt: Date;
     effectiveDate: Date | null;
     fragments: ReaderHistoryFragment[];
     id: string;
@@ -598,17 +626,7 @@ function transitionKey({
   return `${stableId}\u0000${fromVersionId}\u0000${toVersionId}`;
 }
 
-function compareVersionsAscending(
-  left: { effectiveDate: Date | null; id: string },
-  right: { effectiveDate: Date | null; id: string },
-) {
-  const leftTime = left.effectiveDate?.getTime() ?? 0;
-  const rightTime = right.effectiveDate?.getTime() ?? 0;
-  if (leftTime !== rightTime) {
-    return leftTime - rightTime;
-  }
-  return left.id.localeCompare(right.id);
-}
+const compareVersionsAscending = compareLawVersionsChronologically;
 
 function buildCommentBlocks(fragment: ReaderDbFragment): ReaderCommentBlock[] {
   const blocks: ReaderCommentBlock[] = [];

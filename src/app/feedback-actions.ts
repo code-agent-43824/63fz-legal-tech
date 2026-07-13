@@ -8,6 +8,8 @@ import {
   isFeedbackKind,
   validateChangeFeedbackTransition,
 } from "@/lib/change-feedback";
+import { lawVersionOrderByAscending } from "@/lib/law-version-order";
+import { PUBLIC_LAW_SLUG, PUBLIC_VERSION_STATUSES } from "@/lib/law-scope";
 import { prisma } from "@/lib/prisma";
 
 const FEEDBACK_WINDOW_MS = 10 * 60 * 1000;
@@ -103,6 +105,7 @@ async function validateFeedbackTransition({
         effectiveDate: true,
         id: true,
         lawId: true,
+        law: { select: { slug: true } },
         status: true,
       },
     }),
@@ -124,15 +127,17 @@ async function validateFeedbackTransition({
     fromVersion && toVersion && fromVersion.lawId === toVersion.lawId
       ? await prisma.lawVersion.findMany({
           where: {
+            law: { slug: PUBLIC_LAW_SLUG },
             lawId: fromVersion.lawId,
-            status: { in: ["published", "archived"] },
+            status: { in: [...PUBLIC_VERSION_STATUSES] },
           },
-          orderBy: [{ effectiveDate: "asc" }, { createdAt: "asc" }],
+          orderBy: lawVersionOrderByAscending,
           select: {
             createdAt: true,
             effectiveDate: true,
             id: true,
             lawId: true,
+            law: { select: { slug: true } },
             status: true,
           },
         })
@@ -140,12 +145,30 @@ async function validateFeedbackTransition({
 
   const result = validateChangeFeedbackTransition({
     fragments,
-    fromVersion,
+    fromVersion: fromVersion ? mapFeedbackVersion(fromVersion) : null,
     kind,
-    publicVersions,
+    publicVersions: publicVersions.map(mapFeedbackVersion),
     stableId,
-    toVersion,
+    toVersion: toVersion ? mapFeedbackVersion(toVersion) : null,
   });
 
   return result.ok;
+}
+
+function mapFeedbackVersion(version: {
+  createdAt: Date;
+  effectiveDate: Date | null;
+  id: string;
+  law: { slug: string };
+  lawId: string;
+  status: string;
+}) {
+  return {
+    createdAt: version.createdAt,
+    effectiveDate: version.effectiveDate,
+    id: version.id,
+    lawId: version.lawId,
+    lawSlug: version.law.slug,
+    status: version.status,
+  };
 }
