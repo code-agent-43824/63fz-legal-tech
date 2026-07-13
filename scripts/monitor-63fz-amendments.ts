@@ -5,11 +5,13 @@ import { pathToFileURL } from "node:url";
 
 import { PrismaClient } from "@prisma/client";
 
+// The .ts extension is required: this script runs via node --experimental-strip-types.
+import { PUBLIC_LAW_SLUG, PUBLIC_VERSION_STATUSES } from "../src/lib/law-scope.ts";
+
 const DEFAULT_SOURCE_URL =
   "https://normativ.kontur.ru/document?documentId=504436&moduleId=1";
 const DEFAULT_OUTPUT_DIR = ".import/amendment-monitor";
-const LAW_SLUG = "63fz";
-const PUBLIC_VERSION_STATUSES = ["published", "archived"] as const;
+const LAW_SLUG = PUBLIC_LAW_SLUG;
 
 export type SourceRevision = {
   moduleId: number;
