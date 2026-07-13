@@ -1,5 +1,51 @@
 # Progress Log
 
+## 2026-07-13. Base Path, Integration Tests, And Documentation Hardening
+
+- Made the application base path configurable at build time:
+  - added `src/lib/base-path.ts` with validated `NEXT_PUBLIC_BASE_PATH` normalization
+    (default `/63fz`, empty or `/` serves from the root, unsafe values fall back to the default);
+  - `next.config.ts` `basePath`, admin page links, the markdown-export login redirect, and the
+    admin session cookie path now go through the shared helper instead of hardcoded `/63fz`;
+  - added `tests/base-path.test.ts`.
+- Deduplicated amendment-monitor constants: the script now imports `PUBLIC_LAW_SLUG` and
+  `PUBLIC_VERSION_STATUSES` from `src/lib/law-scope.ts` (with an explicit `.ts` extension for
+  `node --experimental-strip-types`); enabled `allowImportingTsExtensions` in `tsconfig.json`.
+- Added the first DB-backed integration test
+  (`tests/reader-publication.integration.test.ts`, opt-in via `INTEGRATION_DATABASE_URL`):
+  - seeds a real PostgreSQL database with published/draft versions, editorial content, and change
+    explanations for the `63fz` law;
+  - asserts the public reader lists only public versions, exposes only published/confirmed/accepted
+    editorial content, marks draft change explanations as unpublished, falls back to the current
+    version when a draft version is requested, and still serves historical published versions;
+  - skips itself when `INTEGRATION_DATABASE_URL` is unset, so plain `pnpm test` needs no database;
+  - CI now provisions a disposable PostgreSQL service database, runs `prisma migrate deploy`, and
+    executes the suite with the variable set.
+- Documentation:
+  - added `docs/STABLE-ID.md` — the stable fragment ID format and parser invariants;
+  - added `docs/OPERATIONS.md` — deploy/rollback/backup/migration runbook reconstructed from this
+    log, including the reader-cache marker systemd `PrivateTmp` caveat (unverified on the host);
+  - added `CLAUDE.md` for coding-agent sessions;
+  - updated `README.md` and `docs/PLAN.md` (point 16 raised to P1 and gated before any schema
+    change; base-path configurability recorded; integration-test layer recorded; PrivateTmp check
+    added to point 12; recommendation order adjusted).
+
+Verified locally:
+
+- `pnpm run typecheck`
+- `pnpm run lint`
+- `pnpm test` (`51` tests: 50 passed, integration test skipped without a database)
+- `INTEGRATION_DATABASE_URL=... pnpm test` against a disposable local PostgreSQL
+  (`51` tests passed, including the integration test)
+- `pnpm run build`
+- `next.config.ts` base path override check: `NEXT_PUBLIC_BASE_PATH=/other/path/` resolves to
+  `/other/path`.
+
+Deployment status:
+
+- Not deployed as part of this task; changes are code/CI/documentation only and take effect with
+  the next release build.
+
 ## 2026-05-24
 
 - Created public GitHub repository `code-agent-43824/63fz-legal-tech`.

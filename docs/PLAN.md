@@ -48,18 +48,22 @@ Status: done.
 - `FragmentChangeExplanation` storage, admin editor, and public rendering.
 - Article 18 editorial pilot and aggregate article duplicate filtering.
 
-### Roadmap Points 1-10
+### Roadmap Points 1-11
 
 1. Security Hardening: v1 complete.
    - Removed unsafe production auth fallback.
    - Added secret validation, login rate limiting, logout, hardened cookies, security headers,
      public-status filtering, server-side validation, and destructive-action confirmation.
 
-2. Lightweight Tests And CI: v1 complete.
+2. Lightweight Tests And CI: v1 complete, integration layer started.
    - Added `pnpm test` with Node's test runner through `tsx`.
    - Added Prisma validation, typecheck, lint, fast tests, and production build to GitHub Actions.
    - The fast suite is kept intentionally lightweight and grows only for targeted regression
      coverage.
+   - Added an opt-in DB-backed integration test (`INTEGRATION_DATABASE_URL`) asserting the public
+     reader never exposes draft versions, draft editorial content, or draft change explanations;
+     CI runs it against a disposable PostgreSQL service database.
+   - Next targeted extension: authorization regression coverage for admin write endpoints.
 
 3. Hide Empty Editorial Sections: done.
    - Removed repeated empty placeholder editorial blocks from the public reader.
@@ -129,6 +133,19 @@ Status: done.
     - `pnpm run typecheck` regenerates Prisma Client first, so schema changes after pull are less
       likely to use a stale generated client.
 
+### Post-Cleanup Hardening (2026-07-13)
+
+Status: done.
+
+- Base path is configurable via `NEXT_PUBLIC_BASE_PATH` (build-time): Next.js `basePath`, admin
+  links, markdown-export redirect, and the session cookie path all go through a shared validated
+  helper (`src/lib/base-path.ts`) instead of hardcoded `/63fz` strings.
+- Amendment monitor reuses `PUBLIC_LAW_SLUG`/`PUBLIC_VERSION_STATUSES` from `src/lib/law-scope.ts`
+  instead of duplicating them.
+- DB-backed publication-policy integration test added to `pnpm test` and CI (see point 2).
+- Documented the stable fragment ID contract (`docs/STABLE-ID.md`) and the operations runbook
+  (`docs/OPERATIONS.md`), including the reader-cache marker PrivateTmp caveat.
+
 ## Current Known Gaps
 
 These are product risks or limitations, not all immediate next steps.
@@ -142,9 +159,14 @@ These are product risks or limitations, not all immediate next steps.
 - There is no separate durable "last checked for newer amendments" database field beyond monitor
   state files and imported source retrieval metadata.
 - Production database migration history is partly manual; the database has historically not used a
-  clean `_prisma_migrations` history table.
-- The deployment path is a test placement; base path and canonical URL are still effectively tied to
-  `/63fz` in several places.
+  clean `_prisma_migrations` history table. This must be reconciled before any next schema change
+  (see point 16, now P1).
+- The deployment path is a test placement. The base path itself is now configurable at build time,
+  but canonical-URL/domain references (`mescheryakov.pro`) remain in docs, metadata, and source
+  labels.
+- It is unverified whether the reader-cache invalidation marker is actually shared between the
+  systemd service and CLI import runs on production (systemd `PrivateTmp` would silently isolate
+  `/tmp`); see `docs/OPERATIONS.md`. Until verified, restart the service after imports.
 - Editorial coverage outside article 18 is still sparse.
 - The app has a pragmatic public snapshot, but no broader observability, error reporting, or
   operational dashboard.
@@ -174,6 +196,8 @@ Tasks:
 - Notify only when a newer source revision appears or the monitor fails.
 - Track lightweight operational signals: health check, disk usage, backup freshness, and failed
   monitor/import attempts.
+- Verify on the host that the reader-cache invalidation marker is shared between the service and
+  CLI import runs (systemd `PrivateTmp`), and fix the marker location or restart policy if not.
 - Keep state and reports under the production imports directory.
 
 Acceptance criteria:
@@ -287,8 +311,10 @@ Explicitly not included:
 
 ### 16. Import And Migration Operations Hardening
 
-Priority: P2.
-Status: future.
+Priority: P1 — must be completed before any next schema change; points 15 and 18 add tables and
+are blocked on it.
+Status: future. The descriptive part of the runbook now exists in `docs/OPERATIONS.md`; the
+remaining work is reconciling the production migration history and verifying backup restore.
 
 Goal:
 
@@ -410,7 +436,8 @@ Goal:
 
 Tasks:
 
-- Make base path and canonical URL configurable.
+- Base path is already configurable (`NEXT_PUBLIC_BASE_PATH`, build-time); remaining work is the
+  canonical URL.
 - Audit hard-coded `mescheryakov.pro/63fz` references in metadata, docs, import user agents, and
   source labels.
 - Decide final route/domain and whether main-site navigation should link to it.
@@ -435,8 +462,10 @@ Explicitly not included:
 
 Recommended order after the residual cleanup:
 
-1. Scheduled monitoring and lightweight operational visibility.
+1. Scheduled monitoring and lightweight operational visibility (including the PrivateTmp
+   cache-invalidation check).
 2. Product validation and editorial coverage expansion.
-3. Feedback review only after enough real feedback accumulates or a regular editorial process exists.
-4. Migration operations hardening.
+3. Migration operations hardening — in any case before the first task that changes the schema.
+4. Feedback review only after enough real feedback accumulates or a regular editorial process
+   exists (blocked on 3 for its new tables).
 5. Remaining future tasks in evidence-driven order.

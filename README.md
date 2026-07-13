@@ -35,6 +35,10 @@ future permanent production domain.
   fallback, marker-path handling, change-feedback validation, amendment source identity, standalone
   tracing, dependency audit status, and Prisma generation workflow.
 - Article 18 has been used as the first editorial pilot for granular change explanations.
+- The application base path is configurable at build time via `NEXT_PUBLIC_BASE_PATH`
+  (default `/63fz`); admin links and the session cookie path follow it.
+- A DB-backed integration test asserts the public reader never exposes draft versions or draft
+  editorial content; CI runs it against a disposable PostgreSQL database.
 
 ## Known Limitations
 
@@ -69,6 +73,10 @@ future permanent production domain.
 - Protect every write endpoint.
 - Do not add hard dependencies on the current test domain or integrate with the main site unless that
   becomes a separate approved task.
+- Never hardcode the `/63fz` base path in code; use the helpers in `src/lib/base-path.ts`.
+- Do not change stable fragment ID generation without reading `docs/STABLE-ID.md` first.
+- Operational procedures (deploy, rollback, backups, migrations, cache invalidation) live in
+  `docs/OPERATIONS.md`.
 
 ## Local Commands
 
@@ -88,6 +96,16 @@ pnpm run lint
 pnpm test
 pnpm run build
 pnpm run security:audit
+```
+
+DB-backed integration tests are opt-in and need a disposable migrated database (never point this
+at a real one — the test recreates the `63fz` law):
+
+```bash
+docker compose up -d
+docker exec 63fz-legal-tech-postgres-1 psql -U postgres -c 'CREATE DATABASE "63fz_legal_tech_integration";'
+DATABASE_URL=postgresql://postgres:postgres@localhost:5439/63fz_legal_tech_integration pnpm exec prisma migrate deploy
+INTEGRATION_DATABASE_URL=postgresql://postgres:postgres@localhost:5439/63fz_legal_tech_integration pnpm test
 ```
 
 Importer:

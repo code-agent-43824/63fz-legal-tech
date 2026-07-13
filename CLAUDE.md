@@ -6,9 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Legal-tech reader and editorial CMS for Russian Federal Law 63-FZ "On Electronic Signature".
 Next.js 16 (App Router) + TypeScript strict + Prisma 6 + PostgreSQL + Tailwind 4. Package manager
-is pnpm (pinned `pnpm@11.5.0`, Node 24 in CI). UI text is in Russian. The app is deployed under
-`basePath: "/63fz"` (`next.config.ts`, standalone output) — this is a test placement, not a
-permanent domain; don't add hard dependencies on it.
+is pnpm (pinned `pnpm@11.5.0`, Node 24 in CI). UI text is in Russian. The app is deployed under a
+configurable base path (`NEXT_PUBLIC_BASE_PATH`, default `/63fz`, baked in at build time;
+standalone output). Never hardcode `/63fz` in code — use `withBasePath()` from
+`src/lib/base-path.ts`. The current placement is a test one, not a permanent domain.
 
 ## Commands
 
@@ -22,6 +23,8 @@ pnpm run typecheck               # pretypecheck runs prisma generate
 pnpm run lint
 pnpm test                        # Node test runner via tsx over tests/**/*.test.ts
 pnpm exec tsx --test tests/reader-cache.test.ts   # single test file
+# DB integration test (opt-in; needs a DISPOSABLE migrated database, see README):
+INTEGRATION_DATABASE_URL=postgresql://... pnpm test
 pnpm run security:audit          # pnpm audit --prod
 
 pnpm run prisma:validate         # uses hardcoded local DATABASE_URL, no DB needed
@@ -38,8 +41,11 @@ CI (`.github/workflows/ci.yml`) runs: prisma:validate, typecheck, lint, test, bu
 Prisma client generation is a prerequisite for typecheck/build; the `pretypecheck`/`postinstall`/
 `build` scripts handle it, but if you see missing `@prisma/client` types, run `pnpm run prisma:generate`.
 
-Tests are unit-level and do not require a database. The app itself falls back to clearly marked
-DEMO DATA when `DATABASE_URL` is absent, so builds stay deterministic without a DB.
+Tests do not require a database except the opt-in integration test
+(`tests/reader-publication.integration.test.ts`), which skips itself when
+`INTEGRATION_DATABASE_URL` is unset and destroys/recreates the `63fz` law when set — only point it
+at a disposable database. The app itself falls back to clearly marked DEMO DATA when
+`DATABASE_URL` is absent, so builds stay deterministic without a DB.
 
 ## Architecture
 
@@ -59,6 +65,8 @@ Two surfaces in one Next.js app:
 `LawFragment` tree (law/chapter/article/part/point/paragraph). The key concept is
 **`stableId`**: fragments keep the same stable ID across versions (unique per
 `[lawVersionId, stableId]`), which is what makes cross-version change history possible.
+**Read `docs/STABLE-ID.md` before touching the importer's ID generation** — explanations and
+feedback reference stableIds by string, and format changes silently corrupt history.
 
 Editorial models attach to fragments: `PlainExplanation`, `ExpertComment`, `Issue`,
 `ProposedRevision`. `FragmentChangeExplanation` is keyed by `(stableId, fromVersionId,
@@ -111,3 +119,5 @@ it deliberately never publishes anything itself. Both write state under `.import
 - Make small, reviewable commits per meaningful change.
 - `docs/PLAN.md` is the roadmap (what's accepted/deferred/next); `docs/PROGRESS.md` is the
   chronological log. Update PROGRESS.md when completing meaningful steps.
+- `docs/OPERATIONS.md` is the deploy/backup/migration runbook; `docs/STABLE-ID.md` is the fragment
+  identity contract.
