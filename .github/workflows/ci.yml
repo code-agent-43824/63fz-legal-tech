@@ -10,6 +10,21 @@ jobs:
   checks:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: 63fz_legal_tech_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5439:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -37,8 +52,15 @@ jobs:
       - name: Lint
         run: pnpm run lint
 
-      - name: Fast tests
+      - name: Apply migrations to the test database
+        run: pnpm exec prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5439/63fz_legal_tech_test
+
+      - name: Fast tests (unit + DB integration)
         run: pnpm test
+        env:
+          INTEGRATION_DATABASE_URL: postgresql://postgres:postgres@localhost:5439/63fz_legal_tech_test
 
       - name: Production build
         run: pnpm run build
