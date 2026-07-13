@@ -164,9 +164,9 @@ These are product risks or limitations, not all immediate next steps.
 - The deployment path is a test placement. The base path itself is now configurable at build time,
   but canonical-URL/domain references (`mescheryakov.pro`) remain in docs, metadata, and source
   labels.
-- It is unverified whether the reader-cache invalidation marker is actually shared between the
-  systemd service and CLI import runs on production (systemd `PrivateTmp` would silently isolate
-  `/tmp`); see `docs/OPERATIONS.md`. Until verified, restart the service after imports.
+- Reader-cache invalidation across processes is verified on the host (2026-07-13): the unit runs
+  with `PrivateTmp=no` and CLI imports do invalidate the running server's cache. Re-verify if the
+  unit configuration changes; see `docs/OPERATIONS.md`.
 - Editorial coverage outside article 18 is still sparse.
 - The app has a pragmatic public snapshot, but no broader observability, error reporting, or
   operational dashboard.
@@ -196,8 +196,8 @@ Tasks:
 - Notify only when a newer source revision appears or the monitor fails.
 - Track lightweight operational signals: health check, disk usage, backup freshness, and failed
   monitor/import attempts.
-- Verify on the host that the reader-cache invalidation marker is shared between the service and
-  CLI import runs (systemd `PrivateTmp`), and fix the marker location or restart policy if not.
+- Reader-cache marker sharing between the service and CLI imports is verified (2026-07-13,
+  `PrivateTmp=no`); keep the check in mind if the unit configuration changes.
 - Keep state and reports under the production imports directory.
 
 Acceptance criteria:
@@ -462,8 +462,8 @@ Explicitly not included:
 
 Recommended order after the residual cleanup:
 
-1. Scheduled monitoring and lightweight operational visibility (including the PrivateTmp
-   cache-invalidation check).
+1. Scheduled monitoring and lightweight operational visibility (the PrivateTmp
+   cache-invalidation check is already done and passed).
 2. Product validation and editorial coverage expansion.
 3. Migration operations hardening — in any case before the first task that changes the schema.
 4. Feedback review only after enough real feedback accumulates or a regular editorial process

@@ -1,5 +1,18 @@
 # Progress Log
 
+## 2026-07-13. Reader Cache Invalidation Verified On The Host
+
+- Ran the read-only PrivateTmp experiment on production (separate operator session):
+  - `63fz-legal-tech.service` has `PrivateTmp=no`; unit uses
+    `WorkingDirectory=/home/openclaw/services/63fz-legal-tech/current` and
+    `EnvironmentFile=/home/openclaw/services/63fz-legal-tech/.env.production`;
+  - after a shell `touch` of `/tmp/63fz-legal-tech-reader-cache.invalidate`, the service view
+    (`/proc/<MainPID>/root/tmp`) shows the identical mtime.
+- Conclusion: CLI imports do invalidate the running server's reader cache; no service restart is
+  required after imports for this reason.
+- Updated `docs/OPERATIONS.md` and `docs/PLAN.md` to record the verified status and keep the
+  re-check instructions for future unit-configuration changes.
+
 ## 2026-07-13. Base Path, Integration Tests, And Documentation Hardening
 
 - Made the application base path configurable at build time:

@@ -8,7 +8,10 @@ This runbook is reconstructed from the deployment records in `docs/PROGRESS.md`;
 
 - Host: VDSina VDS, reverse proxy Caddy, app served under `https://mescheryakov.pro/63fz`
   (test placement, not the final domain).
-- App: systemd unit `63fz-legal-tech.service` running the Next.js standalone build.
+- App: systemd unit `63fz-legal-tech.service` running the Next.js standalone build
+  (`WorkingDirectory=/home/openclaw/services/63fz-legal-tech/current`,
+  `EnvironmentFile=/home/openclaw/services/63fz-legal-tech/.env.production`, `PrivateTmp=no` —
+  confirmed on the host 2026-07-13).
 - Releases live in `/home/openclaw/services/63fz-legal-tech/releases/<git-sha>`; the unit runs the
   `/home/openclaw/services/63fz-legal-tech/current` symlink (*verify on host*).
 - Database: PostgreSQL on the same host (*verify connection details on host*).
@@ -77,16 +80,18 @@ The public reader keeps an in-process snapshot cache (`src/lib/reader-cache.ts`)
 invalidation uses a marker file (default `/tmp/63fz-legal-tech-reader-cache.invalidate`): the
 import script touches it on write, and the server compares its mtime on reads.
 
-**PrivateTmp caveat:** if `63fz-legal-tech.service` runs with systemd `PrivateTmp=true`, the
-service's `/tmp` is namespaced and a CLI import run from a shell touches a *different* `/tmp` — the
-running server never sees the invalidation and serves stale content until the process restarts or
-the entry is evicted. Check with `systemctl show 63fz-legal-tech -p PrivateTmp`. If it is `yes`,
-either disable it for this unit, point `READER_SNAPSHOT_MARKER_FILE` (both for the service and for
-import runs) at a shared allowed directory, or restart the service after every import.
+**PrivateTmp status (verified on the host 2026-07-13):** the unit runs with `PrivateTmp=no`, the
+marker file is visible to the service (checked via `/proc/<MainPID>/root/tmp`), and a shell
+`touch` of the marker updates the mtime the service sees — CLI imports DO invalidate the running
+server's cache. No restart after import is needed for this reason.
 
-Note that `READER_SNAPSHOT_MARKER_FILE` values outside `/tmp`, `/var/tmp`, or the OS temp dir are
-rejected back to the default; sharing a marker across a PrivateTmp boundary may therefore require a
-code change extending the allowed directories.
+**Re-check this if the unit configuration ever changes:** with `PrivateTmp=true` the service's
+`/tmp` is namespaced, a CLI import touches a *different* `/tmp`, and the server silently serves
+stale content. Check with `systemctl show 63fz-legal-tech -p PrivateTmp` and compare marker mtimes
+in `/tmp` vs `/proc/<MainPID>/root/tmp` after a `touch`. Note that `READER_SNAPSHOT_MARKER_FILE`
+values outside `/tmp`, `/var/tmp`, or the OS temp dir are rejected back to the default, so sharing
+a marker across a PrivateTmp boundary would require a code change extending the allowed
+directories.
 
 ## `.import/` artifacts
 
