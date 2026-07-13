@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
+import { normalizeBasePath } from "./src/lib/base-path";
 
 const nextConfig: NextConfig = {
-  basePath: "/63fz",
+  // Build-time value: the client bundle and router bake it in, so changing the
+  // base path requires a rebuild with a different NEXT_PUBLIC_BASE_PATH.
+  basePath: normalizeBasePath(process.env.NEXT_PUBLIC_BASE_PATH),
   output: "standalone",
   poweredByHeader: false,
   typedRoutes: false,

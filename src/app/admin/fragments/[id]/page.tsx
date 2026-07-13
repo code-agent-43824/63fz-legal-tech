@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getAdminFragmentDetails } from "@/lib/admin-data";
 import { isAdminAuthenticated } from "@/lib/auth";
+import { withBasePath } from "@/lib/base-path";
 import { logoutAdmin } from "../../actions";
 import { createContent, deleteContent, updateContent } from "./actions";
 
@@ -26,7 +27,7 @@ export default async function AdminFragmentPage({
     <main className="min-h-screen bg-stone-50 px-3 py-6 text-slate-950 sm:px-5 sm:py-8">
       <div className="mx-auto w-full max-w-6xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <a className="text-sm text-slate-600 underline-offset-4 hover:underline" href="/63fz/admin">
+          <a className="text-sm text-slate-600 underline-offset-4 hover:underline" href={withBasePath("/admin")}>
             ← Все фрагменты
           </a>
           <form action={logoutAdmin}>

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getAdminFragments, type AdminFragmentListItem } from "@/lib/admin-data";
+import { withBasePath } from "@/lib/base-path";
 import { isAdminAuthenticated } from "@/lib/auth";
 import { logoutAdmin } from "./actions";
 
@@ -39,19 +40,19 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           <div className="flex flex-wrap gap-2">
             <a
               className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium"
-              href="/63fz/admin/changes"
+              href={withBasePath("/admin/changes")}
             >
               История изменений
             </a>
             <a
               className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium"
-              href="/63fz/admin/export/markdown"
+              href={withBasePath("/admin/export/markdown")}
             >
               Markdown export
             </a>
             <a
               className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium"
-              href="/63fz"
+              href={withBasePath("/")}
             >
               Публичная страница
             </a>
@@ -106,7 +107,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </button>
             <a
               className="inline-flex h-10 items-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium"
-              href="/63fz/admin"
+              href={withBasePath("/admin")}
             >
               Сброс
             </a>

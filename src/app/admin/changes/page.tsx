@@ -4,6 +4,7 @@ import {
   type AdminChangeTransition,
 } from "@/lib/admin-data";
 import { isAdminAuthenticated } from "@/lib/auth";
+import { withBasePath } from "@/lib/base-path";
 import { logoutAdmin } from "../actions";
 import { deleteChangeExplanation, saveChangeExplanation } from "./actions";
 
@@ -35,7 +36,7 @@ export default async function AdminChangesPage({ searchParams }: AdminChangesPag
       <div className="mx-auto w-full max-w-6xl">
         <div className="flex min-w-0 flex-col gap-3 border-b border-slate-200 pb-6 md:flex-row md:items-end md:justify-between">
           <div className="min-w-0">
-            <a className="text-sm text-slate-600 underline-offset-4 hover:underline" href="/63fz/admin">
+            <a className="text-sm text-slate-600 underline-offset-4 hover:underline" href={withBasePath("/admin")}>
               ← Фрагменты закона
             </a>
             <p className="mt-4 text-sm font-medium uppercase tracking-wide text-slate-500">
@@ -45,7 +46,7 @@ export default async function AdminChangesPage({ searchParams }: AdminChangesPag
           </div>
           <a
             className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium"
-            href="/63fz"
+            href={withBasePath("/")}
           >
             Публичная страница
           </a>
@@ -122,7 +123,7 @@ export default async function AdminChangesPage({ searchParams }: AdminChangesPag
             </button>
             <a
               className="inline-flex h-10 items-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium"
-              href="/63fz/admin/changes"
+              href={withBasePath("/admin/changes")}
             >
               Сброс
             </a>

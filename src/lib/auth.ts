@@ -5,9 +5,10 @@ import {
   isValidAdminPassword,
   isValidAuthSecret,
 } from "@/lib/auth-policy";
+import { getCookieBasePath } from "@/lib/base-path";
 
 const ADMIN_COOKIE = "admin_session";
-const COOKIE_PATH = "/63fz";
+const COOKIE_PATH = getCookieBasePath();
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 8;
 const SESSION_MAX_AGE_MS = SESSION_MAX_AGE_SECONDS * 1000;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;

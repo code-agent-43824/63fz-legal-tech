@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/auth";
+import { withBasePath } from "@/lib/base-path";
 import { buildMarkdownExport, getMarkdownExportData } from "@/lib/markdown-export";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +9,7 @@ export async function GET(request: Request) {
   if (!(await isAdminAuthenticated())) {
     return new NextResponse(null, {
       status: 307,
-      headers: { location: "/63fz/admin/login" },
+      headers: { location: withBasePath("/admin/login") },
     });
   }
 
