@@ -1259,4 +1259,25 @@ Verified locally:
 
 Production deployment:
 
-- Not performed for this cleanup task.
+- Initially not performed for the cleanup task because deployment was explicitly out of scope.
+- On 2026-07-13, after explicit deployment approval, deployed release `b88885a` to
+  `/home/openclaw/services/63fz-legal-tech/releases/b88885a`.
+- Candidate preflight on `127.0.0.1:3921` returned HTTP 200 for `/63fz`, redirected
+  unauthenticated `/63fz/admin` to `/63fz/admin/login`, and served a sampled `_next/static` asset.
+- Switched `/home/openclaw/services/63fz-legal-tech/current` from release `4755ade` to `b88885a`
+  and restarted `63fz-legal-tech.service`.
+
+CI verification:
+
+- GitHub Actions run `29195626908` completed successfully on `master` at commit `b88885a`.
+
+Production verification:
+
+- `https://mescheryakov.pro/63fz` returns HTTP 200.
+- Filtered live change URL
+  `/63fz?changeArticle=18&changeType=introduced&changeStatus=published&changeSource=with`
+  returns HTTP 200 and contains expected article 18 change-history content.
+- unauthenticated `https://mescheryakov.pro/63fz/admin` redirects to `/63fz/admin/login`.
+- existing `https://mescheryakov.pro/` and `https://mescheryakov.pro/pdf-signing/` return HTTP 200.
+- public `/63fz` does not contain `DEMO DATA`.
+- `63fz-legal-tech.service` is active with `NRestarts=0`.
