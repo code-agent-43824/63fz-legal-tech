@@ -14,6 +14,22 @@
 - Added a role-filtered editorial queue, contribution previews, correction/unpublish controls,
   transition audit events, pure workflow tests, and DB-backed assertions that review/unpublished
   content never leaks publicly.
+- Verified the complete seven-migration chain, workflow suite, and public-leak assertions against
+  CI PostgreSQL in GitHub Actions run `29507642687`.
+- Created and restored the pre-migration custom dump
+  `/home/openclaw/backups/63fz-legal-tech/20260716T144129Z-before-point15-editorial-workflow/fz63_legal_tech.dump`
+  (547561 bytes; SHA-256
+  `ca18b1e8f18462daf13860b673ede5cfaeeaaa99a2b91fb90494deb95e177239`); counts and deterministic
+  hashes matched across all eleven application tables.
+- Applied `20260716150000_add_editorial_review_workflow` using `fz63_migrator`. Production reports
+  7/7 migrations, no schema drift, and operations preflight `PASS` for eleven runtime tables.
+- Candidate verification used a temporary expert and AI-assisted explanation: creation, preview,
+  and submission to `in_review` worked, while both candidate and live public readers excluded it.
+  The temporary contribution and expert were removed before release switching.
+- Deployed release `/home/openclaw/services/63fz-legal-tech/releases/d993356`; the service is
+  active/running with `NRestarts=0`. Public reader, filtered article 18, root, and `/pdf-signing/`
+  return 200; unauthenticated editorial routes redirect to login; real admin login reaches admin,
+  review queue, change history, and expert management with HTTP 200.
 
 ## 2026-07-16. Expert Accounts, Authorship, Roles, And Moderation
 

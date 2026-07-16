@@ -93,19 +93,19 @@ delete old release directories until at least one newer release has been verifie
 - A backup that has never been test-restored is not a backup: restore into a uniquely named scratch
   database, compare deterministic row counts/content hashes, and remove only that scratch database.
 - Latest verified full custom-format backup (2026-07-16):
-  `/home/openclaw/backups/63fz-legal-tech/20260716T103510Z-before-point14-editorial-accounts/fz63_legal_tech.dump`,
-  534819 bytes, SHA-256
-  `949c1d74df813727c676bcdacccf2146428d70fe5990b3e6c5c5415e30227c3b`. It was restored into an
-  isolated database; all nine pre-migration application-table counts and deterministic content
+  `/home/openclaw/backups/63fz-legal-tech/20260716T144129Z-before-point15-editorial-workflow/fz63_legal_tech.dump`,
+  547561 bytes, SHA-256
+  `ca18b1e8f18462daf13860b673ede5cfaeeaaa99a2b91fb90494deb95e177239`. It was restored into an
+  isolated database; all eleven pre-migration application-table counts and deterministic content
   hashes matched.
 - Zero-byte files from earlier failed dump attempts are not backups. Never select a backup by name
   alone: require non-zero size, `pg_restore --list` success for custom dumps, and a recorded checksum.
 
 ## Database migrations
 
-**Current reality (reconciled 2026-07-16):** `_prisma_migrations` records all six repository
+**Current reality (reconciled 2026-07-16):** `_prisma_migrations` records all seven repository
 migrations. The first four rows are intentional `prisma migrate resolve --applied` baselines and
-therefore have `applied_steps_count=0`; the fifth and sixth migrations were executed normally. `prisma migrate
+therefore have `applied_steps_count=0`; the remaining migrations were executed normally. `prisma migrate
 status` is current and `prisma migrate diff` reports no difference.
 
 Before every schema change:
