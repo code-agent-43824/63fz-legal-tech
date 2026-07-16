@@ -62,5 +62,22 @@ jobs:
         env:
           INTEGRATION_DATABASE_URL: postgresql://postgres:postgres@localhost:5439/63fz_legal_tech_test
 
+      - name: Verify database operations preflight
+        run: |
+          pnpm exec prisma db execute --stdin --url="$DATABASE_URL" <<'SQL'
+          CREATE ROLE fz63_app NOLOGIN;
+          REVOKE CREATE ON SCHEMA public FROM PUBLIC, fz63_app;
+          GRANT USAGE ON SCHEMA public TO fz63_app;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO fz63_app;
+          INSERT INTO "Law" ("id", "slug", "title", "number", "createdAt", "updatedAt")
+          VALUES ('ci-law', '63fz', 'CI law', '63-ФЗ', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+          INSERT INTO "LawVersion" ("id", "lawId", "title", "status", "createdAt", "updatedAt")
+          VALUES ('ci-version', 'ci-law', 'CI version', 'published', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+          UPDATE "Law" SET "currentVersionId" = 'ci-version' WHERE "id" = 'ci-law';
+          SQL
+          pnpm run db:ops:check
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5439/63fz_legal_tech_test
+
       - name: Production build
         run: pnpm run build

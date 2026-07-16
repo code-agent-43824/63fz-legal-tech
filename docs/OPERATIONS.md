@@ -14,7 +14,8 @@ This runbook is reconstructed from the deployment records in `docs/PROGRESS.md`;
   confirmed on the host 2026-07-13).
 - Releases live in `/home/openclaw/services/63fz-legal-tech/releases/<git-sha>`; the unit runs the
   `/home/openclaw/services/63fz-legal-tech/current` symlink (*verify on host*).
-- Database: PostgreSQL on the same host (*verify connection details on host*).
+- Database: PostgreSQL 18 on the same host. Runtime and migration ownership are separated as
+  described below.
 
 Required environment variables (see `.env.example`):
 
@@ -25,6 +26,18 @@ Required environment variables (see `.env.example`):
 | `AUTH_SECRET` | HMAC key for session cookies; ≥ 32 chars, non-example (enforced). |
 | `NEXT_PUBLIC_BASE_PATH` | Base path baked in at build time; default `/63fz`, empty = root. |
 | `READER_SNAPSHOT_MARKER_FILE` | Optional override of the reader-cache marker file; restricted to `/tmp`, `/var/tmp`, or the OS temp dir. |
+
+Production database credentials are deliberately split:
+
+- `/home/openclaw/services/63fz-legal-tech/.env.production` (mode `600`) contains the application
+  `DATABASE_URL` for restricted login role `fz63_app`.
+- `/home/openclaw/services/63fz-legal-tech/.env.migrations` (mode `600`) contains a separate
+  `DATABASE_URL` for `fz63_migrator`. It is for operator-run Prisma migration/preflight commands
+  only and must never be loaded by `63fz-legal-tech.service`.
+- `fz63_migrator` owns the database and public schema objects but is not superuser and cannot create
+  roles or databases.
+- `fz63_app` has schema `USAGE` plus CRUD on application tables and cannot `CREATE` in `public`.
+- Default privileges grant runtime CRUD on future tables created by `fz63_migrator`.
 
 ## Deploy
 
@@ -56,23 +69,42 @@ delete old release directories until at least one newer release has been verifie
   `.import/63fz-current/backups/` (override with `--backup-dir`).
 - Before any schema migration or manual data surgery, take a manual `pg_dump` as well and record
   where it was stored.
-- A backup that has never been test-restored is not a backup: periodically verify a restore into a
-  scratch database (*no restore verification has been recorded in PROGRESS.md yet*).
+- A backup that has never been test-restored is not a backup: restore into a uniquely named scratch
+  database, compare deterministic row counts/content hashes, and remove only that scratch database.
+- Latest verified full custom-format backup (2026-07-16):
+  `/home/openclaw/backups/63fz-legal-tech/20260716T094801Z-point13-migration-reconciliation/fz63_legal_tech.dump`,
+  545052 bytes, SHA-256
+  `07e6db1267f18938124975cbecf87bd887203dfa34cf69d2b631f73fd0299de7`. It was restored into an
+  isolated database; all nine application-table counts and deterministic content hashes matched.
+- Zero-byte files from earlier failed dump attempts are not backups. Never select a backup by name
+  alone: require non-zero size, `pg_restore --list` success for custom dumps, and a recorded checksum.
 
 ## Database migrations
 
-**Current reality:** the production database predates a clean Prisma migration history; the
-`_prisma_migrations` table does not reflect `prisma/migrations/` (*verify exact state on host*).
-Until that is reconciled (roadmap point 16), treat every schema change as a manual operation:
+**Current reality (reconciled 2026-07-16):** `_prisma_migrations` records all five repository
+migrations. The first four rows are intentional `prisma migrate resolve --applied` baselines and
+therefore have `applied_steps_count=0`; the fifth migration was executed normally. `prisma migrate
+status` is current and `prisma migrate diff` reports no difference.
 
-1. Take a fresh `pg_dump` backup.
-2. Review the generated SQL (`prisma migrate diff` / the migration file) before applying.
-3. Apply on production explicitly; do not assume `prisma migrate deploy` is safe until the
-   migration history has been reconciled.
-4. Record what was applied, when, and where the backup is, in `docs/PROGRESS.md`.
+Before every schema change:
 
-Do not start roadmap work that adds tables (feedback dashboard, multi-user auth) before this
-reconciliation is done.
+1. Confirm local `master` and CI are current; inspect the proposed migration SQL.
+2. Take a fresh non-zero custom-format `pg_dump`, record SHA-256, and validate `pg_restore --list`.
+3. Restore that backup into an isolated scratch database and compare row counts/content hashes.
+4. Test the full migration chain from an empty scratch database and require `migrate diff` to report
+   no difference.
+5. Connect with `fz63_migrator` credentials only. Never run migrations with the application
+   `fz63_app` URL or the application service environment.
+6. Run `pnpm run db:ops:check`; it must report `PASS` before the change.
+7. Run `prisma migrate deploy`, then `prisma migrate status`, `migrate diff`, and
+   `pnpm run db:ops:check` again.
+8. Compare application-table content invariants with the pre-change record and verify public/admin
+   HTTP routes plus service health.
+9. Record migration name, backup path/checksum, verification, and rollback boundary in
+   `docs/PROGRESS.md`.
+
+Never edit an already recorded migration file. A correction to migration-produced schema, including
+an identifier-name correction, must be a new migration.
 
 ## Reader cache invalidation
 

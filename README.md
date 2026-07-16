@@ -39,11 +39,16 @@ future permanent production domain.
   (default `/63fz`); admin links and the session cookie path follow it.
 - A DB-backed integration test asserts the public reader never exposes draft versions or draft
   editorial content; CI runs it against a disposable PostgreSQL database.
+- Production migration history is reconciled at five applied migrations with no Prisma schema drift.
+  A dedicated `fz63_migrator` owns the database/schema; runtime `fz63_app` has CRUD access but cannot
+  create schema objects.
+- `pnpm run db:ops:check` verifies migration checksums/state, ownership, runtime privileges, and the
+  minimum production law invariant before database operations.
 
 ## Known Limitations
 
 - The admin model is still a single password-protected account.
-- Multi-user authentication, roles, and administrative audit logging are future work.
+- Expert authentication, roles, and administrative audit logging are the next product schema work.
 - Public reader optimization is intentionally pragmatic: the current page still renders the full
   selected reader view, while server queries and repeated public reads are now lighter.
 - A separate "last checked for newer amendments" timestamp is not modeled yet; the reader currently
@@ -98,6 +103,7 @@ pnpm run lint
 pnpm test
 pnpm run build
 pnpm run security:audit
+pnpm run db:ops:check
 ```
 
 DB-backed integration tests are opt-in and need a disposable migrated database (never point this

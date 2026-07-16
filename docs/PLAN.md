@@ -160,9 +160,8 @@ These are product risks or limitations, not all immediate next steps.
   scheduled monitoring is deferred to the very end of the roadmap.
 - There is no separate durable "last checked for newer amendments" database field beyond monitor
   state files and imported source retrieval metadata.
-- Production database migration history is partly manual; the database has historically not used a
-  clean `_prisma_migrations` history table. This must be reconciled before any next schema change
-  (see point 13).
+- Production migration history is reconciled at five migrations with no schema drift. Keep using the
+  dedicated migration owner, verified backups, restore tests, and preflight from point 13.
 - The deployment path is a test placement. The base path itself is now configurable at build time,
   but canonical-URL/domain references (`mescheryakov.pro`) remain in docs, metadata, and source
   labels.
@@ -204,26 +203,29 @@ Acceptance criteria:
 
 ### 13. Import, Migration, Backup, And Rollback Hardening
 
-Priority: P1; required before the next schema change.
-Status: next. The descriptive runbook exists in `docs/OPERATIONS.md`; production migration history
-and backup restore still need reconciliation and verification.
+Priority: P1.
+Status: done 2026-07-16.
 
-- Reconcile the missing/partial Prisma migration history without destructive history surgery.
-- Verify backup naming, retention, restore readability, owner/app-role responsibilities, and rollback.
-- Add a small read-only preflight/status command if it materially reduces operator error.
-- Keep every law import as an explicit dry-run, reviewed write, and separately confirmed current
-  version switch.
+- Reconciled four previously manual migrations as Prisma baselines and applied a fifth normalizing
+  migration; migration status is current and schema drift is empty.
+- Introduced dedicated non-superuser `fz63_migrator` ownership and restricted `fz63_app` to runtime
+  CRUD without schema creation.
+- Created `pnpm run db:ops:check` for migration checksum/state, ownership, runtime privileges, and
+  minimum law-state verification; CI runs it against the disposable database.
+- Created and test-restored a custom-format production backup; all application-table counts and
+  deterministic content hashes matched.
+- Updated `docs/OPERATIONS.md` with the verified migration/backup/rollback workflow.
 
 Acceptance criteria:
 
-- The expert-account schema change has a reviewed migration and rollback plan before implementation.
+- Production migration history and schema match the repository migrations without drift.
 - A production backup can be restored into an isolated verification database.
-- The next migration and law import have explicit preflight and verification steps.
+- The next migration and law import have explicit preflight, role, backup, and verification steps.
 
 ### 14. Expert Accounts, Authorship, Roles, And Moderation
 
 Priority: P1.
-Status: future; blocked on point 13.
+Status: next; point 13 prerequisite complete.
 
 - Replace the single shared editorial identity with attributable expert accounts and sessions.
 - Use the smallest role set that supports expert publication and administrator moderation.
@@ -354,10 +356,10 @@ Acceptance criteria:
 
 Recommended order after the completed correctness cleanup:
 
-1. Finish point 12 with representative reader/expert scenario tests.
-2. Complete point 13 before any schema change.
-3. Build attributable expert participation and the safe editorial workflow in points 14-15.
-4. Use article 13 as the next coverage pilot, then expand based on observed reader needs.
-5. Add cross-references and complete end-to-end usability validation.
-6. Add analytics, feedback tooling, or search/performance work only when evidence justifies it.
-7. Add scheduled amendment monitoring last.
+1. Build attributable expert participation and the safe editorial workflow in points 14-15.
+2. Use article 13 as the next coverage pilot, then expand based on observed reader needs.
+3. Finish point 12 with representative reader/expert scenario tests as soon as contributors are
+   available.
+4. Add cross-references and complete end-to-end usability validation.
+5. Add analytics, feedback tooling, or search/performance work only when evidence justifies it.
+6. Add scheduled amendment monitoring last.

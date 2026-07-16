@@ -1,5 +1,31 @@
 # Progress Log
 
+## 2026-07-16. Migration, Backup, And Rollback Hardening
+
+- Audited production PostgreSQL 18.4: all four historical migration schemas were present, but
+  `_prisma_migrations` was absent and ownership was split between `postgres` and `fz63_app`.
+- Created a full custom-format backup at
+  `/home/openclaw/backups/63fz-legal-tech/20260716T094801Z-point13-migration-reconciliation/fz63_legal_tech.dump`
+  (545052 bytes; SHA-256
+  `07e6db1267f18938124975cbecf87bd887203dfa34cf69d2b631f73fd0299de7`).
+- Restored the backup into an isolated scratch database; row counts and deterministic content hashes
+  matched for all nine application tables. Removed the scratch database after verification.
+- Added dedicated non-superuser/non-createdb/non-createrole login `fz63_migrator`, stored its URL
+  only in server-side mode-600 `.env.migrations`, transferred database/schema-object ownership to
+  it, and restricted runtime `fz63_app` to schema usage plus table CRUD without schema creation.
+- Baseline-recorded the four previously manually applied migrations with `prisma migrate resolve
+  --applied`; no historical migration SQL was changed.
+- Found two schema-drift-only long index names caused by PostgreSQL 63-byte identifier truncation;
+  added and applied `20260716100000_normalize_long_index_names` to rename them to Prisma's expected
+  names.
+- Verified the complete five-migration chain from an empty isolated database; `prisma migrate
+  status` is current and `prisma migrate diff` reports no difference in both scratch and production.
+- Added `pnpm run db:ops:check` plus focused tests and CI coverage. Production preflight reports
+  five of five migrations, consistent ownership, nine runtime tables, and `PASS`.
+- Verified application data hashes remained identical to the pre-change backup record; production
+  service stayed active with `NRestarts=0`; public reader and filtered article 18 route returned 200,
+  admin redirected to login, and neighboring `/` and `/pdf-signing/` routes returned 200.
+
 ## 2026-07-16. Product-Owner Interview And Functional Scope
 
 - Recorded the product-owner interview in `docs/PRODUCT-USE.md`.
