@@ -24,6 +24,7 @@ import {
 } from "@/lib/editorial-policy";
 import { prisma } from "@/lib/prisma";
 import { invalidatePublicReaderCache } from "@/lib/reader-cache";
+import { withBasePath } from "@/lib/base-path";
 
 export async function createContent(formData: FormData) {
   const actor = await requireActor();
@@ -196,7 +197,7 @@ export async function deleteContent(formData: FormData) {
 async function requireActor(): Promise<EditorialActor> {
   const actor = await getCurrentEditorialActor();
   if (!actor) {
-    redirect("/admin/login");
+    redirect(withBasePath("/admin/login"));
   }
   return actor;
 }

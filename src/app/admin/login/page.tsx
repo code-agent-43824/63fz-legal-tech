@@ -11,6 +11,7 @@ import {
   verifyAdminPassword,
 } from "@/lib/auth";
 import { recordEditorialAudit } from "@/lib/editorial-audit";
+import { withBasePath } from "@/lib/base-path";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export default function AdminLoginPage() {
     const rateLimit = checkAdminLoginRateLimit(rateLimitKey);
 
     if (!rateLimit.allowed) {
-      redirect("/admin/login?error=rate");
+      redirect(withBasePath("/admin/login?error=rate"));
     }
 
     const isEnvironmentAdmin = !username || username === "admin";
@@ -34,7 +35,7 @@ export default function AdminLoginPage() {
 
     if ((isEnvironmentAdmin && !verifyAdminPassword(password)) || (!isEnvironmentAdmin && !editorialUser)) {
       recordAdminLoginFailure(rateLimitKey);
-      redirect("/admin/login?error=1");
+      redirect(withBasePath("/admin/login?error=1"));
     }
 
     recordAdminLoginSuccess(rateLimitKey);
@@ -53,7 +54,7 @@ export default function AdminLoginPage() {
         entityType: "session",
       });
     }
-    redirect("/admin");
+    redirect(withBasePath("/admin"));
   }
 
   return (

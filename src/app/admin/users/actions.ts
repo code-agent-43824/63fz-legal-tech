@@ -9,6 +9,7 @@ import { hashEditorialPassword } from "@/lib/editorial-password";
 import { assertEditorialUsername, type EditorialActor } from "@/lib/editorial-policy";
 import { prisma } from "@/lib/prisma";
 import { invalidatePublicReaderCache } from "@/lib/reader-cache";
+import { withBasePath } from "@/lib/base-path";
 
 export async function createExpert(formData: FormData) {
   const actor = await requireAdministrator();
@@ -83,7 +84,7 @@ export async function resetExpertPassword(formData: FormData) {
 
 async function requireAdministrator(): Promise<EditorialActor> {
   const actor = await getCurrentEditorialActor();
-  if (!actor) redirect("/admin/login");
-  if (actor.role !== "admin") redirect("/admin");
+  if (!actor) redirect(withBasePath("/admin/login"));
+  if (actor.role !== "admin") redirect(withBasePath("/admin"));
   return actor;
 }

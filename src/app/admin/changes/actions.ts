@@ -15,6 +15,7 @@ import { recordEditorialAudit } from "@/lib/editorial-audit";
 import type { EditorialActor } from "@/lib/editorial-policy";
 import { prisma } from "@/lib/prisma";
 import { invalidatePublicReaderCache } from "@/lib/reader-cache";
+import { withBasePath } from "@/lib/base-path";
 
 export async function saveChangeExplanation(formData: FormData) {
   const actor = await requireAdmin();
@@ -75,9 +76,9 @@ export async function deleteChangeExplanation(formData: FormData) {
 async function requireAdmin(): Promise<EditorialActor> {
   const actor = await getCurrentEditorialActor();
   if (!actor) {
-    redirect("/admin/login");
+    redirect(withBasePath("/admin/login"));
   }
-  if (actor.role !== "admin") redirect("/admin");
+  if (actor.role !== "admin") redirect(withBasePath("/admin"));
   return actor;
 }
 

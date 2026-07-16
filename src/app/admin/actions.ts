@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { clearAdminSession, getCurrentEditorialActor } from "@/lib/auth";
 import { recordEditorialAudit } from "@/lib/editorial-audit";
+import { withBasePath } from "@/lib/base-path";
 
 export async function logoutAdmin() {
   const actor = await getCurrentEditorialActor();
@@ -10,5 +11,5 @@ export async function logoutAdmin() {
     await recordEditorialAudit({ actor, action: "session.logout", entityType: "session" });
   }
   await clearAdminSession();
-  redirect("/admin/login");
+  redirect(withBasePath("/admin/login"));
 }

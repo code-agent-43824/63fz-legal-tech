@@ -17,6 +17,9 @@
   contribution text.
 - Added focused role/password tests and extended the PostgreSQL integration test to prove public
   attribution and private-account-field non-disclosure.
+- Fixed successful/error/logout and authorization redirects emitted by server actions to include the
+  configured base path; a real progressive-form login had exposed the old `/admin` redirect as a
+  404 outside `/63fz`.
 
 ## 2026-07-16. Migration, Backup, And Rollback Hardening
 
