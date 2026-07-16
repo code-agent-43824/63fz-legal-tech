@@ -20,6 +20,25 @@
 - Fixed successful/error/logout and authorization redirects emitted by server actions to include the
   configured base path; a real progressive-form login had exposed the old `/admin` redirect as a
   404 outside `/63fz`.
+- Verified all six migrations from an empty isolated PostgreSQL database; the DB integration suite
+  passed 60/60 and `migrate diff` reported no difference. The scratch DB was removed.
+- Created and test-restored the pre-migration custom dump
+  `/home/openclaw/backups/63fz-legal-tech/20260716T103510Z-before-point14-editorial-accounts/fz63_legal_tech.dump`
+  (534819 bytes; SHA-256
+  `949c1d74df813727c676bcdacccf2146428d70fe5990b3e6c5c5415e30227c3b`); counts and hashes matched
+  all nine pre-existing application tables.
+- Applied `20260716120000_add_editorial_accounts` with `fz63_migrator`. Production is at six of six
+  migrations with no drift; operations preflight is `PASS` across eleven runtime tables. Existing
+  table counts and pre-existing-column hashes remained unchanged.
+- Candidate authorization checks proved: environment admin can access users/export; an isolated
+  temporary expert can access the editor but is redirected away from users/change administration,
+  sees no admin-only issue/proposal/delete controls, and was removed after verification.
+- Deployed application commits `0c56e12` and follow-up redirect fix `94854f4`; final production
+  release is `/home/openclaw/services/63fz-legal-tech/releases/94854f4`. Real progressive-form admin
+  login redirects to `/63fz/admin`, then admin and user-management pages return 200.
+- GitHub Actions runs `29491230940` and `29491997179` passed. Final service state is active/running,
+  `NRestarts=0`; public reader and filtered article 18 return 200 without demo data, unauthenticated
+  admin/users redirect to login, and neighboring `/` and `/pdf-signing/` return 200.
 
 ## 2026-07-16. Migration, Backup, And Rollback Hardening
 

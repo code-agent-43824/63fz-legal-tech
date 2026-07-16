@@ -260,7 +260,7 @@ Acceptance criteria:
 ### 15. Editorial Workflow And AI-Draft Safeguards
 
 Priority: P1.
-Status: future; coordinated with point 14.
+Status: next; point 14 prerequisite complete.
 
 - Define the content types for a short plain-language version, expert comment, recommendation, and
   change explanation without mixing them with official law text.
