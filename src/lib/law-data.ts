@@ -106,7 +106,7 @@ type ReaderDbFragment = {
   id: string;
   issues: Array<{ severity: string; title: string; description: string }>;
   parentId: string | null;
-  plainExplanations: Array<{ text: string }>;
+  plainExplanations: Array<{ authorName: string | null; text: string }>;
   proposedRevisions: Array<{ proposedText: string }>;
   stableId: string;
   text: string;
@@ -864,12 +864,14 @@ function formatFragmentTitle(title: string | null, stableId: string) {
   return title?.trim() || stableId;
 }
 
-function formatPlainExplanations(explanations: Array<{ text: string }>) {
+function formatPlainExplanations(explanations: Array<{ authorName: string | null; text: string }>) {
   if (explanations.length === 0) {
     return "Пояснение пока не добавлено.";
   }
 
-  return explanations.map((explanation) => explanation.text).join("\n\n");
+  return explanations
+    .map((explanation) => explanation.authorName ? `${explanation.authorName}: ${explanation.text}` : explanation.text)
+    .join("\n\n");
 }
 
 function formatExpertComments(

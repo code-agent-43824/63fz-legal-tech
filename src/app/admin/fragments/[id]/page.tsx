@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getAdminFragmentDetails } from "@/lib/admin-data";
-import { isAdminAuthenticated } from "@/lib/auth";
+import { getCurrentEditorialActor } from "@/lib/auth";
+import type { EditorialActor } from "@/lib/editorial-policy";
 import { withBasePath } from "@/lib/base-path";
 import { logoutAdmin } from "../../actions";
 import { createContent, deleteContent, updateContent } from "./actions";
@@ -12,7 +13,8 @@ export default async function AdminFragmentPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  if (!(await isAdminAuthenticated())) {
+  const actor = await getCurrentEditorialActor();
+  if (!actor) {
     redirect("/admin/login");
   }
 
@@ -58,14 +60,12 @@ export default async function AdminFragmentPage({
         </section>
 
         <div className="mt-6 grid gap-6">
-          <ExplanationSection fragmentId={fragment.id} items={fragment.plainExplanations} />
-          <ExpertSection fragmentId={fragment.id} items={fragment.expertComments} />
-          <IssueSection fragmentId={fragment.id} items={fragment.issues} />
-          <RevisionSection
-            fragmentId={fragment.id}
-            originalText={fragment.originalText}
-            items={fragment.proposedRevisions}
-          />
+          <ExplanationSection actor={actor} fragmentId={fragment.id} items={fragment.plainExplanations} />
+          <ExpertSection actor={actor} fragmentId={fragment.id} items={fragment.expertComments} />
+          {actor.role === "admin" ? <IssueSection fragmentId={fragment.id} items={fragment.issues} /> : null}
+          {actor.role === "admin" ? (
+            <RevisionSection fragmentId={fragment.id} originalText={fragment.originalText} items={fragment.proposedRevisions} />
+          ) : null}
         </div>
       </div>
     </main>
@@ -73,22 +73,24 @@ export default async function AdminFragmentPage({
 }
 
 function ExplanationSection({
+  actor,
   fragmentId,
   items,
 }: {
   fragmentId: string;
-  items: Array<{ id: string; text: string; status: string; authorName: string | null }>;
+  actor: EditorialActor;
+  items: Array<{ id: string; text: string; status: string; authorName: string | null; authorId: string | null }>;
 }) {
   return (
     <AdminSection title="Простыми словами">
       <CreateForm fragmentId={fragmentId} kind="explanation">
-        <TextInput label="Автор" name="authorName" />
+        {actor.role === "admin" ? <TextInput label="Автор" name="authorName" /> : <IdentityNote actor={actor} />}
         <StatusSelect />
         <TextArea label="Текст" name="text" required />
       </CreateForm>
-      {items.map((item) => (
-        <EditForm fragmentId={fragmentId} id={item.id} key={item.id} kind="explanation">
-          <TextInput defaultValue={item.authorName ?? ""} label="Автор" name="authorName" />
+      {items.filter((item) => actor.role === "admin" || item.authorId === actor.id).map((item) => (
+        <EditForm canDelete={actor.role === "admin"} fragmentId={fragmentId} id={item.id} key={item.id} kind="explanation" preview={<ContributionPreview author={item.authorName} status={item.status} text={item.text} />}>
+          {actor.role === "admin" ? <TextInput defaultValue={item.authorName ?? ""} label="Автор" name="authorName" /> : <IdentityNote actor={actor} />}
           <StatusSelect defaultValue={item.status} />
           <TextArea defaultValue={item.text} label="Текст" name="text" required />
         </EditForm>
@@ -98,6 +100,7 @@ function ExplanationSection({
 }
 
 function ExpertSection({
+  actor,
   fragmentId,
   items,
 }: {
@@ -108,20 +111,20 @@ function ExpertSection({
     expertTitle: string | null;
     text: string;
     status: string;
+    authorId: string | null;
   }>;
+  actor: EditorialActor;
 }) {
   return (
     <AdminSection title="Комментарии экспертов">
       <CreateForm fragmentId={fragmentId} kind="comment">
-        <TextInput label="Эксперт" name="expertName" required />
-        <TextInput label="Должность/титул" name="expertTitle" />
+        {actor.role === "admin" ? <><TextInput label="Эксперт" name="expertName" required /><TextInput label="Должность/титул" name="expertTitle" /></> : <IdentityNote actor={actor} />}
         <StatusSelect />
         <TextArea label="Комментарий" name="text" required />
       </CreateForm>
-      {items.map((item) => (
-        <EditForm fragmentId={fragmentId} id={item.id} key={item.id} kind="comment">
-          <TextInput defaultValue={item.expertName} label="Эксперт" name="expertName" required />
-          <TextInput defaultValue={item.expertTitle ?? ""} label="Должность/титул" name="expertTitle" />
+      {items.filter((item) => actor.role === "admin" || item.authorId === actor.id).map((item) => (
+        <EditForm canDelete={actor.role === "admin"} fragmentId={fragmentId} id={item.id} key={item.id} kind="comment" preview={<ContributionPreview author={`${item.expertName}${item.expertTitle ? ` · ${item.expertTitle}` : ""}`} status={item.status} text={item.text} />}>
+          {actor.role === "admin" ? <><TextInput defaultValue={item.expertName} label="Эксперт" name="expertName" required /><TextInput defaultValue={item.expertTitle ?? ""} label="Должность/титул" name="expertTitle" /></> : <IdentityNote actor={actor} />}
           <StatusSelect defaultValue={item.status} />
           <TextArea defaultValue={item.text} label="Комментарий" name="text" required />
         </EditForm>
@@ -224,18 +227,23 @@ function CreateForm({
 }
 
 function EditForm({
+  canDelete = true,
   children,
   fragmentId,
   id,
   kind,
+  preview,
 }: {
   children: React.ReactNode;
   fragmentId: string;
   id: string;
   kind: string;
+  canDelete?: boolean;
+  preview?: React.ReactNode;
 }) {
   return (
     <div className="min-w-0 rounded-md border border-slate-200 p-4">
+      {preview}
       <form action={updateContent}>
         <input name="fragmentId" type="hidden" value={fragmentId} />
         <input name="kind" type="hidden" value={kind} />
@@ -245,7 +253,7 @@ function EditForm({
           Сохранить
         </button>
       </form>
-      <form action={deleteContent} className="mt-2">
+      {canDelete ? <form action={deleteContent} className="mt-2">
         <input name="fragmentId" type="hidden" value={fragmentId} />
         <input name="kind" type="hidden" value={kind} />
         <input name="id" type="hidden" value={id} />
@@ -256,8 +264,26 @@ function EditForm({
         <button className="mt-2 text-sm text-red-700 underline-offset-4 hover:underline" type="submit">
           Удалить
         </button>
-      </form>
+      </form> : null}
     </div>
+  );
+}
+
+function ContributionPreview({ author, status, text }: { author: string | null; status: string; text: string }) {
+  return (
+    <details className="mb-4 rounded-md border border-slate-200 bg-slate-50 p-3">
+      <summary className="cursor-pointer text-sm font-medium">Предпросмотр · {status}</summary>
+      <p className="mt-3 text-sm font-medium text-slate-700">{author || "Без указанного автора"}</p>
+      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{text}</p>
+    </details>
+  );
+}
+
+function IdentityNote({ actor }: { actor: EditorialActor }) {
+  return (
+    <p className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+      Автор: <strong>{actor.displayName}</strong>{actor.professionalTitle ? ` · ${actor.professionalTitle}` : ""}
+    </p>
   );
 }
 

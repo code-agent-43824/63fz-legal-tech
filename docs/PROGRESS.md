@@ -1,5 +1,23 @@
 # Progress Log
 
+## 2026-07-16. Expert Accounts, Authorship, Roles, And Moderation
+
+- Added invitation-only editorial accounts with the minimal `admin`/`expert` role set, active and
+  disabled states, salted scrypt password hashes, and signed sessions.
+- Kept the environment-backed administrator as a recovery/bootstrap identity; there is no public
+  registration, reader account, recovery email, or public thread feature.
+- Bound expert display name/professional title to authored explanations and comments. Profile
+  changes synchronize public attribution and invalidate the reader cache; public reader data never
+  selects usernames or password hashes.
+- Enforced authorization in server actions: experts create/publish/edit only their own explanations
+  and comments; administrators retain issues, proposals, change explanations, deletion, export,
+  expert management, and moderation.
+- Added expert contribution preview, account management, disable/reset controls, and a recent audit
+  view. Audit events contain actors, object IDs, and status transitions but no passwords or full
+  contribution text.
+- Added focused role/password tests and extended the PostgreSQL integration test to prove public
+  attribution and private-account-field non-disclosure.
+
 ## 2026-07-16. Migration, Backup, And Rollback Hardening
 
 - Audited production PostgreSQL 18.4: all four historical migration schemas were present, but

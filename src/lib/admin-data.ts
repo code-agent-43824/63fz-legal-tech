@@ -32,6 +32,7 @@ export type AdminFragmentDetails = AdminFragmentListItem & {
     text: string;
     status: string;
     authorName: string | null;
+    authorId: string | null;
   }>;
   expertComments: Array<{
     id: string;
@@ -39,6 +40,7 @@ export type AdminFragmentDetails = AdminFragmentListItem & {
     expertTitle: string | null;
     text: string;
     status: string;
+    authorId: string | null;
   }>;
   issues: Array<{
     id: string;

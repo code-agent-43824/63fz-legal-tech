@@ -2,12 +2,15 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import {
   checkAdminLoginRateLimit,
+  authenticateEditorialUser,
   createAdminSession,
+  createEditorialUserSession,
   getAuthConfigurationIssue,
   recordAdminLoginFailure,
   recordAdminLoginSuccess,
   verifyAdminPassword,
 } from "@/lib/auth";
+import { recordEditorialAudit } from "@/lib/editorial-audit";
 
 export const dynamic = "force-dynamic";
 
@@ -15,21 +18,41 @@ export default function AdminLoginPage() {
   async function login(formData: FormData) {
     "use server";
 
+    const username = String(formData.get("username") ?? "").trim().toLowerCase();
     const password = String(formData.get("password") ?? "");
-    const rateLimitKey = await getRateLimitKey();
+    const rateLimitKey = `${await getRateLimitKey()}:${username || "admin"}`;
     const rateLimit = checkAdminLoginRateLimit(rateLimitKey);
 
     if (!rateLimit.allowed) {
       redirect("/admin/login?error=rate");
     }
 
-    if (!verifyAdminPassword(password)) {
+    const isEnvironmentAdmin = !username || username === "admin";
+    const editorialUser = isEnvironmentAdmin
+      ? null
+      : await authenticateEditorialUser(username, password);
+
+    if ((isEnvironmentAdmin && !verifyAdminPassword(password)) || (!isEnvironmentAdmin && !editorialUser)) {
       recordAdminLoginFailure(rateLimitKey);
       redirect("/admin/login?error=1");
     }
 
     recordAdminLoginSuccess(rateLimitKey);
-    await createAdminSession();
+    if (editorialUser) {
+      await createEditorialUserSession(editorialUser.id);
+      await recordEditorialAudit({
+        actor: { kind: "user", id: editorialUser.id, role: editorialUser.role, displayName: editorialUser.displayName, professionalTitle: editorialUser.professionalTitle },
+        action: "session.login",
+        entityType: "session",
+      });
+    } else {
+      await createAdminSession();
+      await recordEditorialAudit({
+        actor: { kind: "env-admin", id: null, role: "admin", displayName: "Администратор", professionalTitle: null },
+        action: "session.login",
+        entityType: "session",
+      });
+    }
     redirect("/admin");
   }
 
@@ -42,10 +65,20 @@ export default function AdminLoginPage() {
         <h1 className="mt-3 text-2xl font-semibold">Вход</h1>
         <form action={login} className="mt-6 space-y-4">
           <label className="block">
+            <span className="text-sm font-medium text-slate-700">Логин</span>
+            <input
+              autoComplete="username"
+              className="mt-2 h-11 w-full rounded-md border border-slate-300 px-3 text-base outline-none focus:border-slate-950"
+              name="username"
+              placeholder="admin или логин эксперта"
+            />
+          </label>
+          <label className="block">
             <span className="text-sm font-medium text-slate-700">Пароль</span>
             <input
               className="mt-2 h-11 w-full rounded-md border border-slate-300 px-3 text-base outline-none focus:border-slate-950"
               name="password"
+              autoComplete="current-password"
               required
               type="password"
             />

@@ -225,7 +225,7 @@ Acceptance criteria:
 ### 14. Expert Accounts, Authorship, Roles, And Moderation
 
 Priority: P1.
-Status: next; point 13 prerequisite complete.
+Status: done.
 
 - Replace the single shared editorial identity with attributable expert accounts and sessions.
 - Use the smallest role set that supports expert publication and administrator moderation.
@@ -234,6 +234,21 @@ Status: next; point 13 prerequisite complete.
 - Let experts create, preview, and publish their own explanations/comments.
 - Let administrators edit, unpublish, or delete contributions and retain a minimal audit record.
 - Keep reader accounts, public registration, and public discussion threads out of scope.
+
+Completed:
+
+- Added invitation-only `EditorialUser` accounts with `admin` and `expert` roles, active/disabled
+  status, salted scrypt password hashes, and signed eight-hour sessions.
+- Bound expert display name and professional title to the account; profile changes update authored
+  public snapshots, while private login/password fields never enter reader queries.
+- Experts can create, preview, publish, and edit only their own plain-language explanations and
+  comments. Issue/proposal/change-history editing, deletion, account management, and export remain
+  administrator-only on the server.
+- Added account creation, disabling, profile updates, password reset, moderation controls, and a
+  compact audit view. Login/logout, account changes, content writes/deletes, and change-explanation
+  writes/deletes are audited without storing contribution text or passwords.
+- Added authorization/password tests plus DB-backed public-data assertions for named attribution and
+  non-disclosure of username/password hashes.
 
 Acceptance criteria:
 

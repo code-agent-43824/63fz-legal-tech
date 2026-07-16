@@ -10,6 +10,8 @@ const PUBLISHED_EXPLANATION = "Опубликованное пояснение �
 const PUBLISHED_ISSUE_TITLE = "Подтверждённая проблема нормы";
 const ACCEPTED_REVISION = "Принятая предлагаемая формулировка.";
 const PUBLISHED_CHANGE_REASON = "Опубликованная причина изменения статьи 1.";
+const PUBLISHED_EXPERT_NAME = "Ирина Экспертова";
+const PRIVATE_PASSWORD_HASH = "PRIVATE_PASSWORD_HASH_MUST_NOT_LEAK";
 
 const DRAFT_MARKERS = [
   "ЧЕРНОВОЕ ПОЯСНЕНИЕ не должно попадать в публичный вывод",
@@ -36,6 +38,7 @@ test(
 
     async function resetLaw() {
       await prisma.law.deleteMany({ where: { slug: PUBLIC_LAW_SLUG } });
+      await prisma.editorialUser.deleteMany({});
     }
 
     async function createVersionFragments({
@@ -139,6 +142,15 @@ test(
         lawVersionId: versionV2.id,
         withSecondArticle: true,
       });
+      const expert = await prisma.editorialUser.create({
+        data: {
+          username: "integration.expert",
+          displayName: PUBLISHED_EXPERT_NAME,
+          professionalTitle: "Юрист по электронной подписи",
+          passwordHash: PRIVATE_PASSWORD_HASH,
+          role: "expert",
+        },
+      });
       await createVersionFragments({
         articleText: `${DRAFT_MARKERS[5]}: будущий текст статьи 1.`,
         lawVersionId: versionDraft.id,
@@ -147,7 +159,7 @@ test(
 
       await prisma.plainExplanation.createMany({
         data: [
-          { fragmentId: articleV2.id, text: PUBLISHED_EXPLANATION, status: "published" },
+          { fragmentId: articleV2.id, text: PUBLISHED_EXPLANATION, status: "published", authorId: expert.id, authorName: expert.displayName },
           { fragmentId: articleV2.id, text: DRAFT_MARKERS[0], status: "draft" },
         ],
       });
@@ -157,6 +169,16 @@ test(
           expertName: "Эксперт",
           text: DRAFT_MARKERS[1],
           status: "draft",
+        },
+      });
+      await prisma.expertComment.create({
+        data: {
+          fragmentId: articleV2.id,
+          expertName: expert.displayName,
+          expertTitle: expert.professionalTitle,
+          authorId: expert.id,
+          text: "Опубликованный именной комментарий.",
+          status: "published",
         },
       });
       await prisma.issue.createMany({
@@ -228,6 +250,9 @@ test(
 
       const serialized = JSON.stringify(readerData);
       assert.ok(serialized.includes(PUBLISHED_EXPLANATION));
+      assert.ok(serialized.includes(PUBLISHED_EXPERT_NAME));
+      assert.ok(!serialized.includes(PRIVATE_PASSWORD_HASH));
+      assert.ok(!serialized.includes("integration.expert"));
       assert.ok(serialized.includes(PUBLISHED_ISSUE_TITLE));
       assert.ok(serialized.includes(ACCEPTED_REVISION));
       assert.ok(serialized.includes(PUBLISHED_CHANGE_REASON));

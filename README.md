@@ -15,6 +15,8 @@ future permanent production domain.
   `deleted` transitions.
 - Includes an administrative editor for fragment commentary, proposed revisions, issues, and change
   explanations.
+- Supports invitation-only expert accounts with `admin`/`expert` roles, account-bound public
+  authorship, own-contribution editing, administrator moderation, and a minimal audit trail.
 - Published change explanations and other editorial materials are filtered by explicit public
   statuses.
 - Public reader data uses a normalized, bounded in-process published snapshot; this is not an
@@ -39,7 +41,8 @@ future permanent production domain.
   (default `/63fz`); admin links and the session cookie path follow it.
 - A DB-backed integration test asserts the public reader never exposes draft versions or draft
   editorial content; CI runs it against a disposable PostgreSQL database.
-- Production migration history is reconciled at five applied migrations with no Prisma schema drift.
+- Production migration history is reconciled and schema changes are deployed only through the
+  dedicated migration owner without Prisma schema drift.
   A dedicated `fz63_migrator` owns the database/schema; runtime `fz63_app` has CRUD access but cannot
   create schema objects.
 - `pnpm run db:ops:check` verifies migration checksums/state, ownership, runtime privileges, and the
@@ -47,8 +50,9 @@ future permanent production domain.
 
 ## Known Limitations
 
-- The admin model is still a single password-protected account.
-- Expert authentication, roles, and administrative audit logging are the next product schema work.
+- Expert accounts are created by an administrator; there is deliberately no public registration,
+  reader account, password-recovery email, or public discussion system.
+- Editorial drafts still need the explicit review/source checklist planned in roadmap point 15.
 - Public reader optimization is intentionally pragmatic: the current page still renders the full
   selected reader view, while server queries and repeated public reads are now lighter.
 - A separate "last checked for newer amendments" timestamp is not modeled yet; the reader currently

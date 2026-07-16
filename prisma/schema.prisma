@@ -27,6 +27,16 @@ enum PublicationStatus {
   published
 }
 
+enum EditorialRole {
+  admin
+  expert
+}
+
+enum EditorialUserStatus {
+  active
+  disabled
+}
+
 enum IssueType {
   typo
   contradiction
@@ -127,12 +137,15 @@ model PlainExplanation {
   text       String
   status     PublicationStatus @default(draft)
   authorName String?
+  authorId   String?
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
 
-  fragment LawFragment @relation(fields: [fragmentId], references: [id], onDelete: Cascade)
+  fragment LawFragment   @relation(fields: [fragmentId], references: [id], onDelete: Cascade)
+  author   EditorialUser? @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
   @@index([fragmentId, status])
+  @@index([authorId])
 }
 
 model ExpertComment {
@@ -140,14 +153,58 @@ model ExpertComment {
   fragmentId  String
   expertName  String
   expertTitle String?
+  authorId    String?
   text        String
   status      PublicationStatus @default(draft)
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
-  fragment LawFragment @relation(fields: [fragmentId], references: [id], onDelete: Cascade)
+  fragment LawFragment   @relation(fields: [fragmentId], references: [id], onDelete: Cascade)
+  author   EditorialUser? @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
   @@index([fragmentId, status])
+  @@index([authorId])
+}
+
+model EditorialUser {
+  id                String              @id @default(cuid())
+  username          String              @unique
+  displayName       String
+  professionalTitle String?
+  passwordHash      String
+  role              EditorialRole       @default(expert)
+  status            EditorialUserStatus @default(active)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  lastLoginAt       DateTime?
+
+  plainExplanations PlainExplanation[]
+  expertComments    ExpertComment[]
+  auditEvents       EditorialAuditLog[] @relation("AuditActor")
+  targetedEvents    EditorialAuditLog[] @relation("AuditTargetUser")
+
+  @@index([role, status])
+}
+
+model EditorialAuditLog {
+  id           String   @id @default(cuid())
+  actorType    String
+  actorUserId  String?
+  actorName    String
+  action       String
+  entityType   String
+  entityId     String?
+  targetUserId String?
+  details      Json?
+  createdAt    DateTime @default(now())
+
+  actor      EditorialUser? @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  targetUser EditorialUser? @relation("AuditTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([entityType, entityId, createdAt])
+  @@index([targetUserId, createdAt])
 }
 
 model Issue {

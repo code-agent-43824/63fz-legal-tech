@@ -10,12 +10,14 @@ import {
   readStableId,
   requireDeleteConfirmation,
 } from "@/lib/admin-validation";
-import { isAdminAuthenticated } from "@/lib/auth";
+import { getCurrentEditorialActor } from "@/lib/auth";
+import { recordEditorialAudit } from "@/lib/editorial-audit";
+import type { EditorialActor } from "@/lib/editorial-policy";
 import { prisma } from "@/lib/prisma";
 import { invalidatePublicReaderCache } from "@/lib/reader-cache";
 
 export async function saveChangeExplanation(formData: FormData) {
-  await requireAdmin();
+  const actor = await requireAdmin();
   ensureDatabase();
 
   const stableId = readStableId(formData, "stableId");
@@ -27,7 +29,7 @@ export async function saveChangeExplanation(formData: FormData) {
   const practicalMeaning = readOptionalText(formData, "practicalMeaning");
   const sourceLinks = readOptionalSourceLinks(formData, "sourceLinks");
 
-  await prisma.fragmentChangeExplanation.upsert({
+  const explanation = await prisma.fragmentChangeExplanation.upsert({
     where: {
       stableId_fromVersionId_toVersionId: {
         stableId,
@@ -53,25 +55,30 @@ export async function saveChangeExplanation(formData: FormData) {
       status,
     },
   });
+  await recordEditorialAudit({ actor, action: "change-explanation.save", entityType: "change-explanation", entityId: explanation.id, details: { stableId, fromVersionId, toVersionId } });
 
   await revalidateChanges();
 }
 
 export async function deleteChangeExplanation(formData: FormData) {
-  await requireAdmin();
+  const actor = await requireAdmin();
   ensureDatabase();
 
   requireDeleteConfirmation(formData);
   const id = readRecordId(formData, "id");
   await prisma.fragmentChangeExplanation.delete({ where: { id } });
+  await recordEditorialAudit({ actor, action: "change-explanation.delete", entityType: "change-explanation", entityId: id });
 
   await revalidateChanges();
 }
 
-async function requireAdmin() {
-  if (!(await isAdminAuthenticated())) {
+async function requireAdmin(): Promise<EditorialActor> {
+  const actor = await getCurrentEditorialActor();
+  if (!actor) {
     redirect("/admin/login");
   }
+  if (actor.role !== "admin") redirect("/admin");
+  return actor;
 }
 
 function ensureDatabase() {

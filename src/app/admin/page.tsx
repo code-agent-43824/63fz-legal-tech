@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getAdminFragments, type AdminFragmentListItem } from "@/lib/admin-data";
 import { withBasePath } from "@/lib/base-path";
-import { isAdminAuthenticated } from "@/lib/auth";
+import { getCurrentEditorialActor } from "@/lib/auth";
 import { logoutAdmin } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +17,8 @@ type AdminPageProps = {
 const FRAGMENT_TYPES = ["law", "article", "part", "point", "paragraph"];
 
 export default async function AdminPage({ searchParams }: AdminPageProps) {
-  if (!(await isAdminAuthenticated())) {
+  const actor = await getCurrentEditorialActor();
+  if (!actor) {
     redirect("/admin/login");
   }
 
@@ -36,20 +37,27 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               63-ФЗ · админка
             </p>
             <h1 className="mt-2 text-3xl font-semibold">Фрагменты закона</h1>
+            <p className="mt-1 text-sm text-slate-600">{actor.displayName} · {actor.role}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <a
+            {actor.role === "admin" ? <a
               className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium"
               href={withBasePath("/admin/changes")}
             >
               История изменений
-            </a>
-            <a
+            </a> : null}
+            {actor.role === "admin" ? <a
               className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium"
               href={withBasePath("/admin/export/markdown")}
             >
               Markdown export
-            </a>
+            </a> : null}
+            {actor.role === "admin" ? <a
+              className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium"
+              href={withBasePath("/admin/users")}
+            >
+              Эксперты
+            </a> : null}
             <a
               className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium"
               href={withBasePath("/")}

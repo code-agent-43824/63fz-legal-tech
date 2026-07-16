@@ -3,7 +3,7 @@ import {
   getAdminChangeTransitions,
   type AdminChangeTransition,
 } from "@/lib/admin-data";
-import { isAdminAuthenticated } from "@/lib/auth";
+import { getCurrentEditorialActor } from "@/lib/auth";
 import { withBasePath } from "@/lib/base-path";
 import { logoutAdmin } from "../actions";
 import { deleteChangeExplanation, saveChangeExplanation } from "./actions";
@@ -23,9 +23,11 @@ type AdminChangesPageProps = {
 };
 
 export default async function AdminChangesPage({ searchParams }: AdminChangesPageProps) {
-  if (!(await isAdminAuthenticated())) {
+  const actor = await getCurrentEditorialActor();
+  if (!actor) {
     redirect("/admin/login");
   }
+  if (actor.role !== "admin") redirect("/admin");
 
   const filters = await searchParams;
   const transitions = await getAdminChangeTransitions(filters);

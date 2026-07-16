@@ -6,6 +6,12 @@ import {
   isValidAuthSecret,
 } from "@/lib/auth-policy";
 import { getCookieBasePath } from "@/lib/base-path";
+import { verifyEditorialPassword } from "@/lib/editorial-password";
+import {
+  normalizeEditorialUsername,
+  type EditorialActor,
+} from "@/lib/editorial-policy";
+import { prisma } from "@/lib/prisma";
 
 const ADMIN_COOKIE = "admin_session";
 const COOKIE_PATH = getCookieBasePath();
@@ -24,19 +30,57 @@ type LoginBucket = {
 const loginBuckets = new Map<string, LoginBucket>();
 
 export async function isAdminAuthenticated() {
+  return Boolean(await getCurrentEditorialActor());
+}
+
+export async function getCurrentEditorialActor(): Promise<EditorialActor | null> {
   const cookieStore = await cookies();
   const session = cookieStore.get(ADMIN_COOKIE)?.value;
 
   if (!session) {
-    return false;
+    return null;
   }
 
-  return verifySession(session);
+  const payload = verifySession(session);
+  if (!payload) {
+    return null;
+  }
+
+  if (payload.kind === "env-admin") {
+    return {
+      kind: "env-admin",
+      id: null,
+      role: "admin",
+      displayName: "Администратор",
+      professionalTitle: null,
+    };
+  }
+
+  const user = await prisma.editorialUser.findUnique({ where: { id: payload.userId } });
+  if (!user || user.status !== "active") {
+    return null;
+  }
+
+  return {
+    kind: "user",
+    id: user.id,
+    role: user.role,
+    displayName: user.displayName,
+    professionalTitle: user.professionalTitle,
+  };
 }
 
 export async function createAdminSession() {
+  await createSession({ kind: "env-admin" });
+}
+
+export async function createEditorialUserSession(userId: string) {
+  await createSession({ kind: "user", userId });
+}
+
+async function createSession(subject: SessionSubject) {
   const cookieStore = await cookies();
-  const value = signSession("admin");
+  const value = signSession(subject);
 
   cookieStore.set(ADMIN_COOKIE, value, {
     httpOnly: true,
@@ -45,6 +89,21 @@ export async function createAdminSession() {
     path: COOKIE_PATH,
     maxAge: SESSION_MAX_AGE_SECONDS,
   });
+}
+
+export async function authenticateEditorialUser(username: string, password: string) {
+  const normalizedUsername = normalizeEditorialUsername(username);
+  if (!normalizedUsername || !process.env.DATABASE_URL) {
+    return null;
+  }
+
+  const user = await prisma.editorialUser.findUnique({ where: { username: normalizedUsername } });
+  if (!user || user.status !== "active" || !(await verifyEditorialPassword(password, user.passwordHash))) {
+    return null;
+  }
+
+  await prisma.editorialUser.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+  return user;
 }
 
 export async function clearAdminSession() {
@@ -119,9 +178,15 @@ export function getAuthConfigurationIssue() {
   });
 }
 
-function signSession(subject: string) {
+type SessionSubject = { kind: "env-admin" } | { kind: "user"; userId: string };
+
+type SessionPayload =
+  | { kind: "env-admin"; createdAt: number }
+  | { kind: "user"; userId: string; createdAt: number };
+
+function signSession(subject: SessionSubject) {
   const payload = JSON.stringify({
-    subject,
+    ...subject,
     createdAt: Date.now(),
   });
   const encodedPayload = Buffer.from(payload).toString("base64url");
@@ -130,26 +195,37 @@ function signSession(subject: string) {
   return `${encodedPayload}.${signature}`;
 }
 
-function verifySession(value: string) {
+function verifySession(value: string): SessionPayload | null {
   const [payload, signature] = value.split(".");
 
   if (!payload || !signature) {
-    return false;
+    return null;
   }
 
   if (!safeEqual(signature, sign(payload))) {
-    return false;
+    return null;
   }
 
   try {
     const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
+      kind?: string;
+      userId?: string;
       subject?: string;
       createdAt?: number;
     };
 
-    return decoded.subject === "admin" && Date.now() - Number(decoded.createdAt) < SESSION_MAX_AGE_MS;
+    if (!Number.isFinite(decoded.createdAt) || Date.now() - Number(decoded.createdAt) >= SESSION_MAX_AGE_MS) {
+      return null;
+    }
+    if (decoded.subject === "admin" || decoded.kind === "env-admin") {
+      return { kind: "env-admin", createdAt: Number(decoded.createdAt) };
+    }
+    if (decoded.kind === "user" && typeof decoded.userId === "string" && decoded.userId) {
+      return { kind: "user", userId: decoded.userId, createdAt: Number(decoded.createdAt) };
+    }
+    return null;
   } catch {
-    return false;
+    return null;
   }
 }
 

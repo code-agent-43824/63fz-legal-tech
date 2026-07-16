@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { isAdminAuthenticated } from "@/lib/auth";
+import { getCurrentEditorialActor } from "@/lib/auth";
 import { withBasePath } from "@/lib/base-path";
 import { buildMarkdownExport, getMarkdownExportData } from "@/lib/markdown-export";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  if (!(await isAdminAuthenticated())) {
+  const actor = await getCurrentEditorialActor();
+  if (!actor || actor.role !== "admin") {
     return new NextResponse(null, {
       status: 307,
       headers: { location: withBasePath("/admin/login") },

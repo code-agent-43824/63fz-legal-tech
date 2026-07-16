@@ -27,6 +27,20 @@ Required environment variables (see `.env.example`):
 | `NEXT_PUBLIC_BASE_PATH` | Base path baked in at build time; default `/63fz`, empty = root. |
 | `READER_SNAPSHOT_MARKER_FILE` | Optional override of the reader-cache marker file; restricted to `/tmp`, `/var/tmp`, or the OS temp dir. |
 
+## Editorial accounts and access
+
+- The environment administrator signs in as `admin` (or leaves the login field empty) using
+  `ADMIN_PASSWORD`; this remains the recovery/bootstrap administrator and is not stored in the DB.
+- Experts are invitation-only DB accounts created under `/63fz/admin/users`. Usernames are
+  normalized lowercase; passwords are stored only as salted scrypt hashes.
+- Disabling an expert invalidates the account on its next request even if its signed session cookie
+  has not expired. Password reset does not reveal or log either old or new passwords.
+- Experts can write only explanations and expert comments and can edit only rows attributed to their
+  own account. Only administrators can delete, manage accounts, edit issues/proposals/change
+  explanations, or download the Markdown export.
+- Account, session, contribution, and moderation events are stored in `EditorialAuditLog`; details
+  are identifiers/statuses only, never passwords or full contribution text.
+
 Production database credentials are deliberately split:
 
 - `/home/openclaw/services/63fz-legal-tech/.env.production` (mode `600`) contains the application
