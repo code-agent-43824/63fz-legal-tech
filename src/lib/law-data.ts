@@ -102,11 +102,11 @@ export type ReaderData = {
 
 type ReaderDbFragment = {
   anchor: string;
-  expertComments: Array<{ expertName: string; expertTitle: string | null; text: string }>;
+  expertComments: Array<{ expertName: string; expertTitle: string | null; text: string; kind: string; origin: string }>;
   id: string;
   issues: Array<{ severity: string; title: string; description: string }>;
   parentId: string | null;
-  plainExplanations: Array<{ authorName: string | null; text: string }>;
+  plainExplanations: Array<{ authorName: string | null; text: string; origin: string }>;
   proposedRevisions: Array<{ proposedText: string }>;
   stableId: string;
   text: string;
@@ -638,12 +638,15 @@ function buildCommentBlocks(fragment: ReaderDbFragment): ReaderCommentBlock[] {
     });
   }
 
-  if (fragment.expertComments.length > 0) {
+  const expertComments = fragment.expertComments.filter((item) => item.kind === "comment");
+  const recommendations = fragment.expertComments.filter((item) => item.kind === "recommendation");
+  if (expertComments.length > 0) {
     blocks.push({
       title: "Комментарии экспертов",
-      text: formatExpertComments(fragment.expertComments),
+      text: formatExpertComments(expertComments),
     });
   }
+  if (recommendations.length > 0) blocks.push({ title: "Практические рекомендации", text: formatExpertComments(recommendations) });
 
   if (fragment.issues.length > 0) {
     blocks.push({
@@ -864,18 +867,18 @@ function formatFragmentTitle(title: string | null, stableId: string) {
   return title?.trim() || stableId;
 }
 
-function formatPlainExplanations(explanations: Array<{ authorName: string | null; text: string }>) {
+function formatPlainExplanations(explanations: Array<{ authorName: string | null; text: string; origin: string }>) {
   if (explanations.length === 0) {
     return "Пояснение пока не добавлено.";
   }
 
   return explanations
-    .map((explanation) => explanation.authorName ? `${explanation.authorName}: ${explanation.text}` : explanation.text)
+    .map((explanation) => `${explanation.authorName ? `${explanation.authorName}: ` : ""}${explanation.text}${explanation.origin === "ai_assisted" ? "\n(ИИ использован при подготовке; материал проверен и опубликован экспертом.)" : ""}`)
     .join("\n\n");
 }
 
 function formatExpertComments(
-  comments: Array<{ expertName: string; expertTitle: string | null; text: string }>,
+  comments: Array<{ expertName: string; expertTitle: string | null; text: string; origin: string }>,
 ) {
   if (comments.length === 0) {
     return "Пока не добавлено.";
@@ -884,7 +887,7 @@ function formatExpertComments(
   return comments
     .map((comment) => {
       const title = comment.expertTitle ? `, ${comment.expertTitle}` : "";
-      return `${comment.expertName}${title}: ${comment.text}`;
+      return `${comment.expertName}${title}: ${comment.text}${comment.origin === "ai_assisted" ? "\n(ИИ использован при подготовке; материал проверен и опубликован экспертом.)" : ""}`;
     })
     .join("\n\n");
 }

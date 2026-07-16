@@ -12,6 +12,7 @@ const ACCEPTED_REVISION = "Принятая предлагаемая форму�
 const PUBLISHED_CHANGE_REASON = "Опубликованная причина изменения статьи 1.";
 const PUBLISHED_EXPERT_NAME = "Ирина Экспертова";
 const PRIVATE_PASSWORD_HASH = "PRIVATE_PASSWORD_HASH_MUST_NOT_LEAK";
+const PUBLISHED_RECOMMENDATION = "Проверенная практическая рекомендация.";
 
 const DRAFT_MARKERS = [
   "ЧЕРНОВОЕ ПОЯСНЕНИЕ не должно попадать в публичный вывод",
@@ -20,6 +21,8 @@ const DRAFT_MARKERS = [
   "ЧЕРНОВАЯ ФОРМУЛИРОВКА",
   "ЧЕРНОВАЯ ПРИЧИНА ИЗМЕНЕНИЯ",
   "ЧЕРНОВАЯ РЕДАКЦИЯ ЗАКОНА",
+  "ИИ-МАТЕРИАЛ НА ПРОВЕРКЕ",
+  "СНЯТЫЙ С ПУБЛИКАЦИИ МАТЕРИАЛ",
 ];
 
 test(
@@ -171,6 +174,11 @@ test(
           status: "draft",
         },
       });
+      await prisma.expertComment.createMany({data:[
+        {fragmentId:articleV2.id,expertName:expert.displayName,authorId:expert.id,text:DRAFT_MARKERS[6],status:"in_review",origin:"ai_assisted"},
+        {fragmentId:articleV2.id,expertName:expert.displayName,authorId:expert.id,text:DRAFT_MARKERS[7],status:"unpublished",origin:"human"},
+        {fragmentId:articleV2.id,expertName:expert.displayName,authorId:expert.id,text:PUBLISHED_RECOMMENDATION,status:"published",kind:"recommendation",origin:"ai_assisted",reviewedAt:new Date(),reviewedContentSha256:"integration-reviewed"},
+      ]});
       await prisma.expertComment.create({
         data: {
           fragmentId: articleV2.id,
@@ -256,6 +264,9 @@ test(
       assert.ok(serialized.includes(PUBLISHED_ISSUE_TITLE));
       assert.ok(serialized.includes(ACCEPTED_REVISION));
       assert.ok(serialized.includes(PUBLISHED_CHANGE_REASON));
+      assert.ok(serialized.includes(PUBLISHED_RECOMMENDATION));
+      assert.ok(serialized.includes("Практические рекомендации"));
+      assert.ok(serialized.includes("ИИ использован при подготовке"));
       assert.ok(!serialized.includes(versionDraft.id), "draft version id must not leak");
       for (const marker of DRAFT_MARKERS) {
         assert.ok(!serialized.includes(marker), `draft content must not leak: ${marker}`);

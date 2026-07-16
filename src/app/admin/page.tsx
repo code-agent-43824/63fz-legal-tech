@@ -40,12 +40,18 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             <p className="mt-1 text-sm text-slate-600">{actor.displayName} · {actor.role}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {actor.role === "admin" ? <a
+            <a
+              className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium"
+              href={withBasePath("/admin/review")}
+            >
+              Редакционная очередь
+            </a>
+            <a
               className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium"
               href={withBasePath("/admin/changes")}
             >
               История изменений
-            </a> : null}
+            </a>
             {actor.role === "admin" ? <a
               className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium"
               href={withBasePath("/admin/export/markdown")}

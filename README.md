@@ -52,7 +52,9 @@ future permanent production domain.
 
 - Expert accounts are created by an administrator; there is deliberately no public registration,
   reader account, password-recovery email, or public discussion system.
-- Editorial drafts still need the explicit review/source checklist planned in roadmap point 15.
+- Editorial publication uses an explicit draft/review/publish/unpublish workflow. AI-assisted drafts
+  remain marked, private, and attributable until the responsible expert completes the review
+  checklist and accepts named responsibility.
 - Public reader optimization is intentionally pragmatic: the current page still renders the full
   selected reader view, while server queries and repeated public reads are now lighter.
 - A separate "last checked for newer amendments" timestamp is not modeled yet; the reader currently

@@ -1,12 +1,14 @@
 import { redirect } from "next/navigation";
 import {
   getAdminChangeTransitions,
+  getActiveEditorialExperts,
+  type ActiveEditorialExpert,
   type AdminChangeTransition,
 } from "@/lib/admin-data";
 import { getCurrentEditorialActor } from "@/lib/auth";
 import { withBasePath } from "@/lib/base-path";
 import { logoutAdmin } from "../actions";
-import { deleteChangeExplanation, saveChangeExplanation } from "./actions";
+import { deleteChangeExplanation, publishReviewedChange, saveChangeExplanation, submitChangeForReview, unpublishChange } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -27,10 +29,9 @@ export default async function AdminChangesPage({ searchParams }: AdminChangesPag
   if (!actor) {
     redirect("/admin/login");
   }
-  if (actor.role !== "admin") redirect("/admin");
-
   const filters = await searchParams;
-  const transitions = await getAdminChangeTransitions(filters);
+  const [allTransitions, experts] = await Promise.all([getAdminChangeTransitions(filters), getActiveEditorialExperts()]);
+  const transitions = actor.role === "admin" ? allTransitions : allTransitions.filter((item) => item.explanation?.reviewerId === actor.id);
   const filledCount = transitions.filter((transition) => transition.explanation).length;
 
   return (
@@ -95,7 +96,9 @@ export default async function AdminChangesPage({ searchParams }: AdminChangesPag
               <option value="">Все</option>
               <option value="missing">Не заполнено</option>
               <option value="draft">Черновик</option>
+              <option value="in_review">На проверке</option>
               <option value="published">Опубликовано</option>
+              <option value="unpublished">Снято</option>
             </select>
           </label>
           <label className="grid gap-1 text-sm">
@@ -165,7 +168,7 @@ export default async function AdminChangesPage({ searchParams }: AdminChangesPag
             </div>
           ) : (
             transitions.map((transition) => (
-              <ChangeEditor transition={transition} key={transitionKey(transition)} />
+              <ChangeEditor actor={actor} experts={experts} transition={transition} key={transitionKey(transition)} />
             ))
           )}
         </section>
@@ -174,7 +177,7 @@ export default async function AdminChangesPage({ searchParams }: AdminChangesPag
   );
 }
 
-function ChangeEditor({ transition }: { transition: AdminChangeTransition }) {
+function ChangeEditor({ actor, experts, transition }: { actor: NonNullable<Awaited<ReturnType<typeof getCurrentEditorialActor>>>; experts: ActiveEditorialExpert[]; transition: AdminChangeTransition }) {
   return (
     <article className="rounded-md border border-slate-200 bg-white">
       <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
@@ -221,12 +224,8 @@ function ChangeEditor({ transition }: { transition: AdminChangeTransition }) {
             <input name="fromVersionId" type="hidden" value={transition.fromVersionId} />
             <input name="toVersionId" type="hidden" value={transition.toVersionId} />
             <div className="grid gap-3">
-              <Select
-                defaultValue={transition.explanation?.status ?? "draft"}
-                label="Статус"
-                name="status"
-                options={["draft", "published"]}
-              />
+              {actor.role === "admin" ? <Select defaultValue={transition.explanation?.reviewerId ?? ""} label="Ответственный эксперт" name="reviewerId" options={["", ...experts.map((item) => item.id)]} labels={["Выберите эксперта", ...experts.map((item) => item.displayName)]} /> : <p className="text-sm">Ответственный: <strong>{actor.displayName}</strong></p>}
+              <Select defaultValue={transition.explanation?.origin ?? "human"} label="Происхождение черновика" name="origin" options={["human", "ai_assisted"]} labels={["Авторский текст", "Подготовлен с помощью ИИ"]} />
               <TextArea
                 defaultValue={transition.explanation?.reason ?? ""}
                 label="Причина изменения"
@@ -249,11 +248,15 @@ function ChangeEditor({ transition }: { transition: AdminChangeTransition }) {
               />
             </div>
             <button className="mt-4 rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white" type="submit">
-              Сохранить
+              Сохранить как черновик
             </button>
           </form>
 
-          {transition.explanation ? (
+          {transition.explanation && actor.role === "expert" && transition.explanation.reviewerId === actor.id && (transition.explanation.status === "draft" || transition.explanation.status === "unpublished") ? <form action={submitChangeForReview} className="mt-3"><input name="id" type="hidden" value={transition.explanation.id} /><button className="rounded-md border border-slate-400 bg-white px-4 py-2 text-sm font-medium">Передать на проверку</button></form> : null}
+          {transition.explanation && actor.role === "expert" && transition.explanation.reviewerId === actor.id && transition.explanation.status === "in_review" ? <form action={publishReviewedChange} className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 p-3"><p className="text-sm font-semibold">Проверка перед публикацией</p>{[["factualAccuracy","Факты и трактовка проверены"],["sources","Источники проверены"],["scope","Редакционный текст отделён от закона"],["version","Редакция закона проверена"],["responsibility","Принимаю именную ответственность"]].map(([name,label])=><label className="mt-2 flex gap-2 text-sm" key={name}><input name={name} required type="checkbox" value="yes" />{label}</label>)}<input name="id" type="hidden" value={transition.explanation.id}/><button className="mt-3 rounded-md bg-emerald-900 px-4 py-2 text-sm font-medium text-white">Опубликовать</button></form> : null}
+          {transition.explanation && transition.explanation.status === "published" && (actor.role === "admin" || transition.explanation.reviewerId === actor.id) ? <form action={unpublishChange} className="mt-3"><input name="id" type="hidden" value={transition.explanation.id}/><button className="rounded-md border border-amber-400 bg-amber-50 px-4 py-2 text-sm font-medium">Снять с публикации</button></form> : null}
+
+          {transition.explanation && actor.role === "admin" ? (
             <form action={deleteChangeExplanation} className="mt-2">
               <input name="id" type="hidden" value={transition.explanation.id} />
               <label className="flex items-center gap-2 text-sm text-slate-600">
@@ -293,19 +296,21 @@ function Select({
   label,
   name,
   options,
+  labels,
 }: {
   defaultValue: string;
   label: string;
   name: string;
   options: string[];
+  labels?: string[];
 }) {
   return (
     <label className="block">
       <span className="text-sm font-medium text-slate-700">{label}</span>
       <select className="mt-1 h-10 w-full min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm" defaultValue={defaultValue} name={name}>
-        {options.map((option) => (
+        {options.map((option, index) => (
           <option key={option} value={option}>
-            {option}
+            {labels?.[index] ?? option}
           </option>
         ))}
       </select>

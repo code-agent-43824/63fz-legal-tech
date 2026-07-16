@@ -24,7 +24,19 @@ enum FragmentType {
 
 enum PublicationStatus {
   draft
+  in_review
   published
+  unpublished
+}
+
+enum EditorialDraftOrigin {
+  human
+  ai_assisted
+}
+
+enum ExpertContributionKind {
+  comment
+  recommendation
 }
 
 enum EditorialRole {
@@ -138,6 +150,10 @@ model PlainExplanation {
   status     PublicationStatus @default(draft)
   authorName String?
   authorId   String?
+  origin     EditorialDraftOrigin @default(human)
+  sourceLinks String?
+  reviewedAt DateTime?
+  reviewedContentSha256 String?
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
 
@@ -154,6 +170,11 @@ model ExpertComment {
   expertName  String
   expertTitle String?
   authorId    String?
+  kind        ExpertContributionKind @default(comment)
+  origin      EditorialDraftOrigin @default(human)
+  sourceLinks String?
+  reviewedAt  DateTime?
+  reviewedContentSha256 String?
   text        String
   status      PublicationStatus @default(draft)
   createdAt   DateTime          @default(now())
@@ -182,6 +203,7 @@ model EditorialUser {
   expertComments    ExpertComment[]
   auditEvents       EditorialAuditLog[] @relation("AuditActor")
   targetedEvents    EditorialAuditLog[] @relation("AuditTargetUser")
+  reviewedChangeExplanations FragmentChangeExplanation[] @relation("ChangeReviewer")
 
   @@index([role, status])
 }
@@ -248,15 +270,21 @@ model FragmentChangeExplanation {
   practicalMeaning String?
   sourceLinks      String?
   status           PublicationStatus @default(draft)
+  origin           EditorialDraftOrigin @default(human)
+  reviewerId       String?
+  reviewedAt       DateTime?
+  reviewedContentSha256 String?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
   fromVersion LawVersion @relation("ChangeFromVersion", fields: [fromVersionId], references: [id], onDelete: Cascade)
   toVersion   LawVersion @relation("ChangeToVersion", fields: [toVersionId], references: [id], onDelete: Cascade)
+  reviewer    EditorialUser? @relation("ChangeReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
 
   @@unique([stableId, fromVersionId, toVersionId])
   @@index([stableId, status])
   @@index([fromVersionId, toVersionId])
+  @@index([reviewerId, status])
 }
 
 model ChangeFeedback {

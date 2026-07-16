@@ -10,8 +10,8 @@ export type MarkdownExportFragment = {
   type: string;
   title: string;
   text: string;
-  plainExplanations: Array<{ text: string; authorName: string | null }>;
-  expertComments: Array<{ expertName: string; expertTitle: string | null; text: string }>;
+  plainExplanations: Array<{ text: string; authorName: string | null; origin?: string }>;
+  expertComments: Array<{ expertName: string; expertTitle: string | null; text: string; kind?: string; origin?: string }>;
   issues: Array<{ severity: string; title: string; description: string }>;
   proposedRevisions: Array<{ proposedText: string; rationale: string }>;
   changeExplanations: Array<{
@@ -44,8 +44,8 @@ type DbFragment = {
   type: string;
   title: string | null;
   text: string;
-  plainExplanations: Array<{ text: string; authorName: string | null }>;
-  expertComments: Array<{ expertName: string; expertTitle: string | null; text: string }>;
+  plainExplanations: Array<{ text: string; authorName: string | null; origin: string }>;
+  expertComments: Array<{ expertName: string; expertTitle: string | null; text: string; kind: string; origin: string }>;
   issues: Array<{ severity: string; title: string; description: string }>;
   proposedRevisions: Array<{ proposedText: string; rationale: string }>;
 };
@@ -88,12 +88,12 @@ export async function getMarkdownExportData(versionId?: string): Promise<Markdow
       plainExplanations: {
         where: { status: PUBLIC_READER_STATUSES.plainExplanation },
         orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
-        select: { authorName: true, text: true },
+        select: { authorName: true, text: true, origin: true },
       },
       expertComments: {
         where: { status: PUBLIC_READER_STATUSES.expertComment },
         orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
-        select: { expertName: true, expertTitle: true, text: true },
+        select: { expertName: true, expertTitle: true, text: true, kind: true, origin: true },
       },
       issues: {
         where: { status: PUBLIC_READER_STATUSES.issue },
@@ -229,13 +229,22 @@ function appendFragment(lines: string[], fragment: MarkdownExportFragment) {
     }
   }
 
-  if (fragment.expertComments.length > 0) {
+  const comments=fragment.expertComments.filter((item)=>item.kind!=="recommendation");
+  const recommendations=fragment.expertComments.filter((item)=>item.kind==="recommendation");
+  if (comments.length > 0) {
     lines.push("");
     lines.push("### Комментарии экспертов");
-    for (const comment of fragment.expertComments) {
+    for (const comment of comments) {
       const expertTitle = comment.expertTitle ? `, ${comment.expertTitle}` : "";
       lines.push("");
       lines.push(`- ${escapeMarkdownInline(comment.expertName)}${escapeMarkdownInline(expertTitle)}: ${formatParagraph(comment.text)}`);
+    }
+  }
+  if (recommendations.length > 0) {
+    lines.push("", "### Практические рекомендации");
+    for (const item of recommendations) {
+      const title=item.expertTitle?`, ${item.expertTitle}`:"";
+      lines.push("", `- ${escapeMarkdownInline(item.expertName)}${escapeMarkdownInline(title)}: ${formatParagraph(item.text)}`);
     }
   }
 

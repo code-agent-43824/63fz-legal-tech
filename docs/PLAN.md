@@ -241,9 +241,10 @@ Completed:
   status, salted scrypt password hashes, and signed eight-hour sessions.
 - Bound expert display name and professional title to the account; profile changes update authored
   public snapshots, while private login/password fields never enter reader queries.
-- Experts can create, preview, publish, and edit only their own plain-language explanations and
-  comments. Issue/proposal/change-history editing, deletion, account management, and export remain
-  administrator-only on the server.
+- Experts can create, preview, and edit only their own plain-language explanations and comments;
+  publication now goes through point 15's mandatory review flow. Issue/proposal editing, deletion,
+  account management, and export remain administrator-only; change explanations may be assigned to
+  a responsible expert for review.
 - Added account creation, disabling, profile updates, password reset, moderation controls, and a
   compact audit view. Login/logout, account changes, content writes/deletes, and change-explanation
   writes/deletes are audited without storing contribution text or passwords.
@@ -260,7 +261,7 @@ Acceptance criteria:
 ### 15. Editorial Workflow And AI-Draft Safeguards
 
 Priority: P1.
-Status: next; point 14 prerequisite complete.
+Status: done 2026-07-16.
 
 - Define the content types for a short plain-language version, expert comment, recommendation, and
   change explanation without mixing them with official law text.
@@ -268,6 +269,16 @@ Status: next; point 14 prerequisite complete.
 - Require expert review, preview, and explicit publication before AI-assisted text becomes public.
 - Define correction and unpublish procedures plus a factual/source/scope/version checklist.
 - Add a compact coverage/review view only where existing admin filters are insufficient.
+
+Completed:
+
+- Added explicit `draft -> in_review -> published -> unpublished` states for explanations,
+  comments, recommendations, and change explanations. Editing any reviewed item resets it to draft.
+- Added immutable AI-assisted provenance: an AI draft is always non-public until its responsible
+  expert confirms factual accuracy, sources, editorial scope, law version, and named responsibility.
+- Split practical recommendations from expert comments in both the editor and public reader.
+- Added expert assignment for change explanations, preview controls, correction/unpublish actions,
+  reviewed-content hashes, audit events, and a compact role-filtered editorial queue.
 
 Acceptance criteria:
 

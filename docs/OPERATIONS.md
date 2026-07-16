@@ -35,9 +35,16 @@ Required environment variables (see `.env.example`):
   normalized lowercase; passwords are stored only as salted scrypt hashes.
 - Disabling an expert invalidates the account on its next request even if its signed session cookie
   has not expired. Password reset does not reveal or log either old or new passwords.
-- Experts can write only explanations and expert comments and can edit only rows attributed to their
-  own account. Only administrators can delete, manage accounts, edit issues/proposals/change
-  explanations, or download the Markdown export.
+- Experts can write only explanations, comments, recommendations, and assigned change explanations;
+  they can edit only rows attributed to them. Administrators assign experts, moderate/unpublish,
+  delete, manage accounts, edit issues/proposals, and download the Markdown export.
+- Editorial material follows `draft -> in_review -> published -> unpublished`. Saving a reviewed or
+  published item always resets it to `draft`. Only its responsible expert can submit and publish it;
+  publication requires explicit factual/source/scope/version/responsibility confirmations.
+- AI-assisted origin is permanent once set. It is visible in the queue and public disclosure after
+  expert publication; no AI-assisted draft is public in `draft`, `in_review`, or `unpublished`.
+- Corrections are made by editing the item (which returns it to draft), reviewing it again, and
+  republishing. Urgent removal uses the separate unpublish control and does not alter official text.
 - Account, session, contribution, and moderation events are stored in `EditorialAuditLog`; details
   are identifiers/statuses only, never passwords or full contribution text.
 

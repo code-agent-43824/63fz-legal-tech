@@ -1,5 +1,20 @@
 # Progress Log
 
+## 2026-07-16. Editorial Workflow And AI-Draft Safeguards
+
+- Added explicit `draft`, `in_review`, `published`, and `unpublished` editorial states. Direct
+  status selection is removed; every edit resets the material and its prior review to draft.
+- Added permanent `human`/`ai_assisted` provenance and reviewed-content SHA-256 values. AI origin
+  cannot be downgraded by editing and only `published` rows enter public reader queries.
+- Publication is restricted to the responsible named expert after five explicit confirmations:
+  factual accuracy, sources, official/editorial scope, law version, and personal responsibility.
+- Added practical recommendations as a separate expert contribution type and public reader block.
+- Added expert assignment and the same review lifecycle to change explanations; administrators may
+  assign, edit, unpublish, or delete but cannot accept responsibility and publish for the expert.
+- Added a role-filtered editorial queue, contribution previews, correction/unpublish controls,
+  transition audit events, pure workflow tests, and DB-backed assertions that review/unpublished
+  content never leaks publicly.
+
 ## 2026-07-16. Expert Accounts, Authorship, Roles, And Moderation
 
 - Added invitation-only editorial accounts with the minimal `admin`/`expert` role set, active and

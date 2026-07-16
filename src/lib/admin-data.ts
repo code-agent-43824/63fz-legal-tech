@@ -33,6 +33,9 @@ export type AdminFragmentDetails = AdminFragmentListItem & {
     status: string;
     authorName: string | null;
     authorId: string | null;
+    origin: string;
+    sourceLinks: string | null;
+    reviewedAt: Date | null;
   }>;
   expertComments: Array<{
     id: string;
@@ -41,6 +44,10 @@ export type AdminFragmentDetails = AdminFragmentListItem & {
     text: string;
     status: string;
     authorId: string | null;
+    kind: string;
+    origin: string;
+    sourceLinks: string | null;
+    reviewedAt: Date | null;
   }>;
   issues: Array<{
     id: string;
@@ -77,6 +84,9 @@ export type AdminChangeTransition = {
     practicalMeaning: string | null;
     sourceLinks: string | null;
     status: string;
+    origin: string;
+    reviewerId: string | null;
+    reviewedAt: Date | null;
   } | null;
 };
 
@@ -89,6 +99,21 @@ export type AdminChangeFilters = {
   toVersionId?: string;
   type?: string;
 };
+
+export type ActiveEditorialExpert = {
+  id: string;
+  displayName: string;
+  professionalTitle: string | null;
+};
+
+export async function getActiveEditorialExperts(): Promise<ActiveEditorialExpert[]> {
+  if (!process.env.DATABASE_URL) return [];
+  return prisma.editorialUser.findMany({
+    where: { role: "expert", status: "active" },
+    orderBy: [{ displayName: "asc" }, { id: "asc" }],
+    select: { id: true, displayName: true, professionalTitle: true },
+  });
+}
 
 export async function getAdminFragments(): Promise<AdminFragmentListItem[]> {
   if (!process.env.DATABASE_URL) {
@@ -323,6 +348,9 @@ export async function getAdminChangeTransitions(
               practicalMeaning: explanation.practicalMeaning,
               sourceLinks: explanation.sourceLinks,
               status: explanation.status,
+              origin: explanation.origin,
+              reviewerId: explanation.reviewerId,
+              reviewedAt: explanation.reviewedAt,
             }
           : null,
       });
@@ -369,7 +397,7 @@ function filterChangeTransitions(
     }
 
     if (
-      (status === "draft" || status === "published") &&
+      (["draft", "in_review", "published", "unpublished"].includes(status ?? "")) &&
       transition.explanation?.status !== status
     ) {
       return false;
