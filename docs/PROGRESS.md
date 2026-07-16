@@ -1,5 +1,22 @@
 # Progress Log
 
+## 2026-07-16. Product-Owner Interview And Functional Scope
+
+- Recorded the product-owner interview in `docs/PRODUCT-USE.md`.
+- Defined the primary readers as lawyers, electronic-signature specialists, certification-authority
+  employees, experts, and commercial staff who need to find and understand 63-FZ rather than merely
+  access its text.
+- Defined invited experts as a contributor audience whose named explanations and comments must be
+  readable without crowding out official law text.
+- Ranked the core jobs: find an article plus a short explanation; let experts write explanations;
+  let experts comment; combine text/commentary/version history; follow references to other acts.
+- Named article 13 as the next editorial pilot because its current certification-authority/e-signature
+  wording is especially difficult to read.
+- Made attributable expert accounts, moderation, and AI-draft safeguards mandatory readiness work.
+- Moved migration/backup/rollback hardening ahead of the expert-account schema change.
+- Kept analytics, feedback dashboard, search/payload changes evidence-gated and scheduled amendment
+  monitoring last.
+
 ## 2026-07-13. Reader Cache Invalidation Verified On The Host
 
 - Ran the read-only PrivateTmp experiment on production (separate operator session):

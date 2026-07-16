@@ -77,6 +77,8 @@ future permanent production domain.
 - Do not change stable fragment ID generation without reading `docs/STABLE-ID.md` first.
 - Operational procedures (deploy, rollback, backups, migrations, cache invalidation) live in
   `docs/OPERATIONS.md`.
+- Intended audiences, core scenarios, and functional-readiness criteria live in
+  `docs/PRODUCT-USE.md`.
 
 ## Local Commands
 
@@ -136,5 +138,6 @@ the current OS temp directory. Invalid paths fall back to the safe default marke
 
 ## Documentation
 
+- [Product Use Definition](docs/PRODUCT-USE.md)
 - [Development Roadmap](docs/PLAN.md)
 - [Progress Log](docs/PROGRESS.md)

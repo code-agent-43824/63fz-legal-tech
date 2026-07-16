@@ -152,7 +152,8 @@ These are product risks or limitations, not all immediate next steps.
 
 - Core reader and admin screens have had a responsive overflow pass; final visual polish remains a
   public-launch concern, not a duplicate implementation stage.
-- The admin model is still one shared password; there are no users, roles, or audit logs.
+- The admin model is still one shared password; there are no attributable expert accounts, roles,
+  or audit logs. The owner interview makes this a functional-readiness gap, not optional future work.
 - Change feedback has no moderation or analytics dashboard.
 - Search is lightweight in-reader search, not database full-text search.
 - Amendment monitoring is intentionally manual. The project owner will signal when the law changes;
@@ -161,7 +162,7 @@ These are product risks or limitations, not all immediate next steps.
   state files and imported source retrieval metadata.
 - Production database migration history is partly manual; the database has historically not used a
   clean `_prisma_migrations` history table. This must be reconciled before any next schema change
-  (see point 16, now P1).
+  (see point 13).
 - The deployment path is a test placement. The base path itself is now configurable at build time,
   but canonical-URL/domain references (`mescheryakov.pro`) remain in docs, metadata, and source
   labels.
@@ -169,6 +170,9 @@ These are product risks or limitations, not all immediate next steps.
   with `PrivateTmp=no` and CLI imports do invalidate the running server's cache. Re-verify if the
   unit configuration changes; see `docs/OPERATIONS.md`.
 - Editorial coverage outside article 18 is still sparse.
+- There is no formal AI-draft-to-expert-publication workflow.
+- References from 63-FZ to other laws and subordinate acts are not yet presented as a structured
+  reader aid.
 - The app has a pragmatic public snapshot, but no broader observability, error reporting, or
   operational dashboard.
 - The current reader still renders the full selected reader view; further payload reduction may be
@@ -176,227 +180,167 @@ These are product risks or limitations, not all immediate next steps.
 
 ## Functional Readiness Roadmap
 
-The application already has the technical foundation required for real use. The largest remaining
-gap is not another platform feature: it is a clear use model and trustworthy editorial coverage
-beyond the article 18 pilot. Hosting and the final domain are deliberately outside this sequence.
+The product-owner interview is recorded in `docs/PRODUCT-USE.md`. It confirms that the remaining
+core is an expert-authored explanatory reader: attributable expert participation, safe editorial
+publication, and useful coverage are now more important than optional analytics or search upgrades.
+Hosting and the final domain remain outside this sequence.
 
-### 12. Intended Use, Primary Audience, And Acceptance Scenarios
-
-Priority: P1.
-Status: next.
-
-Goal:
-
-- Define exactly who uses the product, what decision or legal-reading task it helps with, and what
-  a successful end-to-end session looks like.
-
-Tasks:
-
-- Choose the primary reader segment and the primary editorial operator.
-- Write 5-10 concrete reader scenarios: find the applicable wording, compare revisions, understand
-  why a norm changed, follow the source, and report an unclear or incorrect explanation.
-- Run the scenarios with several representative users and record failures, confusing labels, and
-  missing content.
-- Define a small set of readiness criteria and privacy-conscious usefulness signals.
-
-Acceptance criteria:
-
-- The project has one primary audience and a documented set of real tasks.
-- Each task can be completed on the current product or creates a specific, evidence-backed backlog
-  item.
-- Later search, navigation, and editorial work is tied to observed needs rather than assumptions.
-
-### 13. Editorial Coverage Expansion
+### 12. Intended Use And Acceptance Scenarios
 
 Priority: P1.
-Status: future.
+Status: product-owner interview complete; representative-user validation pending.
 
-Goal:
-
-- Turn the article 18 pilot into useful coverage of the most important 63-FZ provisions and changes.
-
-Tasks:
-
-- Rank articles and version transitions using the scenarios from point 12.
-- Build a coverage matrix by article, version pair, transition type, publication status, and source.
-- Fill granular explanations with reason, purpose, practical meaning, and source links.
-- Keep aggregate article duplicates unpublished unless they add unique value.
-- Do not invent legal interpretation and do not bulk-publish generated explanations.
+- Keep `docs/PRODUCT-USE.md` as the source of truth for audiences, ranked jobs, scenarios, trust
+  rules, and minimum readiness.
+- Test the documented scenarios with several representative readers and invited expert contributors.
+- Turn only observed failures into new requirements.
 
 Acceptance criteria:
 
-- Every selected article has no meaningful missing granular explanation for the selected version
-  pairs.
-- Published explanations have reviewable sources, preferably official publication links.
-- Public pages show published material and omit drafts and internal duplicates.
+- Several target readers can find a norm, confirm its version, and understand its plain-language
+  explanation.
+- Several expert contributors can describe the contribution workflow and complete it in a test.
+- Any remaining blockers are concrete and reproducible.
 
-### 14. Editorial Quality Assurance And Publication Workflow
+### 13. Import, Migration, Backup, And Rollback Hardening
 
-Priority: P1.
-Status: future.
+Priority: P1; required before the next schema change.
+Status: next. The descriptive runbook exists in `docs/OPERATIONS.md`; production migration history
+and backup restore still need reconciliation and verification.
 
-Goal:
-
-- Make editorial publication repeatable and safe, not dependent on remembering an informal process.
-
-Tasks:
-
-- Define a checklist for factual accuracy, source quality, wording, fragment scope, version pair,
-  and public status.
-- Add a compact coverage/review view only where the existing admin filters are insufficient.
-- Require a final preview of the public fragment and its change permalink before publication.
-- Document correction, unpublish, and rollback procedures for editorial content.
-- Verify deterministic Markdown export as an editorial audit artifact.
-
-Acceptance criteria:
-
-- An editor can move an explanation from draft to checked publication using a documented flow.
-- Every published explanation is traceable to a source and the correct concrete transition.
-- A bad explanation can be corrected or unpublished without editing official law text.
-
-### 15. Feedback Review And Usage Evidence
-
-Priority: P2, gated.
-Status: future.
-
-Dependency/gate:
-
-- Start after representative users have tried the scenarios or enough real feedback has accumulated.
-
-Goal:
-
-- Turn feedback into an editorial queue and verify whether the product is genuinely useful.
-
-Tasks:
-
-- Add an admin view for feedback grouped by change, kind, article, version pair, and time period.
-- Link each group to the relevant change editor and public permalink.
-- Add minimal review state only if needed for a recurring workflow.
-- Keep client hashes private and avoid broad analytics or unnecessary personal data.
-
-Acceptance criteria:
-
-- Editors can find explanations marked unclear or wrong and close the loop with a correction.
-- The project has documented evidence of completed and failed user tasks.
-- Feedback review exposes no raw client identity data.
-
-### 16. Import, Migration, Backup, And Rollback Hardening
-
-Priority: P1 before the next schema change or law import.
-Status: future. The descriptive runbook exists in `docs/OPERATIONS.md`; the remaining work is to
-reconcile production migration history and verify backup restore.
-
-Goal:
-
-- Make production data operations auditable and repeatable without relying on session memory.
-
-Tasks:
-
-- Document the missing/partial Prisma migration history and owner/app-role responsibilities.
-- Create a preflight checklist for schema changes, imports, backups, deployment, verification, and
-  rollback.
-- Add a small read-only status/preflight command if it materially reduces operator error.
-- Verify backup naming, location, restore readability, and retention rules.
+- Reconcile the missing/partial Prisma migration history without destructive history surgery.
+- Verify backup naming, retention, restore readability, owner/app-role responsibilities, and rollback.
+- Add a small read-only preflight/status command if it materially reduces operator error.
 - Keep every law import as an explicit dry-run, reviewed write, and separately confirmed current
   version switch.
 
 Acceptance criteria:
 
-- The next migration and the next law import both have an explicit runbook before execution.
-- Backups and rollback boundaries are clear and consistently verified.
-- No destructive repair of migration history is performed without separate approval.
+- The expert-account schema change has a reviewed migration and rollback plan before implementation.
+- A production backup can be restored into an isolated verification database.
+- The next migration and law import have explicit preflight and verification steps.
 
-### 17. End-To-End Usability And Accessibility Pass
+### 14. Expert Accounts, Authorship, Roles, And Moderation
+
+Priority: P1.
+Status: future; blocked on point 13.
+
+- Replace the single shared editorial identity with attributable expert accounts and sessions.
+- Use the smallest role set that supports expert publication and administrator moderation.
+- Bind expert name/professional description to the account rather than trusting a free-text author
+  field on every contribution.
+- Let experts create, preview, and publish their own explanations/comments.
+- Let administrators edit, unpublish, or delete contributions and retain a minimal audit record.
+- Keep reader accounts, public registration, and public discussion threads out of scope.
+
+Acceptance criteria:
+
+- Every expert contribution has an attributable author.
+- Server-side authorization prevents experts from using administrator-only actions.
+- The public reader shows author identity without exposing private account data.
+- Administrative moderation is logged and test-covered.
+
+### 15. Editorial Workflow And AI-Draft Safeguards
+
+Priority: P1.
+Status: future; coordinated with point 14.
+
+- Define the content types for a short plain-language version, expert comment, recommendation, and
+  change explanation without mixing them with official law text.
+- Let AI-assisted text enter only as a clearly marked non-public draft.
+- Require expert review, preview, and explicit publication before AI-assisted text becomes public.
+- Define correction and unpublish procedures plus a factual/source/scope/version checklist.
+- Add a compact coverage/review view only where existing admin filters are insufficient.
+
+Acceptance criteria:
+
+- An expert can move a draft through review to publication without ambiguous status.
+- No AI-assisted draft is public before expert responsibility is explicit.
+- A bad explanation can be corrected or unpublished without changing official law text.
+
+### 16. Priority Editorial Coverage, Starting With Article 13
+
+Priority: P1.
+Status: future.
+
+- Use article 13 as the next representative pilot for a short explanation and expert commentary.
+- Prioritize simple explanation, practical recommendations, norm comparison, and reasons for change.
+- Build a coverage matrix by article, version pair, content type, status, author, and source.
+- Expand to other high-value provisions after the article 13 workflow is accepted.
+- Do not invent legal interpretation and do not bulk-publish generated text.
+
+Acceptance criteria:
+
+- Article 13 has an expert-reviewed plain-language explanation that resolves the identified
+  readability problem without replacing or distorting the official wording.
+- Selected priority articles have no meaningful missing content for the chosen use scenarios.
+- Published material has attributable authorship and reviewable sources where relevant.
+
+### 17. Cross-References To Other Laws And Acts
 
 Priority: P2.
 Status: future.
 
-Goal:
+- Identify explicit references from 63-FZ to other laws and subordinate acts.
+- Present safe links and concise context without copying or maintaining unrelated full texts.
+- Distinguish references found in official text from editorial recommendations or commentary.
 
-- Remove practical barriers found in the real scenarios after the completed responsive overflow
-  pass.
+Acceptance criteria:
 
-Tasks:
+- A reader can understand what external act a provision relies on and follow a reliable link.
+- Broken or unsafe links do not render as trusted public references.
+- The feature does not become a general legal-reference database.
 
+### 18. End-To-End Usability And Accessibility Validation
+
+Priority: P2.
+Status: future.
+
+- Test the `docs/PRODUCT-USE.md` reader and contributor scenarios on representative mobile and
+  desktop browsers.
 - Test keyboard navigation, focus visibility, labels, headings, contrast, and screen-reader basics.
-- Test public reader flows on representative mobile and desktop browsers.
-- Test admin create, edit, preview, publish, unpublish, and export flows end to end.
-- Fix only reproducible usability problems and add focused regression coverage where practical.
+- Test expert create/preview/publish and admin correct/unpublish/delete flows end to end.
+- Fix reproducible usability problems and add focused regression coverage where practical.
 
 Acceptance criteria:
 
-- Primary reader scenarios work without mouse-only controls or layout breakage.
-- Core admin publication flows complete without ambiguous state or lost work.
-- Remaining launch-only visual polish is documented separately.
+- Core reader tasks work without mouse-only controls or layout breakage.
+- Expert and administrator workflows complete without ambiguous state or lost work.
+- The product owner accepts the visual result apart from launch-only domain/branding polish.
 
-### 18. Evidence-Driven Search And Reader Performance Improvements
+### 19. Usage Evidence, Feedback, And Conditional Improvements
 
 Priority: P2, gated.
 Status: future.
 
-Dependency/gate:
-
-- Implement only when point 12 or production measurements show a concrete search or payload problem.
-
-Tasks:
-
-- Measure real queries, result quality, page payload, response time, and interaction cost.
-- Improve ranking and filters before considering PostgreSQL full-text search or a separate index.
-- Consider focus-view or fragment-level loading only if it measurably improves the affected flows.
-- Preserve stable fragment/change links and server-side public-status filtering.
+- Measure repeat use, popular articles/comments, expert contribution activity, and voluntary
+  usefulness feedback without collecting unnecessary personal data.
+- Add an admin feedback queue only after enough feedback exists to justify it.
+- Improve search ranking, filters, or reader payload only when real queries or measurements expose a
+  concrete problem.
+- Keep client hashes private and keep reader accounts out of scope.
 
 Acceptance criteria:
 
-- Each change improves a documented query or performance baseline.
-- Drafts and internal material remain excluded.
-- No external search service is introduced before local options are exhausted.
-
-### 19. Multi-User Administration, Roles, And Audit
-
-Priority: P2, gated.
-Status: future.
-
-Dependency/gate:
-
-- Implement when more than one person regularly edits or reviews content. A single operator can keep
-  the hardened shared-admin workflow until then.
-
-Goal:
-
-- Make administrative writes attributable and enforce editor/reviewer boundaries when a team exists.
-
-Tasks:
-
-- Define the smallest useful role set.
-- Add users, sessions, server-enforced role checks, and audit logging.
-- Migrate the existing admin workflow without exposing drafts or breaking public content.
-
-Acceptance criteria:
-
-- Every administrative write is attributable.
-- Role boundaries are enforced on the server.
-- Public registration and reader accounts remain out of scope.
+- The project can tell whether readers return, experts contribute, and readers report that it helped.
+- Each search/performance change addresses a documented failure or baseline.
+- Feedback tooling exposes no raw client identity data.
 
 ### 20. Scheduled Amendment Monitoring
 
 Priority: last.
 Status: explicitly deferred by the project owner.
 
-Goal:
-
-- Automate the already working manual monitor only after the functional product work above is done.
-
-Tasks:
-
 - Until then, run the existing monitor manually when the project owner reports a law change.
-- At the final stage, choose a quiet schedule and notify only on a new revision or failure.
-- Keep imports and current-version changes manual, reviewed, backed up, and explicitly confirmed.
+- At the final stage, notify only on a new revision or failure.
+- Never import or publish law text automatically; keep dry-run review, backup, and explicit current
+  version confirmation.
 
 Acceptance criteria:
 
 - Routine checks do not spam the Telegram topic.
 - The monitor never imports or publishes law text automatically.
-- A new revision still requires dry-run review and explicit confirmation.
+- A new revision still requires reviewed and explicit confirmation.
 
 ## Outside The Functional Readiness Sequence
 
@@ -410,10 +354,10 @@ Acceptance criteria:
 
 Recommended order after the completed correctness cleanup:
 
-1. Define and test the intended use and primary audience.
-2. Expand editorial coverage beyond article 18.
-3. Formalize editorial review and publication quality control.
-4. Harden import/migration/backup operations before the next data or schema change.
-5. Use real evidence to decide whether feedback tooling, accessibility fixes, search/performance
-   work, or multi-user administration is actually needed.
-6. Add scheduled amendment monitoring last.
+1. Finish point 12 with representative reader/expert scenario tests.
+2. Complete point 13 before any schema change.
+3. Build attributable expert participation and the safe editorial workflow in points 14-15.
+4. Use article 13 as the next coverage pilot, then expand based on observed reader needs.
+5. Add cross-references and complete end-to-end usability validation.
+6. Add analytics, feedback tooling, or search/performance work only when evidence justifies it.
+7. Add scheduled amendment monitoring last.
