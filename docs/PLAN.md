@@ -155,7 +155,8 @@ These are product risks or limitations, not all immediate next steps.
 - The admin model is still one shared password; there are no users, roles, or audit logs.
 - Change feedback has no moderation or analytics dashboard.
 - Search is lightweight in-reader search, not database full-text search.
-- Amendment monitoring is manual CLI work, not a scheduled alerting job.
+- Amendment monitoring is intentionally manual. The project owner will signal when the law changes;
+  scheduled monitoring is deferred to the very end of the roadmap.
 - There is no separate durable "last checked for newer amendments" database field beyond monitor
   state files and imported source retrieval metadata.
 - Production database migration history is partly manual; the database has historically not used a
@@ -173,299 +174,246 @@ These are product risks or limitations, not all immediate next steps.
 - The current reader still renders the full selected reader view; further payload reduction may be
   needed if real usage shows page weight or interaction latency problems.
 
-## Future Roadmap
+## Functional Readiness Roadmap
 
-The next sequence should improve legal freshness, operating discipline, and product evidence without
-opening a new public surface too early.
+The application already has the technical foundation required for real use. The largest remaining
+gap is not another platform feature: it is a clear use model and trustworthy editorial coverage
+beyond the article 18 pilot. Hosting and the final domain are deliberately outside this sequence.
 
-### 12. Scheduled Amendment Monitoring And Lightweight Operational Visibility
+### 12. Intended Use, Primary Audience, And Acceptance Scenarios
 
 Priority: P1.
-Status: future.
+Status: next.
 
 Goal:
 
-- Move the existing monitor from manual CLI use to controlled scheduled checks and basic operational
-  visibility.
+- Define exactly who uses the product, what decision or legal-reading task it helps with, and what
+  a successful end-to-end session looks like.
 
 Tasks:
 
-- Decide whether heartbeat or cron is the right scheduler for this project.
-- Store job-specific behavior in automation memory if cron is used.
-- Run `pnpm law:monitor:63fz` on a safe cadence.
-- Notify only when a newer source revision appears or the monitor fails.
-- Track lightweight operational signals: health check, disk usage, backup freshness, and failed
-  monitor/import attempts.
-- Reader-cache marker sharing between the service and CLI imports is verified (2026-07-13,
-  `PrivateTmp=no`); keep the check in mind if the unit configuration changes.
-- Keep state and reports under the production imports directory.
+- Choose the primary reader segment and the primary editorial operator.
+- Write 5-10 concrete reader scenarios: find the applicable wording, compare revisions, understand
+  why a norm changed, follow the source, and report an unclear or incorrect explanation.
+- Run the scenarios with several representative users and record failures, confusing labels, and
+  missing content.
+- Define a small set of readiness criteria and privacy-conscious usefulness signals.
 
 Acceptance criteria:
 
-- Routine checks do not spam the Telegram topic.
-- Failures are visible with enough detail to debug.
-- A detected new revision still requires manual dry-run review and explicit import confirmation.
-- The monitor never writes law text to the database by itself.
-- Basic health/disk/backup freshness can be checked without a heavy observability platform.
+- The project has one primary audience and a documented set of real tasks.
+- Each task can be completed on the current product or creates a specific, evidence-backed backlog
+  item.
+- Later search, navigation, and editorial work is tied to observed needs rather than assumptions.
 
-Explicitly not included:
-
-- Automatic import.
-- Automatic publication of a new current version.
-- Heavy observability platform.
-
-### 13. Product Validation And Usage Evidence
+### 13. Editorial Coverage Expansion
 
 Priority: P1.
 Status: future.
 
 Goal:
 
-- Validate that the product solves a real problem for a clearly defined user segment before building
-  more workflow around assumptions.
+- Turn the article 18 pilot into useful coverage of the most important 63-FZ provisions and changes.
 
 Tasks:
 
-- Define the primary user segment.
-- Run 5-8 interviews with likely users or buyers.
-- Collect real search queries and article/change-navigation tasks.
-- Define lightweight usefulness metrics.
-- Identify which articles, changes, and explanations are actually demanded.
-- Avoid collecting or retaining unnecessary personal data.
-
-Acceptance criteria:
-
-- Future editorial and search work is tied to observed user needs.
-- The project has documented signals for what readers find useful or confusing.
-- No unnecessary personal data is introduced as part of validation.
-
-Explicitly not included:
-
-- Broad analytics collection before there is a privacy-conscious measurement plan.
-
-### 14. Editorial Coverage Expansion
-
-Priority: P1.
-Status: future.
-
-Goal:
-
-- Move beyond the article 18 pilot and create a repeatable editorial workflow for important 63-FZ
-  changes.
-
-Tasks:
-
-- Select the next high-value articles or change clusters using validation evidence where possible.
-- Use admin filters to find missing published change explanations.
-- Fill granular explanations with source links.
+- Rank articles and version transitions using the scenarios from point 12.
+- Build a coverage matrix by article, version pair, transition type, publication status, and source.
+- Fill granular explanations with reason, purpose, practical meaning, and source links.
 - Keep aggregate article duplicates unpublished unless they add unique value.
-- Track editorial coverage by article and version pair.
+- Do not invent legal interpretation and do not bulk-publish generated explanations.
 
 Acceptance criteria:
 
-- Each selected article has no meaningful missing granular explanation for the chosen version pairs.
-- Public pages show published explanations and omit drafts.
-- Source links are safe `https:` links and preferably official publication links where available.
-- Progress is documented in `docs/PROGRESS.md` or a dedicated editorial coverage note.
+- Every selected article has no meaningful missing granular explanation for the selected version
+  pairs.
+- Published explanations have reviewable sources, preferably official publication links.
+- Public pages show published material and omit drafts and internal duplicates.
 
-Explicitly not included:
+### 14. Editorial Quality Assurance And Publication Workflow
 
-- Inventing legal interpretation without sources.
-- Bulk auto-generated explanations.
+Priority: P1.
+Status: future.
 
-### 15. Feedback Review Dashboard
+Goal:
+
+- Make editorial publication repeatable and safe, not dependent on remembering an informal process.
+
+Tasks:
+
+- Define a checklist for factual accuracy, source quality, wording, fragment scope, version pair,
+  and public status.
+- Add a compact coverage/review view only where the existing admin filters are insufficient.
+- Require a final preview of the public fragment and its change permalink before publication.
+- Document correction, unpublish, and rollback procedures for editorial content.
+- Verify deterministic Markdown export as an editorial audit artifact.
+
+Acceptance criteria:
+
+- An editor can move an explanation from draft to checked publication using a documented flow.
+- Every published explanation is traceable to a source and the correct concrete transition.
+- A bad explanation can be corrected or unpublished without editing official law text.
+
+### 15. Feedback Review And Usage Evidence
 
 Priority: P2, gated.
 Status: future.
 
 Dependency/gate:
 
-- Build this only after enough real feedback accumulates to justify a dashboard or after a regular
-  editorial review process exists.
+- Start after representative users have tried the scenarios or enough real feedback has accumulated.
 
 Goal:
 
-- Turn anonymous change feedback into an admin-reviewable editorial signal when there is enough data
-  to review.
+- Turn feedback into an editorial queue and verify whether the product is genuinely useful.
 
 Tasks:
 
-- Add an admin view for aggregated `ChangeFeedback`.
-- Show counts by change, kind, article, version pair, and time period.
-- Link feedback rows to the relevant admin change editor.
-- Add basic review status only if a small table is justified.
-- Keep raw client identifiers private; do not expose client hashes unless needed for abuse handling.
+- Add an admin view for feedback grouped by change, kind, article, version pair, and time period.
+- Link each group to the relevant change editor and public permalink.
+- Add minimal review state only if needed for a recurring workflow.
+- Keep client hashes private and avoid broad analytics or unnecessary personal data.
 
 Acceptance criteria:
 
-- Admin can identify changes that readers mark as unclear or wrong.
-- Feedback review does not expose private client data.
-- Review state, if added, is server-validated and test-covered.
-- Public feedback submission behavior remains stable.
+- Editors can find explanations marked unclear or wrong and close the loop with a correction.
+- The project has documented evidence of completed and failed user tasks.
+- Feedback review exposes no raw client identity data.
 
-Explicitly not included:
+### 16. Import, Migration, Backup, And Rollback Hardening
 
-- User accounts.
-- Public comments.
-- Full moderation/community workflow.
-
-### 16. Import And Migration Operations Hardening
-
-Priority: P1 — must be completed before any next schema change; points 15 and 18 add tables and
-are blocked on it.
-Status: future. The descriptive part of the runbook now exists in `docs/OPERATIONS.md`; the
-remaining work is reconciling the production migration history and verifying backup restore.
+Priority: P1 before the next schema change or law import.
+Status: future. The descriptive runbook exists in `docs/OPERATIONS.md`; the remaining work is to
+reconcile production migration history and verify backup restore.
 
 Goal:
 
-- Make production data operations easier to audit and less dependent on manual institutional memory.
+- Make production data operations auditable and repeatable without relying on session memory.
 
 Tasks:
 
-- Document the current production migration reality, including the missing/partial Prisma migration
-  history.
-- Create a repeatable preflight checklist for schema changes, backups, owner/app-role permissions,
-  release deployment, and rollback.
-- Consider a small operations script for backup plus migration status reporting.
-- Ensure import/export/monitor scripts can run reliably in the intended environment.
+- Document the missing/partial Prisma migration history and owner/app-role responsibilities.
+- Create a preflight checklist for schema changes, imports, backups, deployment, verification, and
+  rollback.
+- Add a small read-only status/preflight command if it materially reduces operator error.
+- Verify backup naming, location, restore readability, and retention rules.
+- Keep every law import as an explicit dry-run, reviewed write, and separately confirmed current
+  version switch.
 
 Acceptance criteria:
 
-- A future schema migration has an explicit runbook before it is applied.
-- Backups are named, located, and verified consistently.
-- App role and owner role responsibilities are documented.
-- Rollback boundaries are clear.
+- The next migration and the next law import both have an explicit runbook before execution.
+- Backups and rollback boundaries are clear and consistently verified.
+- No destructive repair of migration history is performed without separate approval.
 
-Explicitly not included:
-
-- Rebuilding the production database from scratch.
-- Destructive migration history surgery without a separate approval.
-
-### 17. Further Reader Payload Reduction
+### 17. End-To-End Usability And Accessibility Pass
 
 Priority: P2.
 Status: future.
 
 Goal:
 
-- Reduce public reader payload and client work if real usage or measurements show the full selected
-  reader view is too heavy.
+- Remove practical barriers found in the real scenarios after the completed responsive overflow
+  pass.
 
 Tasks:
 
-- Measure current page payload and interaction cost on real reader paths.
-- Consider fragment-level loading, server-rendered focus view, or another progressive loading model.
-- Preserve stable fragment/change permalinks.
-- Keep public-status filtering server-side.
+- Test keyboard navigation, focus visibility, labels, headings, contrast, and screen-reader basics.
+- Test public reader flows on representative mobile and desktop browsers.
+- Test admin create, edit, preview, publish, unpublish, and export flows end to end.
+- Fix only reproducible usability problems and add focused regression coverage where practical.
 
 Acceptance criteria:
 
-- Payload or interaction improvements are measurable.
-- Legal text remains accessible and linkable.
-- Search/change-history behavior does not expose drafts or internal data.
+- Primary reader scenarios work without mouse-only controls or layout breakage.
+- Core admin publication flows complete without ambiguous state or lost work.
+- Remaining launch-only visual polish is documented separately.
 
-Explicitly not included:
+### 18. Evidence-Driven Search And Reader Performance Improvements
 
-- Implementing this before there is evidence that the current payload is a real problem.
-
-### 18. Multi-User Authentication, Roles, And Audit
-
-Priority: P2.
+Priority: P2, gated.
 Status: future.
 
-Goal:
+Dependency/gate:
 
-- Replace the single shared admin password with attributable administrative access.
+- Implement only when point 12 or production measurements show a concrete search or payload problem.
 
 Tasks:
 
-- Define roles: owner/admin/editor/reviewer or a smaller set if enough.
-- Choose password auth, OAuth, SSO, or another appropriate model.
-- Add users and sessions.
-- Add server-enforced role checks for admin screens/actions.
-- Add audit logging for content and configuration changes.
-- Migrate the existing single-admin workflow without exposing drafts.
+- Measure real queries, result quality, page payload, response time, and interaction cost.
+- Improve ranking and filters before considering PostgreSQL full-text search or a separate index.
+- Consider focus-view or fragment-level loading only if it measurably improves the affected flows.
+- Preserve stable fragment/change links and server-side public-status filtering.
+
+Acceptance criteria:
+
+- Each change improves a documented query or performance baseline.
+- Drafts and internal material remain excluded.
+- No external search service is introduced before local options are exhausted.
+
+### 19. Multi-User Administration, Roles, And Audit
+
+Priority: P2, gated.
+Status: future.
+
+Dependency/gate:
+
+- Implement when more than one person regularly edits or reviews content. A single operator can keep
+  the hardened shared-admin workflow until then.
+
+Goal:
+
+- Make administrative writes attributable and enforce editor/reviewer boundaries when a team exists.
+
+Tasks:
+
+- Define the smallest useful role set.
+- Add users, sessions, server-enforced role checks, and audit logging.
+- Migrate the existing admin workflow without exposing drafts or breaking public content.
 
 Acceptance criteria:
 
 - Every administrative write is attributable.
 - Role boundaries are enforced on the server.
-- Existing content and admin flows continue to work after migration.
-- Audit rows include enough context to review changes without storing secrets.
+- Public registration and reader accounts remain out of scope.
 
-Explicitly not included:
+### 20. Scheduled Amendment Monitoring
 
-- Public registration.
-- Reader accounts.
-
-### 19. Search Upgrade
-
-Priority: P3.
-Status: future.
+Priority: last.
+Status: explicitly deferred by the project owner.
 
 Goal:
 
-- Improve search quality only when lightweight in-reader search is measurably insufficient.
+- Automate the already working manual monitor only after the functional product work above is done.
 
 Tasks:
 
-- Measure current search gaps against real queries.
-- Decide between PostgreSQL full-text search and a separate index only if the local approach is not
-  enough.
-- Add filters for article, version, content type, and change type if needed.
-- Preserve stable fragment/change links in results.
+- Until then, run the existing monitor manually when the project owner reports a law change.
+- At the final stage, choose a quiet schedule and notify only on a new revision or failure.
+- Keep imports and current-version changes manual, reviewed, backed up, and explicitly confirmed.
 
 Acceptance criteria:
 
-- Search quality improves on documented real queries.
-- Search still excludes drafts and non-public materials.
-- Index/update behavior is clear after editorial writes and imports.
+- Routine checks do not spam the Telegram topic.
+- The monitor never imports or publishes law text automatically.
+- A new revision still requires dry-run review and explicit confirmation.
 
-Explicitly not included:
+## Outside The Functional Readiness Sequence
 
-- External search service before local options are exhausted.
-
-### 20. Domain Move And Public Launch Preparation
-
-Priority: P3.
-Status: future.
-
-Goal:
-
-- Prepare the app for a future permanent domain/path without disturbing the current test placement.
-
-Tasks:
-
-- Base path is already configurable (`NEXT_PUBLIC_BASE_PATH`, build-time); remaining work is the
-  canonical URL.
-- Audit hard-coded `mescheryakov.pro/63fz` references in metadata, docs, import user agents, and
-  source labels.
-- Decide final route/domain and whether main-site navigation should link to it.
-- Prepare SEO metadata, sitemap/robots behavior, and public launch checks only after the domain
-  decision.
-- Treat final visual polish, including any responsive refinements beyond the accepted v1 pass, as a
-  launch concern.
-
-Acceptance criteria:
-
-- The app can run under a different base path/canonical URL without code edits.
-- Current `/63fz` test route keeps working until the move.
-- Main site integration happens only as a separate approved task.
-
-Explicitly not included:
-
-- The actual domain move.
-- Integration with the main site.
-- Marketing/landing-page redesign.
+- Hosting changes, final domain selection, canonical URL, SEO, sitemap/robots, main-site integration,
+  and launch-only visual polish are a separate approved launch project. The application base path is
+  already configurable at build time.
+- Lightweight service, disk, and backup checks remain ordinary operations; they do not require or
+  justify scheduled amendment monitoring.
 
 ## Current Recommendation
 
-Recommended order after the residual cleanup:
+Recommended order after the completed correctness cleanup:
 
-1. Scheduled monitoring and lightweight operational visibility (the PrivateTmp
-   cache-invalidation check is already done and passed).
-2. Product validation and editorial coverage expansion.
-3. Migration operations hardening — in any case before the first task that changes the schema.
-4. Feedback review only after enough real feedback accumulates or a regular editorial process
-   exists (blocked on 3 for its new tables).
-5. Remaining future tasks in evidence-driven order.
+1. Define and test the intended use and primary audience.
+2. Expand editorial coverage beyond article 18.
+3. Formalize editorial review and publication quality control.
+4. Harden import/migration/backup operations before the next data or schema change.
+5. Use real evidence to decide whether feedback tooling, accessibility fixes, search/performance
+   work, or multi-user administration is actually needed.
+6. Add scheduled amendment monitoring last.

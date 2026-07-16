@@ -1386,3 +1386,16 @@ Verified locally:
 Deployment status:
 
 - This fixing commit was approved for deployment in the same task and deployed after CI passed.
+
+## 2026-07-16. Functional Readiness Roadmap Reordered
+
+- Reworked the future roadmap around actual product readiness rather than amendment-monitoring
+  automation.
+- Moved scheduled amendment monitoring to the final roadmap point by project-owner decision; until
+  then the existing CLI monitor is run manually when the owner reports a law change.
+- Excluded hosting, final domain, canonical URL, SEO, and main-site integration from the functional
+  readiness sequence.
+- Set the new immediate order: intended-use scenarios, editorial coverage expansion, editorial
+  quality/publication workflow, then import/migration/backup hardening.
+- Kept feedback tooling, accessibility/usability fixes, search/performance work, and multi-user
+  administration evidence-gated instead of treating them as automatic feature work.
