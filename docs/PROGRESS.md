@@ -1,5 +1,41 @@
 # Progress Log
 
+## 2026-07-19. Public Reader UI Refresh, Stage 1
+
+- Replaced the oversized public page header with a compact sticky app bar (brand, DEMO marker,
+  law-version selector); removed the "Открыть закон" scroll button; `page.tsx` now renders only
+  `LawReader`.
+- Made the reader sidebar an off-canvas drawer on mobile widths (overlay, close button, closes on
+  TOC/search navigation, body scroll lock); on desktop it remains a sticky column under the app
+  bar. Law text now starts immediately under the app bar on phones.
+- Typography: official law text and fragment titles use a system serif stack (`.law-text`,
+  Georgia/Times), 17px with 1.75 line height and a 70ch measure, separating official text from UI
+  chrome and editorial material.
+- Replaced printed raw `#63fz.…` anchor links with a hover/focus "§ ссылка" copy-link button
+  (clipboard write with hash fallback, "Скопировано" state, stableId in the tooltip). Increased
+  fragment/change scroll margins for the sticky bar.
+- Collapsed version metadata into a one-line strip: status pill (emerald current / amber
+  historical), effective date, source link, source-check date; long notes moved to a small footnote
+  line; removed the four-tile metadata grid; the comparison summary now shows in the sidebar only
+  for historical versions.
+- Semantic change-history colors: `introduced` switched from blue to emerald; diff word highlights
+  now use rose for "Было" and emerald for "Стало" instead of uniform yellow.
+- Stage 2 (dark theme, Ctrl+K search overlay) is deliberately deferred and recorded in
+  `docs/PLAN.md` outside the functional readiness sequence.
+
+Verified locally:
+
+- `pnpm run typecheck`, `pnpm run lint`, `pnpm test` (`65` tests: 64 passed, DB integration test
+  skipped without a database), `pnpm run build`.
+- Production build served locally with a seeded database; Playwright screenshots at 1440px and
+  390px confirm the sticky bar, serif law text, compact metadata strip, and working mobile drawer
+  (open/close, overlay). Note: `next dev` with stale chunks broke hydration during checks; the
+  production build behaves correctly.
+
+Deployment status:
+
+- Not deployed as part of this task; changes take effect with the next release build.
+
 ## 2026-07-16. Editorial Workflow And AI-Draft Safeguards
 
 - Added explicit `draft`, `in_review`, `published`, and `unpublished` editorial states. Direct

@@ -146,6 +146,24 @@ Status: done.
 - Documented the stable fragment ID contract (`docs/STABLE-ID.md`) and the operations runbook
   (`docs/OPERATIONS.md`), including the reader-cache marker PrivateTmp caveat.
 
+### Reader UI Refresh, Stage 1 (2026-07-19)
+
+Status: done.
+
+- Compact sticky app bar on the public reader: brand, DEMO marker, and the law-version selector
+  moved out of the sidebar; the oversized page header and its scroll button removed.
+- Mobile: the sidebar (TOC, mode toggle, search, history filters) became an off-canvas drawer with
+  an overlay; law text now starts immediately under the app bar on phone widths.
+- Official law text is set in a serif stack (`.law-text`), 17px/1.75, measure capped at 70ch;
+  article titles use the same serif to visually separate official text from UI and editorial
+  material.
+- Raw `#63fz.…` anchors replaced with a hover/focus "copy link" control (stableId kept in the
+  tooltip); fragment and change anchors got scroll margins for the sticky bar.
+- Version metadata collapsed into a one-line strip with a current/historical status pill; the
+  four-tile grid removed.
+- Change-history colors made semantic (`introduced` emerald, `changed` amber, `deleted` rose) and
+  diff highlighting now tones "was" rose / "became" emerald instead of uniform yellow.
+
 ## Current Known Gaps
 
 These are product risks or limitations, not all immediate next steps.
@@ -322,7 +340,7 @@ Acceptance criteria:
 ### 18. End-To-End Usability And Accessibility Validation
 
 Priority: P2.
-Status: future.
+Status: future. The 2026-07-19 reader UI refresh (stage 1) is the baseline to validate against.
 
 - Test the `docs/PRODUCT-USE.md` reader and contributor scenarios on representative mobile and
   desktop browsers.
@@ -372,6 +390,11 @@ Acceptance criteria:
 
 ## Outside The Functional Readiness Sequence
 
+- **Reader UI Refresh, Stage 2 (deferred by the project owner on 2026-07-19):** dark theme
+  (token-level palette + `prefers-color-scheme` + toggle; requires a pass over all reader/admin
+  Tailwind classes) and a search overlay (Ctrl+K command-palette pattern replacing the sidebar
+  search box). Neither blocks the functional readiness sequence; schedule them alongside point 18
+  usability work or when reader feedback asks for them.
 - Hosting changes, final domain selection, canonical URL, SEO, sitemap/robots, main-site integration,
   and launch-only visual polish are a separate approved launch project. The application base path is
   already configurable at build time.
