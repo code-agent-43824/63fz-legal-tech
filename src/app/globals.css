@@ -40,3 +40,9 @@ button {
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+
+/* Official law text is set in a serif face to visually separate it from UI chrome
+   and editorial material. System stack only — no external fonts. */
+.law-text {
+  font-family: Georgia, "Times New Roman", Times, serif;
+}

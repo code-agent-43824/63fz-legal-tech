@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import type { FormEvent } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ReaderData, ReaderFragment, ReaderTocItem, ReaderVersion } from "@/lib/law-data";
 import {
@@ -59,6 +59,7 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
     () => new Set(getDefaultExpandedStableIds(tree, selectedStableId)),
   );
   const [activeStableId, setActiveStableId] = useState<string | null>(selectedStableId);
+  const [isTocOpen, setTocOpen] = useState(false);
   const visibleExpandedStableIds = useMemo(() => {
     const next = new Set(expandedStableIds);
     for (const stableId of getAncestorStableIds(readerData.toc, selectedStableId)) {
@@ -97,6 +98,11 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
   );
 
   useEffect(() => {
+    document.body.classList.toggle("overflow-hidden", isTocOpen);
+    return () => document.body.classList.remove("overflow-hidden");
+  }, [isTocOpen]);
+
+  useEffect(() => {
     if (mode !== "feed") {
       return;
     }
@@ -130,6 +136,7 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
   }
 
   function selectNode(item: ReaderTocItem) {
+    setTocOpen(false);
     setExpandedStableIds((current) => {
       const next = new Set(current);
       next.add(item.stableId);
@@ -271,41 +278,92 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
   }
 
   return (
-    <section className="mx-auto grid w-full max-w-6xl gap-6 px-3 py-6 sm:px-5 sm:py-8 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
-      <aside className="min-w-0 rounded-md border border-slate-200 bg-white lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-auto">
-        <div className="border-b border-slate-200 p-4">
-          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500" htmlFor="version-select">
-            Редакция
-          </label>
-          <select
-            className="mt-2 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900"
-            disabled={readerData.versions.length <= 1}
-            id="version-select"
-            onChange={(event) => updateVersion(event.target.value)}
-            value={readerData.selectedVersionId ?? ""}
+    <>
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur">
+        <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-3 sm:px-5">
+          <button
+            aria-expanded={isTocOpen}
+            className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 lg:hidden"
+            aria-label="Открыть оглавление"
+            onClick={() => setTocOpen(true)}
+            type="button"
           >
-            {readerData.versions.length > 0 ? (
-              readerData.versions.map((version) => (
-                <option key={version.id} value={version.id}>
-                  {version.label}
-                  {version.isCurrent ? " · текущая" : ""}
-                </option>
-              ))
-            ) : (
-              <option value="">Текущая редакция</option>
-            )}
-          </select>
-          {readerData.currentVersionId &&
-          readerData.selectedVersionId &&
-          readerData.selectedVersionId !== readerData.currentVersionId ? (
-            <div className="mt-3 grid grid-cols-2 gap-2 text-center text-[11px] text-slate-600 md:grid-cols-4">
+            <span aria-hidden="true">☰</span>
+            <span className="hidden sm:inline">Оглавление</span>
+          </button>
+          <h1 className="flex min-w-0 items-baseline gap-2">
+            <span className="law-text shrink-0 text-lg font-bold tracking-tight">63-ФЗ</span>
+            <span className="hidden truncate text-sm text-slate-500 md:block">
+              Об электронной подписи
+            </span>
+          </h1>
+          {readerData.isDemo ? (
+            <span className="shrink-0 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-900">
+              DEMO DATA
+            </span>
+          ) : null}
+          <div className="ml-auto flex min-w-0 items-center">
+            <label className="sr-only" htmlFor="version-select">
+              Редакция
+            </label>
+            <select
+              className="h-9 w-full min-w-0 max-w-[45vw] rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900 sm:max-w-[240px]"
+              disabled={readerData.versions.length <= 1}
+              id="version-select"
+              onChange={(event) => updateVersion(event.target.value)}
+              value={readerData.selectedVersionId ?? ""}
+            >
+              {readerData.versions.length > 0 ? (
+                readerData.versions.map((version) => (
+                  <option key={version.id} value={version.id}>
+                    {version.label}
+                    {version.isCurrent ? " · текущая" : ""}
+                  </option>
+                ))
+              ) : (
+                <option value="">Текущая редакция</option>
+              )}
+            </select>
+          </div>
+        </div>
+      </header>
+
+      {isTocOpen ? (
+        <button
+          aria-label="Закрыть оглавление"
+          className="fixed inset-0 z-40 bg-slate-950/40 lg:hidden"
+          onClick={() => setTocOpen(false)}
+          type="button"
+        />
+      ) : null}
+
+      <section className="mx-auto grid w-full max-w-6xl gap-6 px-3 py-5 sm:px-5 sm:py-6 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
+      <aside className={asideClass(isTocOpen)}>
+        <div className="flex items-center justify-between border-b border-slate-200 p-3 lg:hidden">
+          <span className="text-sm font-semibold text-slate-900">Навигация</span>
+          <button
+            className="h-8 rounded-md border border-slate-200 px-3 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            onClick={() => setTocOpen(false)}
+            type="button"
+          >
+            Закрыть
+          </button>
+        </div>
+        {readerData.currentVersionId &&
+        readerData.selectedVersionId &&
+        readerData.selectedVersionId !== readerData.currentVersionId ? (
+          <div className="border-b border-slate-200 p-4">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Сравнение с текущей редакцией
+            </h2>
+            <div className="mt-2 grid grid-cols-2 gap-2 text-center text-[11px] text-slate-600 md:grid-cols-4">
               <VersionStat label="Без изменений" value={readerData.changeSummary.unchanged} />
               <VersionStat label="Изменено" value={readerData.changeSummary.changed} />
               <VersionStat label="Введено" value={readerData.changeSummary.introduced} />
               <VersionStat label="Удалено" value={readerData.changeSummary.deleted} />
             </div>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
 
         <div className="p-4">
           <div>
@@ -354,6 +412,7 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
 
         <ReaderSearch
           onClear={clearSearch}
+          onNavigate={() => setTocOpen(false)}
           onSubmit={submitSearch}
           resultHref={getSearchResultHref}
           results={searchResults}
@@ -446,8 +505,18 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
           </div>
         )}
       </div>
-    </section>
+      </section>
+    </>
   );
+}
+
+function asideClass(isOpen: boolean) {
+  const mobile = `fixed inset-y-0 left-0 z-50 w-[85vw] max-w-sm transform overflow-auto border-r border-slate-200 bg-white shadow-xl transition-transform duration-200 ${
+    isOpen ? "translate-x-0" : "-translate-x-full"
+  }`;
+  const desktop =
+    "lg:sticky lg:inset-auto lg:top-[4.5rem] lg:z-auto lg:w-auto lg:max-w-none lg:translate-x-0 lg:rounded-md lg:border lg:shadow-none lg:max-h-[calc(100vh-5.5rem)]";
+  return `min-w-0 ${mobile} ${desktop}`;
 }
 
 function VersionStat({ label, value }: { label: string; value: number }) {
@@ -461,12 +530,14 @@ function VersionStat({ label, value }: { label: string; value: number }) {
 
 function ReaderSearch({
   onClear,
+  onNavigate,
   onSubmit,
   resultHref,
   results,
   searchQuery,
 }: {
   onClear: () => void;
+  onNavigate: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   resultHref: (result: ReaderSearchResult) => string;
   results: ReaderSearchResult[];
@@ -522,6 +593,7 @@ function ReaderSearch({
                   className="block min-w-0 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm hover:border-blue-200 hover:bg-blue-50"
                   href={resultHref(result)}
                   key={result.id}
+                  onClick={onNavigate}
                 >
                   <span className="wrap-anywhere block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                     {searchKindLabel(result.kind)} · {result.label}
@@ -669,22 +741,31 @@ function ReaderMetadata({
   currentVersion: ReaderVersion | null;
   selectedVersion: ReaderVersion | null;
 }) {
+  const isCurrent = Boolean(selectedVersion?.isCurrent);
+  const effectiveDate = formatDate(selectedVersion?.effectiveDate);
+  const checkedAt = formatDateTime(selectedVersion?.sourceRetrievedAt);
+
   return (
-    <dl className="mt-4 grid gap-3 border-t border-slate-100 pt-4 text-sm md:grid-cols-2 xl:grid-cols-4">
-      <MetadataItem label="Статус редакции">
-        {selectedVersion?.isCurrent ? "Текущая редакция" : "Историческая редакция"}
-        {currentVersion && !selectedVersion?.isCurrent ? (
-          <span className="mt-1 block text-xs text-slate-500">
-            Текущая: {currentVersion.label}
+    <div className="mt-4 border-t border-slate-100 pt-3 text-sm text-slate-600">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+            isCurrent ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-900"
+          }`}
+        >
+          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
+          {isCurrent ? "Текущая редакция" : "Историческая редакция"}
+        </span>
+        {effectiveDate ? (
+          <span className="wrap-anywhere">
+            действует с <span className="font-medium text-slate-900">{effectiveDate}</span>
           </span>
-        ) : null}
-      </MetadataItem>
-      <MetadataItem label="Дата начала действия">
-        {formatDate(selectedVersion?.effectiveDate) ?? "Не указана"}
-      </MetadataItem>
-      <MetadataItem label="Источник текста">
-        {selectedVersion?.sourceLink ? (
-          <>
+        ) : (
+          <span className="wrap-anywhere">дата вступления не указана</span>
+        )}
+        <span className="wrap-anywhere min-w-0">
+          источник:{" "}
+          {selectedVersion?.sourceLink ? (
             <a
               className="text-blue-700 underline-offset-4 hover:underline"
               href={selectedVersion.sourceLink.href}
@@ -693,26 +774,20 @@ function ReaderMetadata({
             >
               {selectedVersion.sourceLink.label}
             </a>
-            <span className="mt-1 block text-xs text-slate-500">
-              Консолидированный источник; официальные акты указаны в истории изменений.
-            </span>
-          </>
-        ) : (
-          selectedVersion?.sourceName ?? "Источник не указан"
-        )}
-      </MetadataItem>
-      <MetadataItem label="Дата проверки источника">
-        {formatDateTime(selectedVersion?.sourceRetrievedAt) ?? "Не зафиксирована"}
-      </MetadataItem>
-    </dl>
-  );
-}
-
-function MetadataItem({ children, label }: { children: ReactNode; label: string }) {
-  return (
-    <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-      <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</dt>
-      <dd className="wrap-anywhere mt-1 text-slate-900">{children}</dd>
+          ) : (
+            (selectedVersion?.sourceName ?? "не указан")
+          )}
+        </span>
+        {checkedAt ? <span className="wrap-anywhere">проверено {checkedAt}</span> : null}
+      </div>
+      {(!isCurrent && currentVersion) || selectedVersion?.sourceLink ? (
+        <p className="mt-2 text-xs leading-5 text-slate-500">
+          {!isCurrent && currentVersion ? `Текущая редакция: ${currentVersion.label}. ` : null}
+          {selectedVersion?.sourceLink
+            ? "Консолидированный источник; официальные акты указаны в истории изменений."
+            : null}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -809,17 +884,12 @@ function FragmentArticle({
       id={fragment.id}
     >
       <section className={lawTextSectionClass(hasAside)}>
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600">
-            Официальный текст
-          </span>
-          <h2 className="wrap-anywhere min-w-0 text-xl font-semibold">{fragment.title}</h2>
+        <div className="group flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-2">
+          <h2 className={fragmentTitleClass(fragment.type)}>{fragment.title}</h2>
           <ChangeBadge status={fragment.changeStatus} />
-          <a className="wrap-anywhere min-w-0 text-sm text-blue-700 underline-offset-4 hover:underline" href={`#${fragment.id}`}>
-            #{fragment.id}
-          </a>
+          <AnchorCopyButton anchor={fragment.id} stableId={fragment.stableId} />
         </div>
-        <p className="wrap-anywhere mt-4 whitespace-pre-wrap text-base leading-7 text-slate-800">
+        <p className="law-text wrap-anywhere mt-4 max-w-[70ch] whitespace-pre-wrap text-[17px] leading-[1.75] text-slate-900">
           {fragment.text}
         </p>
       </section>
@@ -853,6 +923,46 @@ function FragmentArticle({
   );
 }
 
+function fragmentTitleClass(type: string) {
+  const base = "law-text wrap-anywhere min-w-0 leading-snug text-slate-950";
+  return type === "article" || type === "law"
+    ? `${base} text-2xl font-bold`
+    : `${base} text-lg font-semibold`;
+}
+
+function AnchorCopyButton({ anchor, stableId }: { anchor: string; stableId: string }) {
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!copied) {
+      return;
+    }
+    const timer = window.setTimeout(() => setCopied(false), 1500);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
+
+  async function copyLink() {
+    const url = `${window.location.origin}${window.location.pathname}#${anchor}`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      window.history.replaceState(null, "", `#${anchor}`);
+    }
+    setCopied(true);
+  }
+
+  return (
+    <button
+      className="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 lg:opacity-0 lg:focus-visible:opacity-100 lg:group-hover:opacity-100"
+      onClick={copyLink}
+      title={`Скопировать ссылку на ${stableId}`}
+      type="button"
+    >
+      {copied ? "Скопировано" : "§ ссылка"}
+    </button>
+  );
+}
+
 function ChangeHistory({
   changeHref,
   entries,
@@ -872,7 +982,7 @@ function ChangeHistory({
       <div className="mt-3 min-w-0 space-y-3">
         {entries.map((entry) => (
           <div
-            className={`scroll-mt-6 rounded-md border p-3 ${historyEntryClass(entry.status, selectedChangeId === entry.changeId)}`}
+            className={`scroll-mt-24 rounded-md border p-3 ${historyEntryClass(entry.status, selectedChangeId === entry.changeId)}`}
             id={`change-${entry.changeId}`}
             key={entry.changeId}
           >
@@ -902,13 +1012,13 @@ function ChangeHistory({
                 {entry.beforeSnippet ? (
                 <p className="wrap-anywhere">
                   <span className="font-semibold text-slate-900">Было: </span>
-                  <DiffSegments fallback={entry.beforeSnippet} segments={entry.beforeSegments} />
+                  <DiffSegments fallback={entry.beforeSnippet} segments={entry.beforeSegments} tone="before" />
                 </p>
                 ) : null}
                 {entry.afterSnippet ? (
                 <p className="wrap-anywhere">
                   <span className="font-semibold text-slate-900">Стало: </span>
-                  <DiffSegments fallback={entry.afterSnippet} segments={entry.afterSegments} />
+                  <DiffSegments fallback={entry.afterSnippet} segments={entry.afterSegments} tone="after" />
                 </p>
                 ) : null}
               </div>
@@ -944,23 +1054,26 @@ function ChangeHistory({
 function DiffSegments({
   fallback,
   segments,
+  tone,
 }: {
   fallback: string;
   segments: ReaderFragment["changeHistory"][number]["beforeSegments"];
+  tone: "before" | "after";
 }) {
   if (segments.length === 0) {
     return <>{fallback}</>;
   }
 
+  const changedClass =
+    tone === "before"
+      ? "rounded-sm bg-rose-100 px-0.5 font-medium text-slate-950"
+      : "rounded-sm bg-emerald-100 px-0.5 font-medium text-slate-950";
+
   return (
     <>
       {segments.map((segment, index) => (
         <span
-          className={
-            segment.changed
-              ? "rounded-sm bg-yellow-200 px-0.5 font-medium text-slate-950"
-              : undefined
-          }
+          className={segment.changed ? changedClass : undefined}
           key={`${segment.text}-${index}`}
         >
           {index > 0 ? " " : ""}
@@ -1058,7 +1171,7 @@ function historyEntryClass(
   const classes: Record<ReaderFragment["changeHistory"][number]["status"], string> = {
     changed: "border-amber-200 bg-amber-50",
     deleted: "border-rose-200 bg-rose-50",
-    introduced: "border-blue-200 bg-blue-50",
+    introduced: "border-emerald-200 bg-emerald-50",
   };
   return `${classes[status]} ${isSelected ? "ring-2 ring-blue-400" : ""}`;
 }
@@ -1067,7 +1180,7 @@ function historyBadgeClass(status: ReaderFragment["changeHistory"][number]["stat
   const classes: Record<ReaderFragment["changeHistory"][number]["status"], string> = {
     changed: "border-amber-300 text-amber-900",
     deleted: "border-rose-300 text-rose-900",
-    introduced: "border-blue-300 text-blue-900",
+    introduced: "border-emerald-300 text-emerald-900",
   };
   return classes[status];
 }
@@ -1308,7 +1421,7 @@ function getArticleNumber(stableId: string) {
 }
 
 function fragmentArticleClass(status: ReaderFragment["changeStatus"], hasAside: boolean) {
-  const base = `scroll-mt-6 grid min-w-0 gap-0 overflow-hidden rounded-md border bg-white ${hasAside ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : ""}`;
+  const base = `scroll-mt-20 grid min-w-0 gap-0 overflow-hidden rounded-md border bg-white ${hasAside ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : ""}`;
   if (status === "changed") {
     return `${base} border-amber-300`;
   }
