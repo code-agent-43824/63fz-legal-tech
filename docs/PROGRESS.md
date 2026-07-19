@@ -34,7 +34,15 @@ Verified locally:
 
 Deployment status:
 
-- Not deployed as part of this task; changes take effect with the next release build.
+- Deployed release `/home/openclaw/services/63fz-legal-tech/releases/97ad8aa` on 2026-07-19 after
+  GitHub Actions run `29684195795` and the full local validation suite passed.
+- Candidate preflight on `127.0.0.1:3925` returned HTTP 200 for `/63fz`, redirected
+  unauthenticated admin/export requests to `/63fz/admin/login`, served a sampled static asset, and
+  used production data rather than the DEMO fallback.
+- Switched `current` from `d993356` to `97ad8aa` and restarted `63fz-legal-tech.service`.
+- Production verification: public reader and filtered article 18 URL return HTTP 200, the compact
+  app bar/mobile-TOC markup is present, admin redirects to login, `/` and `/pdf-signing/` remain
+  HTTP 200, `DEMO DATA` is absent, and the service is active/running with `NRestarts=0`.
 
 ## 2026-07-16. Editorial Workflow And AI-Draft Safeguards
 
