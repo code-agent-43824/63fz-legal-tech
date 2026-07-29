@@ -104,6 +104,21 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
   }, [isTocOpen]);
 
   useEffect(() => {
+    if (!isTocOpen) {
+      return;
+    }
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setTocOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [isTocOpen]);
+
+  useEffect(() => {
     if (mode !== "feed") {
       return;
     }
@@ -838,7 +853,7 @@ function TocTreeNode({
           type="button"
         >
           <span className="block truncate text-sm leading-5">
-            <span className="mr-2 text-[11px] font-semibold uppercase text-slate-400">
+            <span className="mr-2 text-[11px] font-semibold uppercase text-slate-500">
               {TYPE_LABELS[node.type] ?? node.type}
             </span>
             {node.title}
