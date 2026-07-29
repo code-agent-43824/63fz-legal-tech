@@ -12,6 +12,7 @@ import {
   BoundedMemoryCache,
   getPublicReaderCacheMarker,
 } from "@/lib/reader-cache";
+import { extractLawReferences, type LawReference } from "@/lib/law-references";
 import {
   makeSafeSourceLink,
   parseSafeSourceLinks,
@@ -62,6 +63,8 @@ export type ReaderFragment = {
   commentarySource: CommentarySource;
   changeHistory: ReaderChangeHistoryEntry[];
   blocks: ReaderCommentBlock[];
+  /** References to other federal laws, extracted from this fragment's official text only. */
+  references: LawReference[];
 };
 
 export type ReaderTocItem = {
@@ -463,6 +466,7 @@ function getDemoReaderData(): ReaderData {
         commentarySource: "selected",
         changeHistory: [],
         blocks: [],
+        references: [],
       },
       {
         id: "63fz.article_2.part_1",
@@ -475,6 +479,7 @@ function getDemoReaderData(): ReaderData {
         commentarySource: "selected",
         changeHistory: [],
         blocks: [],
+        references: [],
       },
     ],
     changeSummary: {
@@ -517,6 +522,8 @@ function mapReaderFragment({
     commentarySource,
     changeHistory,
     blocks: buildCommentBlocks(commentaryFragment),
+    // Official text only: editorial blocks must never contribute reader-facing references.
+    references: extractLawReferences(fragment.text),
   };
 }
 

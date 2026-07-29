@@ -37,6 +37,7 @@ function makeReaderData(): ReaderData {
         text: "Текст закона про нотариальной доверенности.",
         changeStatus: "current",
         commentarySource: "selected",
+        references: [],
         blocks: [{ title: "Простыми словами", text: "Простое объяснение нормы." }],
         changeHistory: [
           {

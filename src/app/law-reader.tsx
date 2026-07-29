@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ReaderData, ReaderFragment, ReaderTocItem, ReaderVersion } from "@/lib/law-data";
+import { formatLawReferenceLabel, type LawReference } from "@/lib/law-references";
 import {
   buildReaderSearchResults,
   type ReaderSearchResult,
@@ -892,6 +893,7 @@ function FragmentArticle({
         <p className="law-text wrap-anywhere mt-4 max-w-[70ch] whitespace-pre-wrap text-[17px] leading-[1.75] text-slate-900">
           {fragment.text}
         </p>
+        <LawReferences references={fragment.references} />
       </section>
 
       {hasAside ? (
@@ -920,6 +922,31 @@ function FragmentArticle({
       </section>
       ) : null}
     </article>
+  );
+}
+
+function LawReferences({ references }: { references: LawReference[] }) {
+  if (references.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="mt-4 max-w-[70ch] border-t border-slate-100 pt-3">
+      <h3 className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+        Отсылки в официальном тексте
+      </h3>
+      <ul className="mt-2 flex flex-wrap gap-2">
+        {references.map((reference) => (
+          <li
+            className="wrap-anywhere min-w-0 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs leading-5 text-slate-700"
+            key={reference.id}
+            title={`Федеральный закон от ${reference.dateLabel} N ${reference.number}`}
+          >
+            {formatLawReferenceLabel(reference)}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
