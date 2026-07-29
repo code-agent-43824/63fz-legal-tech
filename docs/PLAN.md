@@ -170,15 +170,17 @@ These are product risks or limitations, not all immediate next steps.
 
 - Core reader and admin screens have had a responsive overflow pass; final visual polish remains a
   public-launch concern, not a duplicate implementation stage.
-- The admin model is still one shared password; there are no attributable expert accounts, roles,
-  or audit logs. The owner interview makes this a functional-readiness gap, not optional future work.
+- Editorial identity is resolved: invitation-only expert accounts, roles, moderation, and audit
+  logging shipped in point 14. The environment `ADMIN_PASSWORD` account remains only as the
+  bootstrap/recovery administrator.
 - Change feedback has no moderation or analytics dashboard.
 - Search is lightweight in-reader search, not database full-text search.
 - Amendment monitoring is intentionally manual. The project owner will signal when the law changes;
   scheduled monitoring is deferred to the very end of the roadmap.
 - There is no separate durable "last checked for newer amendments" database field beyond monitor
   state files and imported source retrieval metadata.
-- Production migration history is reconciled at five migrations with no schema drift. Keep using the
+- Production migration history is reconciled across all repository migrations with no schema drift
+  (seven as of 2026-07-16; see `docs/OPERATIONS.md` for the authoritative state). Keep using the
   dedicated migration owner, verified backups, restore tests, and preflight from point 13.
 - The deployment path is a test placement. The base path itself is now configurable at build time,
   but canonical-URL/domain references (`mescheryakov.pro`) remain in docs, metadata, and source
@@ -186,14 +188,20 @@ These are product risks or limitations, not all immediate next steps.
 - Reader-cache invalidation across processes is verified on the host (2026-07-13): the unit runs
   with `PrivateTmp=no` and CLI imports do invalidate the running server's cache. Re-verify if the
   unit configuration changes; see `docs/OPERATIONS.md`.
-- Editorial coverage outside article 18 is still sparse.
-- There is no formal AI-draft-to-expert-publication workflow.
+- **Editorial coverage is effectively empty.** Measured on the public production reader
+  (2026-07-29): 0 published plain-language explanations, expert comments, recommendations, issues,
+  or proposed revisions across all 29 articles / 422 fragments; only 12 of 43 change transitions
+  carry a published explanation (the article 18 pilot). The ranked job "read the norm and
+  understand it" is therefore not yet served anywhere in the law. This is the single largest gap
+  between the built platform and the product promise. Machine-prepared, non-public drafts for
+  article 13 are staged (point 16) but cannot become public without an expert.
 - References from 63-FZ to other laws and subordinate acts are not yet presented as a structured
   reader aid.
 - The app has a pragmatic public snapshot, but no broader observability, error reporting, or
   operational dashboard.
-- The current reader still renders the full selected reader view; further payload reduction may be
-  needed if real usage shows page weight or interaction latency problems.
+- The current reader still renders the full selected reader view. Measured 2026-07-29: the public
+  page is ~1.55 MB of HTML for 422 fragments. This is now a documented baseline rather than a
+  hypothetical concern; revisit payload reduction when editorial content adds further weight.
 
 ## Functional Readiness Roadmap
 
@@ -307,7 +315,15 @@ Acceptance criteria:
 ### 16. Priority Editorial Coverage, Starting With Article 13
 
 Priority: P1.
-Status: future.
+Status: blocked on an expert. Machine-prepared drafts are staged; nothing can be published until a
+responsible expert reviews them.
+
+Prepared 2026-07-29: non-public `ai_assisted` drafts for the three most overloaded article 13
+fragments (`part_1.point_1`, `part_1.point_1_2`, `part_6`) in
+`content/editorial-drafts/63fz-article-13.json`, loadable with `pnpm law:import:drafts`. They are
+structural restatements of the official wording and deliberately contain no legal interpretation,
+so a reviewing expert still has to supply practical meaning, risks, and recommendations before
+publishing under their own name.
 
 - Use article 13 as the next representative pilot for a short explanation and expert commentary.
 - Prioritize simple explanation, practical recommendations, norm comparison, and reasons for change.
@@ -325,22 +341,46 @@ Acceptance criteria:
 ### 17. Cross-References To Other Laws And Acts
 
 Priority: P2.
-Status: future.
+Status: v1 done 2026-07-29; outbound linking deferred with a recorded reason.
 
-- Identify explicit references from 63-FZ to other laws and subordinate acts.
-- Present safe links and concise context without copying or maintaining unrelated full texts.
-- Distinguish references found in official text from editorial recommendations or commentary.
+Completed:
+
+- `src/lib/law-references.ts` extracts references to other federal laws from each fragment's
+  official text: number, date, and the act title when the official wording quotes it. Nothing is
+  looked up or completed from outside the law text, self-references are dropped, and duplicates
+  collapse to the occurrence that carries the title.
+- Rendered inside the official-text block of the fragment, so the structure itself distinguishes
+  them from editorial material.
+- Measured on the production text: 13 unique referenced acts, 8 of them with an official title
+  stated in the law.
+
+Deferred, with reason:
+
+- No outbound link is generated. The official portal `publication.pravo.gov.ru` does not answer
+  over HTTPS from the deployment environment, and `makeSafeSourceLink` accepts `https:` only.
+  Rendering an unverified or plain-HTTP link as an official reference would be worse than
+  rendering none. Options when this is revisited: a curated registry of verified links, or an
+  expert attaching source links through the existing fields.
 
 Acceptance criteria:
 
-- A reader can understand what external act a provision relies on and follow a reliable link.
-- Broken or unsafe links do not render as trusted public references.
-- The feature does not become a general legal-reference database.
+- A reader can understand what external act a provision relies on: met — the act is named in full
+  where the law names it.
+- A reader can follow a reliable link: **not met**, deliberately (see above).
+- Broken or unsafe links do not render as trusted public references: met, none are rendered.
+- The feature does not become a general legal-reference database: met.
 
 ### 18. End-To-End Usability And Accessibility Validation
 
 Priority: P2.
-Status: future. The 2026-07-19 reader UI refresh (stage 1) is the baseline to validate against.
+Status: automated pass done 2026-07-29; human validation still pending. The 2026-07-19 reader UI
+refresh (stage 1) is the baseline to validate against.
+
+Automated results (axe-core over the reader at 1440px and 390px and the admin login):
+one serious violation found and fixed (table-of-contents type labels failed the 4.5:1 contrast
+threshold); Escape now closes the mobile navigation drawer; focus outlines verified visible. The
+suite currently reports zero violations on those three views. Screen-reader behaviour, expert and
+administrator end-to-end flows, and real-user task success remain untested by machine.
 
 - Test the `docs/PRODUCT-USE.md` reader and contributor scenarios on representative mobile and
   desktop browsers.
@@ -405,8 +445,10 @@ Acceptance criteria:
 
 Recommended order after the completed correctness cleanup:
 
-1. Build attributable expert participation and the safe editorial workflow in points 14-15.
-2. Use article 13 as the next coverage pilot, then expand based on observed reader needs.
+1. Points 14-15 are done; the editorial pipeline now also carries staged article 13 drafts.
+2. **Invite at least one expert.** This is the binding constraint: both remaining P1 items
+   (point 12 validation and point 16 coverage) need a person, and no further engineering removes
+   that dependency.
 3. Finish point 12 with representative reader/expert scenario tests as soon as contributors are
    available.
 4. Add cross-references and complete end-to-end usability validation.

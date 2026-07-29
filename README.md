@@ -128,7 +128,12 @@ Importer:
 pnpm law:import:63fz -- --dry-run
 pnpm law:monitor:63fz
 pnpm law:export:markdown
+pnpm law:import:drafts -- --dry-run
 ```
+
+`law:import:drafts` stages prepared plain-language explanations as non-public `ai_assisted` drafts.
+It cannot publish: status and origin are hardcoded, and only a responsible expert may publish a
+draft through the admin workflow.
 
 Prisma utilities:
 

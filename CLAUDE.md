@@ -34,6 +34,7 @@ pnpm run prisma:seed             # idempotent DEMO DATA seed
 pnpm law:import:63fz -- --dry-run   # importer (always dry-run first)
 pnpm law:monitor:63fz               # amendment monitoring, writes .import/ state/report
 pnpm law:export:markdown            # deterministic Markdown export of current version
+pnpm law:import:drafts -- --dry-run # stage non-public ai-assisted editorial drafts
 ```
 
 CI (`.github/workflows/ci.yml`) runs: prisma:validate, typecheck, lint, test, build. All must pass.
@@ -103,6 +104,13 @@ cache.
 limiting, 8h sessions. `src/lib/auth-policy.ts` rejects example/short secrets at runtime —
 `ADMIN_PASSWORD` ≥ 12 chars, `AUTH_SECRET` ≥ 32 chars, no "change-me" values. Copy `.env.example`
 to `.env` for local work.
+
+### Editorial drafts (content/editorial-drafts/)
+
+Prepared plain-language explanations waiting for an expert. `pnpm law:import:drafts` loads them as
+`PlainExplanation` rows with status `draft` and origin `ai_assisted`, both hardcoded — the script
+cannot publish. Drafts are structural restatements of the official wording with no legal
+interpretation; only a responsible expert may review and publish them. See that directory's README.
 
 ### Importer / monitoring scripts (scripts/)
 

@@ -1,5 +1,64 @@
 # Progress Log
 
+## 2026-07-29. Cross-References, Editorial Draft Pipeline, Accessibility, Plan Hygiene
+
+Assessment that started the work: the public production reader carries 0 published plain-language
+explanations, expert comments, recommendations, issues, or proposed revisions across all 29
+articles / 422 fragments; only 12 of 43 change transitions have a published explanation. The
+platform is built, the reader-facing editorial content is not.
+
+Point 17, cross-references (v1):
+
+- Added `src/lib/law-references.ts`, extracting references to other federal laws from a fragment's
+  official text: number, date, and the act title when the official wording quotes it. Nothing is
+  looked up outside the law text; self-references are dropped; duplicates collapse to the
+  occurrence carrying the title.
+- Wired the result into `ReaderFragment.references` and rendered it inside the official-text block,
+  so structure distinguishes it from editorial material.
+- Verified against the real production text: 13 unique referenced acts, 8 with official titles.
+- Deliberately generates no outbound link: `publication.pravo.gov.ru` does not answer over HTTPS
+  from this environment and `makeSafeSourceLink` accepts `https:` only. Recorded in `docs/PLAN.md`
+  as an unmet acceptance criterion rather than papered over.
+
+Editorial draft pipeline (point 16 groundwork):
+
+- Added `pnpm law:import:drafts` (`scripts/import-editorial-drafts.ts`). Status `draft` and origin
+  `ai_assisted` are hardcoded; the script cannot publish, submit for review, or modify existing
+  rows. Dry-run by default, `--write` to apply, validates stableIds against the current version,
+  and skips fragments that already carry an ai-assisted draft.
+- Added `content/editorial-drafts/63fz-article-13.json` with drafts for the three most overloaded
+  article 13 fragments, plus a README stating that these are structural restatements without legal
+  interpretation and what the reviewing expert must do.
+- Verified on a local database: created once, skipped on re-run, all rows `draft`/`ai_assisted`
+  with no author; a freshly started server with an empty snapshot cache serves none of the draft
+  text publicly.
+
+Accessibility (point 18, automated part):
+
+- Ran axe-core over the reader at 1440px and 390px and over the admin login. One serious violation:
+  table-of-contents type labels used `slate-400`, roughly 2.6:1 against white, below the 4.5:1
+  threshold for 11px text. Moved to `slate-500`.
+- Escape now closes the mobile navigation drawer, which previously needed a pointer.
+- Re-ran the audit: zero violations on all three views; focus outlines verified visible.
+
+Plan hygiene:
+
+- `docs/PLAN.md` gaps had drifted: it still claimed a single shared admin password with no expert
+  accounts or audit log (delivered in point 14), claimed no AI-draft-to-publication workflow
+  (delivered in point 15), and said five migrations where there are seven. Corrected, and replaced
+  two vague gaps with measured facts (editorial coverage, ~1.55 MB page weight).
+
+Verified locally:
+
+- `pnpm run typecheck`, `pnpm run lint`, `pnpm test` (`79` tests: 78 passed, DB integration skipped
+  without a database), `pnpm run build`.
+
+Deployment status:
+
+- Not deployed as part of this task. Note for whoever deploys: loading the article 13 drafts on
+  production is a separate, explicit operator step (`pnpm law:import:drafts -- --write` against the
+  production database), and it stages non-public rows only.
+
 ## 2026-07-19. Public Reader UI Refresh, Stage 1
 
 - Replaced the oversized public page header with a compact sticky app bar (brand, DEMO marker,
