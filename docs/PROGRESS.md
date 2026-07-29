@@ -55,9 +55,23 @@ Verified locally:
 
 Deployment status:
 
-- Not deployed as part of this task. Note for whoever deploys: loading the article 13 drafts on
-  production is a separate, explicit operator step (`pnpm law:import:drafts -- --write` against the
-  production database), and it stages non-public rows only.
+- Deployed runtime release `/home/openclaw/services/63fz-legal-tech/releases/8955cd4` on
+  2026-07-29 after GitHub Actions run `30456130943` and the full local validation suite passed.
+- Before deployment, production audit found newly published advisories affecting Next.js
+  `16.2.10` and transitive Sharp/PostCSS versions. Commit `8955cd4` upgraded the runtime to Next.js
+  `16.2.12`, Sharp `0.35.0`, and PostCSS `8.5.18`; the final production audit reports no known
+  vulnerabilities.
+- Candidate preflight on `127.0.0.1:3926` returned HTTP 200 for `/63fz`, redirected
+  unauthenticated admin/export requests to `/63fz/admin/login`, served a sampled static asset,
+  showed the official-text cross-reference block, used production data, and exposed none of the
+  article 13 draft text.
+- Switched `current` from `97ad8aa` to `8955cd4` and restarted
+  `63fz-legal-tech.service`. Production `/63fz`, the filtered article 18 URL, `/`, and
+  `/pdf-signing/` return HTTP 200; admin/export redirects remain correct; `DEMO DATA` and article
+  13 draft text are absent; the service is active with `NRestarts=0`.
+- Browser verification at 390px confirmed that the mobile table of contents opens, locks body
+  scrolling, and closes on Escape. Loading the article 13 drafts remains a separate, explicit
+  operator step and was not performed during this code deployment.
 
 ## 2026-07-19. Public Reader UI Refresh, Stage 1
 
