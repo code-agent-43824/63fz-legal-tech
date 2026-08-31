@@ -27,6 +27,10 @@ future permanent production domain.
   change-history explanations.
 - Change history supports URL filters, stable links to concrete changes, highlighted changed text,
   and anonymous feedback buttons.
+- Public reader shows references from the official law text to other federal laws, extracted from
+  the wording itself and kept structurally separate from editorial material.
+- Filtering, search, and feed paging are resolved on the server; the feed is paged at article
+  boundaries, with a link that still opens the whole law on one page for in-document searching.
 - Amendment monitoring can check the consolidated source, persist check state/report files, and
   propose a reviewable dry-run import command.
 - Admin-only Markdown export can produce a deterministic current-version Markdown file with public
