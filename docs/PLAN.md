@@ -432,7 +432,7 @@ Acceptance criteria:
 
 Priority: P1 for the technical track (the P1 editorial items are blocked on people; this is the
 largest engineering problem that is not).
-Status: step 1 done 2026-08-31 and awaiting review; steps 2-4 not started.
+Status: steps 1 and 2 done 2026-08-31. Steps 2 and 3 were swapped after measurement, see below.
 
 Measured on production 2026-08-31, before any of this work:
 
@@ -496,23 +496,47 @@ Found while verifying, fixed separately: search results and change permalinks we
 the configured base path, so on production all 93 such links on a search page sent the reader out
 of the application. See the `fix:` commit that follows step 1.
 
-#### Step 2 — server component plus small client islands
+#### Step 2 — stop rendering the whole feed at once — done 2026-08-31
 
-- Render the reader as a server component; keep client state only where it is genuinely needed:
-  drawer open/close, tree expand/collapse, copy-link, scroll-spy.
-- Feedback forms already use server actions and need no client JavaScript.
+Originally planned as the server-component split; that was measured first and abandoned, see the
+next section. The feed is now paged on the server at article boundaries with a budget of about 60
+fragments per page, never splitting an article. Focus mode and filtered views stay unpaged: one is
+already narrow, the other is a short answer that must not hide results behind paging. `?page=all`
+keeps the whole law on a single page for in-document searching. Table-of-contents navigation
+crosses pages through `page=of:<stableId>`, which the server resolves, so the browser never needs
+to know how the law is paged.
 
-Acceptance criteria: the default page stops shipping the law a second time as hydration props;
-interactive behaviour is preserved.
+Result on the same 352-fragment dataset:
 
-#### Step 3 — stop rendering the whole feed at once
+| Signal | Before | After |
+| --- | --- | --- |
+| Default feed page | 1262 KB | 375 KB |
+| Hydration props | 525 KB | 165 KB |
+| DOM elements | 3356 | 1476 |
 
-- Segment the feed by chapter or article, or load it progressively.
+Acceptance criteria: DOM element count well below the baseline — met (-57%); navigation to any
+fragment still works by anchor and permalink — met, including across pages.
 
-Acceptance criteria: DOM element count on the default page falls well below the current 4254;
-navigation to any fragment still works by anchor and permalink.
+#### Abandoned: server component plus small client islands
 
-#### Step 4 — HTTP caching
+The plan assumed that moving the reader to server components would stop the law being shipped
+twice. A probe rendering the same 352 fragments as a pure server component measured the opposite:
+
+| Rendering | Own markup | Flight / props | Ratio |
+| --- | --- | --- | --- |
+| Client component (current) | 737 KB | 525 KB | 0.71 |
+| Server component (probe) | 512 KB | 603 KB | 1.18 |
+
+The App Router always embeds an RSC payload in the page. For server-rendered markup that payload
+serializes the whole element tree including every Tailwind class string, which is bulkier than the
+equivalent raw data — so the probe shipped *more* flight than the client version, while rendering
+*less* content. Converting would have made the page heavier.
+
+Server components would still cut client JavaScript and hydration work, so this may return as a
+later step, but it must be justified by measured client-side timing rather than by payload size.
+Do not re-adopt it on the payload argument: that argument is disproven and recorded here.
+
+#### Step 3 — HTTP caching
 
 - The public reader is identical for every anonymous visitor and changes only on import or
   publication. Replace `force-dynamic` plus `no-store` with revalidation, reusing the existing

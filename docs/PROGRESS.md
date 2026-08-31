@@ -1,5 +1,62 @@
 # Progress Log
 
+## 2026-08-31. Reader Frontend Rework, Steps 1 And 2
+
+Assessment that started this: the public page was 1.61 MB, of which 712 KB was hydration props
+that did not shrink when the view did — a focus-mode page showing one article shipped the same
+props as the whole law. Everything that decides what is displayed was already in the URL, but the
+filtering ran in the browser. Recorded as roadmap point 21 with a measured baseline and four steps.
+
+Step 1 — filtering and search moved to the server:
+
+- Added `src/lib/reader-view.ts`: parses the reader query and narrows a cached snapshot to the
+  requested view. `getReaderData()` remains the cached full-snapshot loader, so database work is
+  still done once per version.
+- The filtering predicates and the search call left `law-reader.tsx` unchanged in behaviour; the
+  component lost 139 lines.
+- Replaced the hardcoded `63fz.document` comparison with a node-type check.
+- Measured on one 352-fragment dataset, before and after on the same machine: focus mode 692 KB to
+  302 KB, props 525 KB to 137 KB. The feed was unchanged by design. Search grew about 38 KB because
+  its capped 50 results are now serialized instead of scanned in the browser.
+
+Step 2 — the feed is no longer rendered whole:
+
+- The planned step 2 was a server-component split. It was measured first, on a probe rendering the
+  same fragments server-side: flight payload 603 KB against 512 KB of its own markup, ratio 1.18,
+  versus 0.71 for the same content as client props. The App Router always embeds an RSC payload and
+  for rendered markup it serializes every element and class string, so the conversion would have
+  made the page heavier. Abandoned and recorded in `docs/PLAN.md`; the plan's step 3 was brought
+  forward instead.
+- The feed is now paged on the server at article boundaries, about 60 fragments per page, never
+  splitting an article. Focus and filtered views stay unpaged. `?page=all` keeps the whole law on
+  one page for in-document searching, with a way back.
+- Table-of-contents navigation crosses pages via `page=of:<stableId>`, resolved server-side.
+- Measured: default feed 1262 KB to 375 KB, props 525 KB to 165 KB, DOM elements 3356 to 1476.
+
+Two base-path defects, both found by verification rather than by review:
+
+- Search results and change permalinks were built as `${pathname}?${query}`. These are raw
+  `<a href>` values; Next does not prepend the base path to them and `usePathname()` returns the
+  path without it. On production every one of the 93 such links on a search page sent the reader
+  out of the application. This predated the refactor. Fixed via `withBasePath()`.
+- The opposite mistake then appeared in the new cross-page navigation: `router.push()` was given an
+  already-prefixed href and produced `/63fz/63fz`. Router navigation must take the bare pathname.
+  Both directions are now documented in `reader-view.ts` and guarded by tests that inspect the
+  component source.
+
+Verified locally:
+
+- `pnpm run typecheck`, `pnpm run lint`, `pnpm test` (110 tests: 109 passed, DB integration skipped
+  without a database), `pnpm run build`.
+- Rendered fragments compared before and after for feed, focus and search views: identical ids in
+  identical order. Browser checks: search, navigating from a search result, change filters,
+  pagination back and forth, cross-page table-of-contents navigation, `page=all` and the way back,
+  the mobile drawer with Escape, zero axe-core violations, no client-side errors.
+
+Deployment status:
+
+- Not deployed as part of this task. No migrations; an ordinary code release.
+
 ## 2026-07-29. Cross-References, Editorial Draft Pipeline, Accessibility, Plan Hygiene
 
 Assessment that started the work: the public production reader carries 0 published plain-language
