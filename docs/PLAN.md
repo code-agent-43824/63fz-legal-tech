@@ -428,6 +428,79 @@ Acceptance criteria:
 - The monitor never imports or publishes law text automatically.
 - A new revision still requires reviewed and explicit confirmation.
 
+### 21. Reader Frontend Rework
+
+Priority: P1 for the technical track (the P1 editorial items are blocked on people; this is the
+largest engineering problem that is not).
+Status: in progress, step 1 of 4.
+
+Measured on production 2026-08-31, before any of this work:
+
+| Signal | Value |
+| --- | --- |
+| Public page, uncompressed | 1.61 MB (899 KB markup + 712 KB serialized props) |
+| Public page, gzipped over the wire | 159 KB |
+| RSC payload, feed mode vs one-article focus mode | 712 KB in **both** |
+| Focus on one article | 756 KB total, 94% of it never displayed |
+| DOM on the default page | 4254 elements, 352 fragment cards, 548 buttons |
+| TTFB | ~1 s, identical for 1 fragment and for 352 |
+| `cache-control` | `private, no-cache, no-store` |
+| Client components in the whole app | 1 (`law-reader.tsx`, 1482 lines, no tests) |
+
+Diagnosis: the reader is a single client component that receives the entire law as props and
+filters it in the browser, even though every input that decides what is visible (`mode`, `node`,
+`q`, the `change*` filters) is already in the URL. The law text therefore ships twice — once as
+rendered markup, once as hydration props — and the second copy does not shrink when the view does.
+
+The framework is not the problem and is not being replaced: this is an SPA structure stretched over
+a server framework, and the fix is to use the framework as intended.
+
+#### Step 1 — move filtering and search to the server
+
+- Keep `getReaderData()` as the cached full-snapshot loader so the database work stays cached once
+  per version; add a pure narrowing layer that derives the requested view from that snapshot.
+- Move the filtering predicates and the search call out of the client component to the server.
+- The client receives only the fragments it renders, plus the table of contents and version list.
+
+Acceptance criteria:
+
+- A focus-mode or filtered URL ships only the fragments it displays; the constant 712 KB payload is
+  gone for those views.
+- Search stops running a full client-side scan on top of the server round-trip it already performs.
+- Reader behaviour is unchanged: same URLs, same results, same permalinks, same feedback forms.
+- Note: the default feed view still renders all fragments by design, so its payload is expected to
+  improve only marginally in this step. Steps 2 and 3 address it.
+
+#### Step 2 — server component plus small client islands
+
+- Render the reader as a server component; keep client state only where it is genuinely needed:
+  drawer open/close, tree expand/collapse, copy-link, scroll-spy.
+- Feedback forms already use server actions and need no client JavaScript.
+
+Acceptance criteria: the default page stops shipping the law a second time as hydration props;
+interactive behaviour is preserved.
+
+#### Step 3 — stop rendering the whole feed at once
+
+- Segment the feed by chapter or article, or load it progressively.
+
+Acceptance criteria: DOM element count on the default page falls well below the current 4254;
+navigation to any fragment still works by anchor and permalink.
+
+#### Step 4 — HTTP caching
+
+- The public reader is identical for every anonymous visitor and changes only on import or
+  publication. Replace `force-dynamic` plus `no-store` with revalidation, reusing the existing
+  invalidation points (`revalidateTag` in place of, or alongside, the marker file).
+
+Acceptance criteria: a typical repeat request is served without a full re-render; publishing or
+importing still makes new content appear promptly.
+
+#### Out of scope for this point
+
+Dark theme and the Ctrl+K search overlay stay deferred as before; this point changes structure, not
+visual design.
+
 ## Outside The Functional Readiness Sequence
 
 - **Reader UI Refresh, Stage 2 (deferred by the project owner on 2026-07-19):** dark theme
@@ -449,6 +522,8 @@ Recommended order after the completed correctness cleanup:
 2. **Invite at least one expert.** This is the binding constraint: both remaining P1 items
    (point 12 validation and point 16 coverage) need a person, and no further engineering removes
    that dependency.
+3. In parallel, work point 21 (reader frontend rework) — the largest engineering problem that is
+   not blocked on people.
 3. Finish point 12 with representative reader/expert scenario tests as soon as contributors are
    available.
 4. Add cross-references and complete end-to-end usability validation.
