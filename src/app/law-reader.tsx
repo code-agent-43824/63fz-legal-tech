@@ -8,9 +8,11 @@ import { formatLawReferenceLabel, type LawReference } from "@/lib/law-references
 import type { ReaderSearchResult } from "@/lib/reader-search";
 import {
   buildChangeHref,
+  buildReaderHref,
   buildSearchResultHref,
   changeFilterQueryName,
   type ChangeFilters,
+  type ReaderPagination,
   type ReaderView,
   type ReaderViewMode,
 } from "@/lib/reader-view";
@@ -144,7 +146,16 @@ export function LawReader({ view }: { view: ReaderView }) {
     if (element) {
       element.scrollIntoView({ behavior: "smooth", block: "start" });
       window.history.replaceState(null, "", `#${item.id}`);
+      return;
     }
+
+    // The target sits on another feed page. Ask the server for the page that holds it; it resolves
+    // `page=of:<stableId>` to the right page number, so the client never has to know the paging.
+    // Note: router navigation takes the bare pathname — Next adds the base path itself here, while
+    // a plain <a href> needs it added explicitly. Mixing the two doubles it.
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", `of:${item.stableId}`);
+    router.push(`${pathname}?${params.toString()}#${item.id}`);
   }
 
   function replaceUrl(nextMode: ViewMode, nextNode: string | null) {
@@ -219,6 +230,16 @@ export function LawReader({ view }: { view: ReaderView }) {
 
   function getChangeHref(fragment: ReaderFragment, entry: ReaderFragment["changeHistory"][number]) {
     return buildChangeHref(pathname, searchParams, fragment.stableId, entry.changeId);
+  }
+
+  function getPageHref(page: number | "all") {
+    const params = new URLSearchParams(searchParams.toString());
+    if (page === 1) {
+      params.delete("page");
+    } else {
+      params.set("page", String(page));
+    }
+    return buildReaderHref(pathname, params, "law");
   }
 
   function getSearchResultHref(result: ReaderSearchResult) {
@@ -476,6 +497,10 @@ export function LawReader({ view }: { view: ReaderView }) {
                 />
               ))}
             </div>
+            <FeedPagination
+              pageHref={getPageHref}
+              pagination={view.pagination}
+            />
           </>
         ) : (
           <div className="rounded-md border border-slate-200 bg-white p-8 text-sm text-slate-600">
@@ -497,6 +522,77 @@ function asideClass(isOpen: boolean) {
   const desktop =
     "lg:sticky lg:inset-auto lg:top-[4.5rem] lg:z-auto lg:w-auto lg:max-w-none lg:translate-x-0 lg:rounded-md lg:border lg:shadow-none lg:max-h-[calc(100vh-5.5rem)]";
   return `min-w-0 ${mobile} ${desktop}`;
+}
+
+function FeedPagination({
+  pageHref,
+  pagination,
+}: {
+  pageHref: (page: number | "all") => string;
+  pagination: ReaderPagination | null;
+}) {
+  if (!pagination || pagination.pageCount <= 1) {
+    return null;
+  }
+
+  const { page, pageCount, showingAll, totalFragments } = pagination;
+
+  if (showingAll) {
+    return (
+      <nav
+        aria-label="Постраничная навигация"
+        className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm"
+      >
+        <span className="text-slate-600">
+          Показан весь закон — {totalFragments} фрагментов на одной странице.
+        </span>
+        <a
+          className="rounded-md border border-slate-200 px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50"
+          href={pageHref(1)}
+        >
+          Вернуться к постраничному чтению
+        </a>
+      </nav>
+    );
+  }
+
+  return (
+    <nav
+      aria-label="Постраничная навигация"
+      className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm"
+    >
+      <div className="flex items-center gap-2">
+        {page > 1 ? (
+          <a
+            className="rounded-md border border-slate-200 px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50"
+            href={pageHref(page - 1)}
+            rel="prev"
+          >
+            ← Назад
+          </a>
+        ) : null}
+        {page < pageCount ? (
+          <a
+            className="rounded-md border border-slate-200 px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50"
+            href={pageHref(page + 1)}
+            rel="next"
+          >
+            Дальше →
+          </a>
+        ) : null}
+      </div>
+      <span className="text-slate-600">
+        Страница {page} из {pageCount}
+      </span>
+      <a
+        className="text-blue-700 underline-offset-4 hover:underline"
+        href={pageHref("all")}
+        title="Откроет весь текст закона одной страницей — удобно для поиска по странице, но заметно тяжелее"
+      >
+        Показать весь закон одной страницей
+      </a>
+    </nav>
+  );
 }
 
 function VersionStat({ label, value }: { label: string; value: number }) {

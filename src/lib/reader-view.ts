@@ -30,6 +30,29 @@ export type ReaderQuery = {
   search: string;
   selectedChangeId: string;
   filters: ChangeFilters;
+  /**
+   * Feed page. A number is 1-based; "all" renders the whole law in one document; `{ of }` asks for
+   * whichever page holds that fragment, which is how table-of-contents navigation crosses pages
+   * without the browser needing to know how the law is paged.
+   */
+  page: ReaderPageRequest;
+};
+
+export type ReaderPageRequest = number | "all" | { of: string };
+
+/**
+ * How many fragments a feed page aims to hold. Pages only break between articles, so a page can
+ * overshoot: article 13 alone is 32 fragments. The budget keeps a page around a tenth of the law
+ * instead of all of it, without ever splitting an article across two pages.
+ */
+const PAGE_FRAGMENT_BUDGET = 60;
+
+export type ReaderPagination = {
+  page: number;
+  pageCount: number;
+  /** True when the reader asked for the whole law in one page. */
+  showingAll: boolean;
+  totalFragments: number;
 };
 
 /** What the client component receives: the same snapshot minus the fragments it never renders. */
@@ -41,6 +64,7 @@ export type ReaderView = Omit<ReaderData, "fragments"> & {
   selectedChangeId: string;
   filters: ChangeFilters;
   hasChangeFilters: boolean;
+  pagination: ReaderPagination | null;
 };
 
 type RawSearchParams = Record<string, string | string[] | undefined>;
@@ -51,6 +75,7 @@ export function parseReaderQuery(params: RawSearchParams): ReaderQuery {
     node: readParam(params, "node") || null,
     search: readParam(params, "q"),
     selectedChangeId: readParam(params, "change"),
+    page: parsePage(readParam(params, "page")),
     filters: {
       article: readParam(params, "changeArticle"),
       fromVersionId: readParam(params, "changeFrom"),
@@ -65,11 +90,18 @@ export function parseReaderQuery(params: RawSearchParams): ReaderQuery {
 export function buildReaderView(readerData: ReaderData, query: ReaderQuery): ReaderView {
   const selectedStableId = query.node ?? getDefaultNodeStableId(readerData.toc);
   const visibleFragments = selectVisibleFragments(readerData, selectedStableId, query.mode);
-  const fragments = filterFragmentsByChangeFilters(
+  const filtered = filterFragmentsByChangeFilters(
     visibleFragments,
     query.filters,
     query.selectedChangeId,
   );
+  // Only the unfiltered feed is paginated. A focused node is already narrow, and a filtered view is
+  // a deliberately short answer to a question — splitting either one would hide results.
+  const paginate =
+    query.mode === "feed" && !hasActiveChangeFilters(query.filters, query.selectedChangeId);
+  const { fragments, pagination } = paginate
+    ? paginateFragments(filtered, query.page)
+    : { fragments: filtered, pagination: null };
 
   return {
     isDemo: readerData.isDemo,
@@ -88,7 +120,112 @@ export function buildReaderView(readerData: ReaderData, query: ReaderQuery): Rea
     selectedChangeId: query.selectedChangeId,
     filters: query.filters,
     hasChangeFilters: hasActiveChangeFilters(query.filters, query.selectedChangeId),
+    pagination,
   };
+}
+
+/** Splits the feed into pages that never cut an article in half. */
+export function buildFeedPages(fragments: ReaderFragment[]): ReaderFragment[][] {
+  const pages: ReaderFragment[][] = [];
+  let current: ReaderFragment[] = [];
+  let currentArticle: string | null = null;
+
+  for (const fragment of fragments) {
+    const article = getArticleKey(fragment.stableId);
+    const startsArticle = currentArticle !== null && article !== currentArticle;
+    if (startsArticle && current.length >= PAGE_FRAGMENT_BUDGET) {
+      pages.push(current);
+      current = [];
+    }
+    current.push(fragment);
+    currentArticle = article;
+  }
+
+  if (current.length > 0) {
+    pages.push(current);
+  }
+
+  return pages.length > 0 ? pages : [[]];
+}
+
+function paginateFragments(fragments: ReaderFragment[], requested: ReaderPageRequest) {
+  const pages = buildFeedPages(fragments);
+
+  if (typeof requested === "object") {
+    const page = findPageIndex(pages, requested.of);
+    return {
+      fragments: pages[page - 1] ?? [],
+      pagination: {
+        page,
+        pageCount: pages.length,
+        showingAll: false,
+        totalFragments: fragments.length,
+      },
+    };
+  }
+
+  if (requested === "all") {
+    return {
+      fragments,
+      pagination: {
+        page: 1,
+        pageCount: pages.length,
+        showingAll: true,
+        totalFragments: fragments.length,
+      },
+    };
+  }
+
+  const page = Math.min(Math.max(requested, 1), pages.length);
+  return {
+    fragments: pages[page - 1] ?? [],
+    pagination: {
+      page,
+      pageCount: pages.length,
+      showingAll: false,
+      totalFragments: fragments.length,
+    },
+  };
+}
+
+/** Which feed page a fragment lives on, so navigation can jump straight to it. */
+export function findFeedPageOf(fragments: ReaderFragment[], stableId: string): number {
+  return findPageIndex(buildFeedPages(fragments), stableId);
+}
+
+function findPageIndex(pages: ReaderFragment[][], stableId: string): number {
+  for (let index = 0; index < pages.length; index += 1) {
+    const hit = pages[index].some(
+      (fragment) => fragment.stableId === stableId || isSameOrDescendant(fragment, stableId),
+    );
+    if (hit) {
+      return index + 1;
+    }
+  }
+  return 1;
+}
+
+/**
+ * The article a fragment belongs to, as the first two segments of its stable id.
+ *
+ * The importer does not always emit a fragment for the article heading itself — in the current
+ * 63-FZ text every fragment is a part, point, or paragraph — so a page break has to be detected
+ * from the article prefix changing rather than from meeting an article-level fragment.
+ */
+function getArticleKey(stableId: string) {
+  return stableId.split(".").slice(0, 2).join(".");
+}
+
+function parsePage(raw: string): ReaderPageRequest {
+  if (raw === "all") {
+    return "all";
+  }
+  if (raw.startsWith("of:")) {
+    const stableId = raw.slice(3).trim();
+    return stableId ? { of: stableId } : 1;
+  }
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
 }
 
 function selectVisibleFragments(
@@ -251,6 +388,10 @@ function readParam(params: RawSearchParams, name: string) {
  * These are plain `<a href>` values. Unlike `router.replace()`, Next does not prepend the
  * configured base path to them, and `usePathname()` returns the path without it — so a naive
  * `${pathname}?${query}` sends the reader out of the application entirely.
+ *
+ * The rule cuts both ways, so keep them apart: a raw `<a href>` needs the base path added here,
+ * while `router.push()` / `router.replace()` must be given the bare pathname or the base path
+ * ends up doubled (`/63fz/63fz?...`).
  */
 export function buildReaderHref(
   pathname: string,
