@@ -1,5 +1,10 @@
 overrides:
-  postcss: 8.5.18
+  # Exact pins, so each new advisory on these has to be bumped here deliberately.
+  # postcss <=8.5.22 and its nanoid <3.3.18 are advisories reached through next;
+  # 8.5.26 depends on nanoid ^3.3.17, which resolves to the patched 3.3.18.
+  postcss: 8.5.26
+  # deepmerge-ts <8.0.0 is an advisory reached through @prisma/client > prisma > @prisma/config.
+  deepmerge-ts: 8.0.2
   sharp: 0.35.0
 
 allowBuilds:

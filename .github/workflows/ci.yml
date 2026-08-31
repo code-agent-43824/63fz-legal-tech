@@ -52,6 +52,13 @@ jobs:
       - name: Lint
         run: pnpm run lint
 
+      # Fails the run on a known advisory in a production dependency. When that happens the fix is
+      # usually a pinned override in pnpm-workspace.yaml, as was done for postcss and deepmerge-ts.
+      # If an unrelated upstream advisory ever blocks an urgent release, drop this step for that
+      # run rather than shipping an unreviewed override.
+      - name: Security audit (production dependencies)
+        run: pnpm run security:audit
+
       - name: Apply migrations to the test database
         run: pnpm exec prisma migrate deploy
         env:
