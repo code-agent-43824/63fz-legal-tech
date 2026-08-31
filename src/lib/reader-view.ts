@@ -9,6 +9,7 @@
 // `getReaderData()` stays the cached full-snapshot loader, so the database work is still done once
 // per version. This layer is pure and cheap: it only decides which of those fragments to send.
 
+import { withBasePath } from "@/lib/base-path";
 import type { ReaderData, ReaderFragment, ReaderTocItem } from "@/lib/law-data";
 import { buildReaderSearchResults, type ReaderSearchResult } from "@/lib/reader-search";
 
@@ -244,3 +245,44 @@ function readParam(params: RawSearchParams, name: string) {
   return value ?? "";
 }
 
+/**
+ * Builds an in-app reader link.
+ *
+ * These are plain `<a href>` values. Unlike `router.replace()`, Next does not prepend the
+ * configured base path to them, and `usePathname()` returns the path without it — so a naive
+ * `${pathname}?${query}` sends the reader out of the application entirely.
+ */
+export function buildReaderHref(
+  pathname: string,
+  params: URLSearchParams,
+  hash: string,
+): string {
+  const query = params.toString();
+  const base = withBasePath(pathname);
+  return `${base}${query ? `?${query}` : ""}${hash ? `#${hash}` : ""}`;
+}
+
+export function buildChangeHref(
+  pathname: string,
+  currentParams: URLSearchParams,
+  stableId: string,
+  changeId: string,
+): string {
+  const params = new URLSearchParams(currentParams.toString());
+  params.set("mode", "focus");
+  params.set("node", stableId);
+  params.set("change", changeId);
+  return buildReaderHref(pathname, params, `change-${changeId}`);
+}
+
+export function buildSearchResultHref(
+  pathname: string,
+  currentParams: URLSearchParams,
+  stableId: string,
+  fragmentAnchor: string,
+): string {
+  const params = new URLSearchParams(currentParams.toString());
+  params.set("mode", "focus");
+  params.set("node", stableId);
+  return buildReaderHref(pathname, params, fragmentAnchor);
+}

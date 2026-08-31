@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { ReaderChangeHistoryEntry, ReaderData, ReaderFragment } from "../src/lib/law-data";
 import {
+  buildChangeHref,
+  buildReaderHref,
   buildReaderView,
+  buildSearchResultHref,
   getDefaultNodeStableId,
   parseReaderQuery,
 } from "../src/lib/reader-view";
@@ -259,3 +262,43 @@ test("an empty table of contents has no default node", () => {
   assert.equal(getDefaultNodeStableId([]), null);
 });
 
+// Regression: these are plain <a href> values. `usePathname()` returns the path without the
+// configured base path and Next does not prepend it to raw links, so building them from the bare
+// pathname sent readers to the site root instead of into the reader — reproduced on production
+// 2026-08-31, where all 93 search and permalink hrefs on a search page pointed outside the app.
+test("search result links keep the base path", () => {
+  const href = buildSearchResultHref(
+    "/",
+    new URLSearchParams("q=подпись"),
+    "63fz.article_2.point_1",
+    "63fz.article_2.point_1",
+  );
+
+  assert.ok(href.startsWith("/63fz?"), `link must stay inside the app, got: ${href}`);
+  assert.match(href, /mode=focus/);
+  assert.match(href, /node=63fz\.article_2\.point_1/);
+  assert.ok(href.endsWith("#63fz.article_2.point_1"));
+});
+
+test("change permalinks keep the base path", () => {
+  const href = buildChangeHref("/", new URLSearchParams(), "63fz.article_18", "c18");
+
+  assert.ok(href.startsWith("/63fz?"), `link must stay inside the app, got: ${href}`);
+  assert.ok(href.endsWith("#change-c18"));
+});
+
+test("reader links preserve existing query parameters", () => {
+  const href = buildChangeHref(
+    "/",
+    new URLSearchParams("version=v1&q=подпись"),
+    "63fz.article_18",
+    "c18",
+  );
+
+  assert.match(href, /version=v1/, "the selected version must survive the jump");
+  assert.match(href, /q=/, "an active search must survive the jump");
+});
+
+test("a link with no query and no hash is still base-path prefixed", () => {
+  assert.equal(buildReaderHref("/", new URLSearchParams(), ""), "/63fz");
+});

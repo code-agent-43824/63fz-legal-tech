@@ -7,6 +7,8 @@ import type { ReaderFragment, ReaderTocItem, ReaderVersion } from "@/lib/law-dat
 import { formatLawReferenceLabel, type LawReference } from "@/lib/law-references";
 import type { ReaderSearchResult } from "@/lib/reader-search";
 import {
+  buildChangeHref,
+  buildSearchResultHref,
   changeFilterQueryName,
   type ChangeFilters,
   type ReaderView,
@@ -216,20 +218,11 @@ export function LawReader({ view }: { view: ReaderView }) {
   }
 
   function getChangeHref(fragment: ReaderFragment, entry: ReaderFragment["changeHistory"][number]) {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("mode", "focus");
-    params.set("node", fragment.stableId);
-    params.set("change", entry.changeId);
-    const query = params.toString();
-    return `${pathname}?${query}#change-${entry.changeId}`;
+    return buildChangeHref(pathname, searchParams, fragment.stableId, entry.changeId);
   }
 
   function getSearchResultHref(result: ReaderSearchResult) {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("mode", "focus");
-    params.set("node", result.stableId);
-    const query = params.toString();
-    return `${pathname}?${query}#${result.fragmentId}`;
+    return buildSearchResultHref(pathname, searchParams, result.stableId, result.fragmentId);
   }
 
   function updateVersion(versionId: string) {
