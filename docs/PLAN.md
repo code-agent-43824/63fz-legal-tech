@@ -432,7 +432,7 @@ Acceptance criteria:
 
 Priority: P1 for the technical track (the P1 editorial items are blocked on people; this is the
 largest engineering problem that is not).
-Status: in progress, step 1 of 4.
+Status: step 1 done 2026-08-31 and awaiting review; steps 2-4 not started.
 
 Measured on production 2026-08-31, before any of this work:
 
@@ -470,6 +470,31 @@ Acceptance criteria:
 - Reader behaviour is unchanged: same URLs, same results, same permalinks, same feedback forms.
 - Note: the default feed view still renders all fragments by design, so its payload is expected to
   improve only marginally in this step. Steps 2 and 3 address it.
+
+Result, measured on one 352-fragment dataset before and after on the same machine:
+
+| View | Total before → after | Hydration props before → after |
+| --- | --- | --- |
+| Feed (whole law) | 1262 KB → 1263 KB | 525 KB → 525 KB (unchanged by design) |
+| Focus on article 13 | 692 KB → 302 KB | 525 KB → 137 KB |
+
+The props payload now follows the view instead of staying constant. The remaining floor in a
+narrow view is the table of contents, which the tree still needs in full — roughly 100 KB, and a
+target for step 3.
+
+Honest cost: a search in feed mode grew by about 38 KB, because its capped 50 results are now
+serialized by the server rather than computed in the browser. It buys the removal of a full
+client-side scan of every fragment on each render, and it disappears once step 2 or 3 stops
+shipping the whole feed as props.
+
+Rendered output was compared before and after for feed, focus, and search views: identical
+fragments in identical order. Interactive checks passed: search, navigating from a search result,
+change filters, table-of-contents navigation, the mobile drawer with Escape, zero axe-core
+violations, and no client-side errors.
+
+Found while verifying, fixed separately: search results and change permalinks were built without
+the configured base path, so on production all 93 such links on a search page sent the reader out
+of the application. See the `fix:` commit that follows step 1.
 
 #### Step 2 — server component plus small client islands
 
