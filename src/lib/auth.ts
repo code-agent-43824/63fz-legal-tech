@@ -29,10 +29,6 @@ type LoginBucket = {
 
 const loginBuckets = new Map<string, LoginBucket>();
 
-export async function isAdminAuthenticated() {
-  return Boolean(await getCurrentEditorialActor());
-}
-
 export async function getCurrentEditorialActor(): Promise<EditorialActor | null> {
   const cookieStore = await cookies();
   const session = cookieStore.get(ADMIN_COOKIE)?.value;

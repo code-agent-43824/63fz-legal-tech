@@ -37,7 +37,8 @@ pnpm law:export:markdown            # deterministic Markdown export of current v
 pnpm law:import:drafts -- --dry-run # stage non-public ai-assisted editorial drafts
 ```
 
-CI (`.github/workflows/ci.yml`) runs: prisma:validate, typecheck, lint, test, build. All must pass.
+CI (`.github/workflows/ci.yml`) runs: prisma:validate, typecheck, lint, security:audit,
+prisma migrate deploy, test, db:ops:check, build. All must pass.
 
 Prisma client generation is a prerequisite for typecheck/build; the `pretypecheck`/`postinstall`/
 `build` scripts handle it, but if you see missing `@prisma/client` types, run `pnpm run prisma:generate`.
@@ -52,13 +53,15 @@ at a disposable database. The app itself falls back to clearly marked DEMO DATA 
 
 Two surfaces in one Next.js app:
 
-- **Public reader** — `src/app/page.tsx` (server, `force-dynamic`) loads a full reader snapshot via
-  `getReaderData()` in `src/lib/law-data.ts` and renders `src/app/law-reader.tsx` (large client
+- **Public reader** — `src/app/page.tsx` (server, `force-dynamic`) loads a cached snapshot via
+  `getReaderData()` in `src/lib/law-data.ts`, narrows it to the requested view with
+  `buildReaderView()` in `src/lib/reader-view.ts`, and renders `src/app/law-reader.tsx` (client
   component: version selector, tree navigation, change history, search, feedback buttons).
-- **Admin CMS** — `src/app/admin/**`, single password-protected account. Pages check
-  `isAdminAuthenticated()` and redirect to `/admin/login`. Writes go through server actions
-  (`actions.ts` files). **Every write endpoint must be auth-protected** (except the anonymous,
-  rate-limited public change feedback in `src/app/feedback-actions.ts`).
+- **Admin CMS** — `src/app/admin/**`, invitation-only accounts with `admin` and `expert` roles.
+  Pages and the export route resolve the caller with `getCurrentEditorialActor()` and redirect to
+  `/admin/login`. Writes go through server actions (`actions.ts` files). **Every write endpoint
+  must be auth-protected** (except the anonymous, rate-limited public change feedback in
+  `src/app/feedback-actions.ts`).
 
 ### Data model (prisma/schema.prisma)
 
@@ -74,6 +77,11 @@ Editorial models attach to fragments: `PlainExplanation`, `ExpertComment`, `Issu
 toVersionId)` — an explanation of one pairwise transition. `ChangeFeedback` stores anonymous
 deduplicated feedback on transitions.
 
+`EditorialUser` holds the invitation-only accounts (role `admin`/`expert`, active/disabled, scrypt
+password hash) that authored content is attributed to; `EditorialAuditLog` records account,
+session, contribution, and moderation events by identifier and status only, never passwords or
+contribution text.
+
 ### Publication policy
 
 Public visibility is gated by explicit status filters, centralized in:
@@ -85,12 +93,33 @@ Public visibility is gated by explicit status filters, centralized in:
 
 Never leak drafts or non-public statuses into reader queries; go through these constants.
 
+### Editorial workflow
+
+Explanations, comments, recommendations, and change explanations move through
+`draft -> in_review -> published -> unpublished` (`src/lib/editorial-policy.ts`,
+`src/lib/editorial-workflow.ts`). Editing a reviewed or published item resets it to `draft`. Only
+the responsible expert may submit and publish, and publication requires explicit
+factual/source/scope/version/responsibility confirmations. AI-assisted origin is permanent once
+set and is never public before an expert publishes. Administrators moderate, unpublish, delete,
+manage accounts, and download the export; experts may edit only rows attributed to them.
+
 ### Reader data flow and caching
 
 `src/lib/law-data.ts` (~900 lines) is the core read path: it loads a version's fragment tree,
 attaches published editorial blocks, and computes pairwise change history (`introduced` /
 `changed` / `deleted`) between chronologically ordered versions (`src/lib/law-version-order.ts`,
 `src/lib/change-history.ts`, diff snippets from `src/lib/text-diff.ts`).
+
+`src/lib/reader-view.ts` sits between that snapshot and the page. Everything that decides what the
+reader displays is in the URL — `mode`, `node`, `q`, `page`, and the `change*` filters — so
+`parseReaderQuery()` reads it and `buildReaderView()` narrows the snapshot server-side, including
+paging the feed at article boundaries. Keep filtering there rather than in the client component:
+whatever the client receives is serialized into the page a second time as hydration props.
+
+Reader links have a base-path trap that has bitten twice, in both directions: `router.push()` /
+`router.replace()` take the **bare** pathname because Next prepends the base path itself, while a
+raw `<a href>` must go through `buildReaderHref()` or it leaves the app. Tests in
+`tests/reader-view.test.ts` guard both.
 
 Results are cached in a `BoundedMemoryCache` (`src/lib/reader-cache.ts`) — a small in-process LRU,
 not an HTTP/CDN cache. Cross-process invalidation works via a marker file
@@ -101,7 +130,10 @@ cache.
 ### Auth
 
 `src/lib/auth.ts`: HMAC-signed session cookie (scoped to `/63fz` path), in-memory login rate
-limiting, 8h sessions. `src/lib/auth-policy.ts` rejects example/short secrets at runtime —
+limiting, 8h sessions. `getCurrentEditorialActor()` resolves the cookie to an actor — either the
+bootstrap `env-admin` from `ADMIN_PASSWORD` or an active `EditorialUser` — and returns `null` for a
+disabled account, so disabling takes effect on the next request. Authorization decisions go through
+`src/lib/editorial-policy.ts`; check the actor's `role`, never merely that someone is signed in. `src/lib/auth-policy.ts` rejects example/short secrets at runtime —
 `ADMIN_PASSWORD` ≥ 12 chars, `AUTH_SECRET` ≥ 32 chars, no "change-me" values. Copy `.env.example`
 to `.env` for local work.
 

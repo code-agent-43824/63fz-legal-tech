@@ -14,10 +14,13 @@ Status: public test deployment at `https://mescheryakov.pro/63fz`.
   and paragraph where the parser can identify them.
 - Several real law versions are imported and can be compared by stable fragment identity.
 - The public reader supports version selection, tree navigation, focus/feed modes, change history,
-  source metadata, search, filters, change permalinks, feedback buttons, and hidden empty editorial
-  sections.
-- The admin area is protected by one password-based administrative account and supports fragment
-  editorial materials plus change explanations.
+  source metadata, search, filters, change permalinks, feedback buttons, hidden empty editorial
+  sections, references from the official text to other federal laws, and a server-paged feed.
+  Filtering, search, and paging are resolved on the server (`src/lib/reader-view.ts`).
+- The admin area uses invitation-only accounts with `admin` and `expert` roles, attributed
+  authorship, moderation, and an audit log; the `ADMIN_PASSWORD` account remains only as the
+  bootstrap/recovery administrator. Editorial material moves through a reviewed
+  `draft -> in_review -> published -> unpublished` workflow.
 - Article 18 has a completed editorial pilot for granular published change explanations.
 - Amendment monitoring is available as a safe CLI workflow and does not publish legal text
   automatically.
