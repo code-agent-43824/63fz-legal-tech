@@ -1,5 +1,46 @@
 # Progress Log
 
+## 2026-08-31. Dependency Advisories, CI Audit, Documentation Drift
+
+Housekeeping done while waiting for the frontend rework to be deployed.
+
+Production dependency advisories:
+
+- `pnpm run security:audit` existed but CI never ran it, and it was failing with four advisories.
+  One was self-inflicted: the `postcss` override pinned `8.5.18` while the advisory required
+  `>= 8.5.23`, so the exact pin was holding the tree on a vulnerable version.
+- Bumped `postcss` to `8.5.26`, which depends on `nanoid ^3.3.17` and therefore resolves the
+  patched `3.3.18`, and added a `deepmerge-ts 8.0.2` override for the advisory reached through
+  `@prisma/client`. `pnpm audit --prod` now reports no known vulnerabilities.
+- Added the audit to CI as a blocking step, with a note that an unrelated upstream advisory
+  blocking an urgent release should be handled by skipping that step for the run rather than by
+  shipping an unreviewed override. These are build-time tooling packages, not request-path code,
+  so the practical exposure was low — but an audit nobody runs is not a control.
+- Verified after the bump: typecheck, lint, 110 tests, production build, and the generated Tailwind
+  stylesheet unchanged in size and still carrying the project's own classes.
+
+Documentation drift:
+
+- `CLAUDE.md` still described the admin area as a single password-protected account checked through
+  `isAdminAuthenticated()`, untrue since expert accounts shipped. It omitted `EditorialUser` and
+  `EditorialAuditLog` from the data model and said nothing about the reviewed editorial workflow,
+  leaving the largest subsystem in the app undocumented. The same stale claim sat in the plan's
+  Current Baseline. Both corrected.
+- Documented the `reader-view.ts` layer and the base-path rule for links, which has now caused a
+  bug in each direction, and corrected the list of what CI runs.
+
+Dead code:
+
+- `isAdminAuthenticated()` was called from nowhere and was worse than unused: despite its name it
+  returned true for any signed-in actor, experts included, so anyone reaching for it as a role
+  check would have written a privilege bug. Removed; every admin surface already resolves the
+  caller with `getCurrentEditorialActor()` and checks `role` through `editorial-policy.ts`.
+
+Deployment status:
+
+- Not deployed. No migrations. The dependency bump affects the build toolchain, so the next release
+  should be built from a clean `pnpm install --frozen-lockfile`.
+
 ## 2026-08-31. Reader Frontend Rework, Steps 1 And 2
 
 Assessment that started this: the public page was 1.61 MB, of which 712 KB was hydration props
