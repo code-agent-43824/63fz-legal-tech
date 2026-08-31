@@ -3,24 +3,19 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { ReaderData, ReaderFragment, ReaderTocItem, ReaderVersion } from "@/lib/law-data";
+import type { ReaderFragment, ReaderTocItem, ReaderVersion } from "@/lib/law-data";
 import { formatLawReferenceLabel, type LawReference } from "@/lib/law-references";
+import type { ReaderSearchResult } from "@/lib/reader-search";
 import {
-  buildReaderSearchResults,
-  type ReaderSearchResult,
-} from "@/lib/reader-search";
+  changeFilterQueryName,
+  type ChangeFilters,
+  type ReaderView,
+  type ReaderViewMode,
+} from "@/lib/reader-view";
 import { submitChangeFeedback } from "@/app/feedback-actions";
 
-type ViewMode = "feed" | "focus";
+type ViewMode = ReaderViewMode;
 type TocNode = ReaderTocItem & { children: TocNode[] };
-type ChangeFilters = {
-  article: string;
-  fromVersionId: string;
-  source: string;
-  status: string;
-  toVersionId: string;
-  type: string;
-};
 
 const TYPE_LABELS: Record<string, string> = {
   law: "Закон",
@@ -30,31 +25,20 @@ const TYPE_LABELS: Record<string, string> = {
   paragraph: "Абзац",
 };
 
-export function LawReader({ readerData }: { readerData: ReaderData }) {
+export function LawReader({ view }: { view: ReaderView }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const mode: ViewMode = searchParams.get("mode") === "focus" ? "focus" : "feed";
+  // The server already resolved what this URL displays; the client renders it rather than
+  // recomputing it from the query string.
+  const { mode, selectedChangeId, selectedStableId } = view;
+  const changeFilters = view.filters;
   const searchQuery = searchParams.get("q") ?? "";
-  const changeFilters: ChangeFilters = useMemo(
-    () => ({
-      article: searchParams.get("changeArticle") ?? "",
-      fromVersionId: searchParams.get("changeFrom") ?? "",
-      source: searchParams.get("changeSource") ?? "",
-      status: searchParams.get("changeStatus") ?? "",
-      toVersionId: searchParams.get("changeTo") ?? "",
-      type: searchParams.get("changeType") ?? "",
-    }),
-    [searchParams],
-  );
-  const selectedChangeId = searchParams.get("change") ?? "";
-  const tree = useMemo(() => buildTree(readerData.toc), [readerData.toc]);
+  const tree = useMemo(() => buildTree(view.toc), [view.toc]);
   const tocByStableId = useMemo(
-    () => new Map(readerData.toc.map((item) => [item.stableId, item])),
-    [readerData.toc],
+    () => new Map(view.toc.map((item) => [item.stableId, item])),
+    [view.toc],
   );
-  const defaultNodeStableId = useMemo(() => getDefaultNodeStableId(tree), [tree]);
-  const selectedStableId = searchParams.get("node") ?? defaultNodeStableId;
   const selectedItem = selectedStableId ? tocByStableId.get(selectedStableId) : null;
   const [expandedStableIds, setExpandedStableIds] = useState<Set<string>>(
     () => new Set(getDefaultExpandedStableIds(tree, selectedStableId)),
@@ -63,37 +47,24 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
   const [isTocOpen, setTocOpen] = useState(false);
   const visibleExpandedStableIds = useMemo(() => {
     const next = new Set(expandedStableIds);
-    for (const stableId of getAncestorStableIds(readerData.toc, selectedStableId)) {
+    for (const stableId of getAncestorStableIds(view.toc, selectedStableId)) {
       next.add(stableId);
     }
     return next;
-  }, [expandedStableIds, readerData.toc, selectedStableId]);
+  }, [expandedStableIds, view.toc, selectedStableId]);
   const tocActiveStableId = mode === "focus" ? selectedStableId : activeStableId;
   const selectedVersion = useMemo(
-    () => readerData.versions.find((version) => version.id === readerData.selectedVersionId) ?? null,
-    [readerData.selectedVersionId, readerData.versions],
+    () => view.versions.find((version) => version.id === view.selectedVersionId) ?? null,
+    [view.selectedVersionId, view.versions],
   );
   const currentVersion = useMemo(
-    () => readerData.versions.find((version) => version.id === readerData.currentVersionId) ?? null,
-    [readerData.currentVersionId, readerData.versions],
+    () => view.versions.find((version) => version.id === view.currentVersionId) ?? null,
+    [view.currentVersionId, view.versions],
   );
-  const searchResults = useMemo(
-    () => buildReaderSearchResults(readerData, searchQuery),
-    [readerData, searchQuery],
-  );
-
-  const visibleFragments = useMemo(() => {
-    if (mode === "feed" || !selectedStableId || selectedStableId === "63fz.document") {
-      return readerData.fragments;
-    }
-
-    return readerData.fragments.filter((fragment) => isSameOrDescendant(fragment, selectedStableId));
-  }, [mode, readerData.fragments, selectedStableId]);
-  const filteredFragments = useMemo(
-    () => filterFragmentsByChangeFilters(visibleFragments, changeFilters, selectedChangeId),
-    [changeFilters, selectedChangeId, visibleFragments],
-  );
-  const hasChangeFilters = hasActiveChangeFilters(changeFilters, selectedChangeId);
+  // Filtering and search now happen on the server; these arrive ready to render.
+  const searchResults = view.searchResults;
+  const filteredFragments = view.fragments;
+  const hasChangeFilters = view.hasChangeFilters;
   const hasVisibleSupplementalContent = filteredFragments.some((fragment) =>
     hasSupplementalContent(fragment),
   );
@@ -136,7 +107,7 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
       { rootMargin: "-20% 0px -65% 0px", threshold: [0, 0.1, 0.35] },
     );
 
-    for (const fragment of visibleFragments) {
+    for (const fragment of filteredFragments) {
       const element = document.getElementById(fragment.id);
       if (element) {
         observer.observe(element);
@@ -144,7 +115,7 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
     }
 
     return () => observer.disconnect();
-  }, [mode, selectedStableId, visibleFragments]);
+  }, [filteredFragments, mode, selectedStableId]);
 
   function updateMode(nextMode: ViewMode) {
     const nextNode = mode === "feed" ? (activeStableId ?? selectedStableId) : selectedStableId;
@@ -156,7 +127,7 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
     setExpandedStableIds((current) => {
       const next = new Set(current);
       next.add(item.stableId);
-      for (const stableId of getAncestorStableIds(readerData.toc, item.stableId)) {
+      for (const stableId of getAncestorStableIds(view.toc, item.stableId)) {
         next.add(stableId);
       }
       return next;
@@ -263,7 +234,7 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
 
   function updateVersion(versionId: string) {
     const params = new URLSearchParams(searchParams.toString());
-    if (versionId === readerData.currentVersionId) {
+    if (versionId === view.currentVersionId) {
       params.delete("version");
     } else {
       params.set("version", versionId);
@@ -286,7 +257,7 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
   }
 
   function expandAll() {
-    setExpandedStableIds(new Set(readerData.toc.map((item) => item.stableId)));
+    setExpandedStableIds(new Set(view.toc.map((item) => item.stableId)));
   }
 
   function collapseAll() {
@@ -313,7 +284,7 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
               Об электронной подписи
             </span>
           </h1>
-          {readerData.isDemo ? (
+          {view.isDemo ? (
             <span className="shrink-0 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-900">
               DEMO DATA
             </span>
@@ -324,13 +295,13 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
             </label>
             <select
               className="h-9 w-full min-w-0 max-w-[45vw] rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900 sm:max-w-[240px]"
-              disabled={readerData.versions.length <= 1}
+              disabled={view.versions.length <= 1}
               id="version-select"
               onChange={(event) => updateVersion(event.target.value)}
-              value={readerData.selectedVersionId ?? ""}
+              value={view.selectedVersionId ?? ""}
             >
-              {readerData.versions.length > 0 ? (
-                readerData.versions.map((version) => (
+              {view.versions.length > 0 ? (
+                view.versions.map((version) => (
                   <option key={version.id} value={version.id}>
                     {version.label}
                     {version.isCurrent ? " · текущая" : ""}
@@ -365,18 +336,18 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
             Закрыть
           </button>
         </div>
-        {readerData.currentVersionId &&
-        readerData.selectedVersionId &&
-        readerData.selectedVersionId !== readerData.currentVersionId ? (
+        {view.currentVersionId &&
+        view.selectedVersionId &&
+        view.selectedVersionId !== view.currentVersionId ? (
           <div className="border-b border-slate-200 p-4">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Сравнение с текущей редакцией
             </h2>
             <div className="mt-2 grid grid-cols-2 gap-2 text-center text-[11px] text-slate-600 md:grid-cols-4">
-              <VersionStat label="Без изменений" value={readerData.changeSummary.unchanged} />
-              <VersionStat label="Изменено" value={readerData.changeSummary.changed} />
-              <VersionStat label="Введено" value={readerData.changeSummary.introduced} />
-              <VersionStat label="Удалено" value={readerData.changeSummary.deleted} />
+              <VersionStat label="Без изменений" value={view.changeSummary.unchanged} />
+              <VersionStat label="Изменено" value={view.changeSummary.changed} />
+              <VersionStat label="Введено" value={view.changeSummary.introduced} />
+              <VersionStat label="Удалено" value={view.changeSummary.deleted} />
             </div>
           </div>
         ) : null}
@@ -440,7 +411,7 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
           hasFilters={hasChangeFilters}
           onClear={clearChangeFilters}
           onUpdate={updateChangeFilter}
-          versions={readerData.versions}
+          versions={view.versions}
         />
 
         <nav aria-label="Оглавление закона" className="border-t border-slate-200 p-3">
@@ -463,7 +434,7 @@ export function LawReader({ readerData }: { readerData: ReaderData }) {
           <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="min-w-0">
               <p className="wrap-anywhere text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {readerData.selectedVersionLabel ?? "Текущая редакция"} ·{" "}
+                {view.selectedVersionLabel ?? "Текущая редакция"} ·{" "}
                 {mode === "focus" ? "режим фокуса" : "режим ленты"}
               </p>
               <h2 className="wrap-anywhere mt-1 text-lg font-semibold text-slate-950">
@@ -1283,10 +1254,6 @@ function buildTree(items: ReaderTocItem[]) {
   return roots;
 }
 
-function getDefaultNodeStableId(tree: TocNode[]) {
-  const documentNode = tree.find((node) => node.type === "law") ?? tree[0];
-  return documentNode?.stableId ?? null;
-}
 
 function getDefaultExpandedStableIds(tree: TocNode[], selectedStableId: string | null) {
   const expanded = new Set<string>();
@@ -1317,9 +1284,6 @@ function getAncestorStableIds(items: ReaderTocItem[], stableId: string | null) {
   return ancestors;
 }
 
-function isSameOrDescendant(fragment: ReaderFragment, stableId: string) {
-  return fragment.stableId === stableId || fragment.stableId.startsWith(`${stableId}.`);
-}
 
 function modeButtonClass(isActive: boolean) {
   const base = "h-9 rounded px-3 text-sm font-medium transition";
@@ -1353,114 +1317,11 @@ function hasSupplementalContent(fragment: ReaderFragment) {
   return fragment.changeHistory.length > 0 || hasCommentaryNotice(fragment) || fragment.blocks.length > 0;
 }
 
-function filterFragmentsByChangeFilters(
-  fragments: ReaderFragment[],
-  filters: ChangeFilters,
-  selectedChangeId: string,
-) {
-  if (!hasActiveChangeFilters(filters, selectedChangeId)) {
-    return fragments;
-  }
 
-  return fragments
-    .map((fragment) => ({
-      ...fragment,
-      changeHistory: fragment.changeHistory.filter((entry) =>
-        matchesChangeFilters(fragment, entry, filters, selectedChangeId),
-      ),
-      blocks: selectedChangeId || hasNonArticleChangeFilters(filters) ? [] : fragment.blocks,
-    }))
-    .filter((fragment) => fragment.changeHistory.length > 0);
-}
 
-function matchesChangeFilters(
-  fragment: ReaderFragment,
-  entry: ReaderFragment["changeHistory"][number],
-  filters: ChangeFilters,
-  selectedChangeId: string,
-) {
-  if (selectedChangeId && entry.changeId !== selectedChangeId) {
-    return false;
-  }
 
-  if (filters.article && getArticleNumber(fragment.stableId) !== filters.article) {
-    return false;
-  }
 
-  if (filters.fromVersionId && entry.fromVersionId !== filters.fromVersionId) {
-    return false;
-  }
 
-  if (filters.toVersionId && entry.toVersionId !== filters.toVersionId) {
-    return false;
-  }
-
-  if (
-    (filters.type === "changed" ||
-      filters.type === "introduced" ||
-      filters.type === "deleted") &&
-    entry.status !== filters.type
-  ) {
-    return false;
-  }
-
-  if (filters.status === "missing" && entry.hasPublishedExplanation) {
-    return false;
-  }
-
-  if (filters.status === "published" && !entry.hasPublishedExplanation) {
-    return false;
-  }
-
-  if (filters.source === "with" && entry.sourceLinks.length === 0) {
-    return false;
-  }
-
-  if (filters.source === "without" && entry.sourceLinks.length > 0) {
-    return false;
-  }
-
-  return true;
-}
-
-function hasActiveChangeFilters(filters: ChangeFilters, selectedChangeId: string) {
-  return Boolean(
-    selectedChangeId ||
-      filters.article ||
-      filters.fromVersionId ||
-      filters.source ||
-      filters.status ||
-      filters.toVersionId ||
-      filters.type,
-  );
-}
-
-function hasNonArticleChangeFilters(filters: ChangeFilters) {
-  return Boolean(
-    filters.fromVersionId ||
-      filters.source ||
-      filters.status ||
-      filters.toVersionId ||
-      filters.type,
-  );
-}
-
-function changeFilterQueryName(name: keyof ChangeFilters) {
-  const names: Record<keyof ChangeFilters, string> = {
-    article: "changeArticle",
-    fromVersionId: "changeFrom",
-    source: "changeSource",
-    status: "changeStatus",
-    toVersionId: "changeTo",
-    type: "changeType",
-  };
-  return names[name];
-}
-
-function getArticleNumber(stableId: string) {
-  const match = stableId.match(/^63fz\.article_(\d+(?:_\d+)?)(?:\.|$)/);
-  return match?.[1].replace("_", ".") ?? "";
-}
 
 function fragmentArticleClass(status: ReaderFragment["changeStatus"], hasAside: boolean) {
   const base = `scroll-mt-20 grid min-w-0 gap-0 overflow-hidden rounded-md border bg-white ${hasAside ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : ""}`;
