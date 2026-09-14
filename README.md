@@ -10,7 +10,10 @@ future permanent production domain.
 
 - Imported real 63-FZ text with stable law fragments down to article, part, point, and paragraph
   level where the parser can identify them.
-- Supports multiple law versions and a public version selector.
+- Contains 21 real consolidated editions, covering the law from its first effective edition on
+  08.04.2011 through the current edition, with a public version selector.
+- Fragment headings retain their full structural coordinate: a point inside a part is shown as
+  `Article ..., part ..., point ...` without changing its stable fragment ID.
 - Shows fragment change history across loaded versions, including `introduced`, `changed`, and
   `deleted` transitions.
 - Includes an administrative editor for fragment commentary, proposed revisions, issues, and change

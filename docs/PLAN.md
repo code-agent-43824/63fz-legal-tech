@@ -12,7 +12,8 @@ Status: public test deployment at `https://mescheryakov.pro/63fz`.
   application behind Caddy.
 - The database contains real imported 63-FZ text with stable fragments down to article, part, point,
   and paragraph where the parser can identify them.
-- Several real law versions are imported and can be compared by stable fragment identity.
+- All 21 editions listed by the consolidated source are imported, covering 08.04.2011 through the
+  current edition; they can be compared by stable fragment identity.
 - The public reader supports version selection, tree navigation, focus/feed modes, change history,
   source metadata, search, filters, change permalinks, feedback buttons, hidden empty editorial
   sections, references from the official text to other federal laws, and a server-paged feed.

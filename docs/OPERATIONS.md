@@ -92,12 +92,12 @@ delete old release directories until at least one newer release has been verifie
   where it was stored.
 - A backup that has never been test-restored is not a backup: restore into a uniquely named scratch
   database, compare deterministic row counts/content hashes, and remove only that scratch database.
-- Latest verified full custom-format backup (2026-07-16):
-  `/home/openclaw/backups/63fz-legal-tech/20260716T144129Z-before-point15-editorial-workflow/fz63_legal_tech.dump`,
-  547561 bytes, SHA-256
-  `ca18b1e8f18462daf13860b673ede5cfaeeaaa99a2b91fb90494deb95e177239`. It was restored into an
-  isolated database; all eleven pre-migration application-table counts and deterministic content
-  hashes matched.
+- Latest verified full custom-format backup (2026-09-14):
+  `/home/openclaw/backups/63fz-legal-tech/20260914T154542Z-before-history-import/fz63_legal_tech.dump`,
+  546483 bytes, SHA-256
+  `7bcfb8bfdc7e969e20146e1aab5ae94b5e41025329d8493e175278010003c5eb`. It was restored into an
+  isolated database; counts and deterministic content hashes matched for all twelve public-schema
+  tables.
 - Zero-byte files from earlier failed dump attempts are not backups. Never select a backup by name
   alone: require non-zero size, `pg_restore --list` success for custom dumps, and a recorded checksum.
 

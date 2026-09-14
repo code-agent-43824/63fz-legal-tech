@@ -1,5 +1,62 @@
 # Progress Log
 
+## 2026-09-14. Complete Source History And Qualified Fragment Titles
+
+The public history previously started with the edition effective 15.08.2023, so it could not show
+when older wording first appeared. Point headings also omitted their parent part even though the
+stable fragment hierarchy retained it.
+
+Importer and data changes:
+
+- Point and paragraph headings now derive from their parent part heading. For example,
+  `63fz.article_13.part_1.point_1` is displayed as
+  `Статья 13. Удостоверяющий центр, часть 1, пункт 1`; stable IDs and parent relationships did not
+  change.
+- Historical validation now accepts an ordered subset of later inserted decimal-numbered articles
+  while still requiring articles 1 through 20 and rejecting missing, unknown, or reordered base
+  articles.
+- Imported all 15 previously missing editions listed by the consolidated source. Production now
+  contains 21 real editions covering 08.04.2011 through 01.03.2026; the current version remains
+  `63fz-current-2025-07-31`.
+- Direct requests for older Kontur pages returned HTTP 403, so their HTML was retrieved through the
+  Jina Reader transport while preserving the canonical Kontur URL as source metadata. A current
+  edition fetched through that transport produced byte-identical normalized law text and the same
+  SHA-256 as the previously retained direct source. Every imported edition reconstructed exactly
+  from its detailed fragments and passed with no parser warnings.
+- The requested article 13 history is now visible: the wording with the simple-signature key first
+  appears in the transition effective 01.07.2021 to 01.01.2022; the continuation concerning an
+  enhanced unqualified signature first appears in the transition effective 01.01.2023 to
+  04.08.2023.
+
+Security and verification:
+
+- A newly published production audit found two critical Next.js advisories plus transitive Sharp,
+  Browserslist, and baseline-browser-mapping advisories. Updated Next.js and
+  `eslint-config-next` to `16.3.5` and the exact Sharp override to `0.35.4`; the production audit is
+  clean.
+- Local checks passed: frozen install, Prisma validation, typecheck, lint, 111 tests (110 passed,
+  one DB integration test skipped locally), production build, and production dependency audit.
+- GitHub Actions run `34864127597` passed, including the disposable-DB integration test.
+- Before importing, created custom-format backup
+  `/home/openclaw/backups/63fz-legal-tech/20260914T154542Z-before-history-import/fz63_legal_tech.dump`
+  (546483 bytes, SHA-256
+  `7bcfb8bfdc7e969e20146e1aab5ae94b5e41025329d8493e175278010003c5eb`). A restore into an isolated
+  database matched counts and deterministic content hashes for all 12 tables. Each of the 21
+  importer writes also created its mandatory pre-write SQL backup.
+
+Production deployment:
+
+- Candidate release `64057b4` passed local-port preflight for the reader, admin/export redirects,
+  a static asset, production database use, and Next.js `16.3.5` startup.
+- Switched `current` from release `8955cd4` to
+  `/home/openclaw/services/63fz-legal-tech/releases/64057b4` and restarted the user service.
+- Production `/63fz`, focused article 13 points, `/`, and `/pdf-signing/` return HTTP 200; admin and
+  export redirect to `/63fz/admin/login`; `DEMO DATA` is absent. The service is active with
+  `NRestarts=0`.
+- Browser verification showed all 21 edition labels, the full article/part/point heading, both
+  requested article 13 transitions, server-side paging, and search-result links that remain under
+  `/63fz`.
+
 ## 2026-08-31. Dependency Advisories, CI Audit, Documentation Drift
 
 Housekeeping done while waiting for the frontend rework to be deployed.
