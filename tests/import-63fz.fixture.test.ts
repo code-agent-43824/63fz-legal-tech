@@ -4,6 +4,7 @@ import {
   parseLawHtml,
   reconstructFullTextFromDetailedFragments,
   sha256,
+  validateParsedLaw,
 } from "../scripts/import-63fz";
 
 const fixtureHtml = `
@@ -41,6 +42,41 @@ test("importer fixture preserves stable IDs and detailed reconstruction", () => 
       "63fz.article_16_1.part_1",
     ],
   );
+  assert.deepEqual(
+    parsed.fragments.map((fragment) => fragment.title),
+    [
+      "Федеральный закон от 06.04.2011 N 63-ФЗ «Об электронной подписи»",
+      "Статья 1. Общие положения",
+      "Статья 1. Общие положения, часть 1",
+      "Статья 1. Общие положения, часть 1, пункт 1",
+      "Статья 1. Общие положения, часть 1, абзац 1",
+      "Статья 16.1. Составная статья",
+      "Статья 16.1. Составная статья, часть 1",
+    ],
+  );
   assert.equal(reconstructFullTextFromDetailedFragments(parsed), parsed.fullText);
   assert.equal(sha256(parsed.fullText).length, 64);
+});
+
+test("historical article sequences may omit only later inserted articles", () => {
+  const articleHtml = Array.from(
+    { length: 20 },
+    (_, index) =>
+      `<h3>Статья ${index + 1}. Историческая статья</h3><p>Исторический текст статьи ${index + 1}, достаточный для проверки.</p>`,
+  ).join("");
+  const parsed = parseLawHtml(
+    `<div id="js-revisions-status">Редакция от 06.04.2011</div><div id="js-doc-text-content-part"><p>ФЕДЕРАЛЬНЫЙ ЗАКОН ОБ ЭЛЕКТРОННОЙ ПОДПИСИ</p>${articleHtml}</div>`,
+    { effectiveDate: "2011-04-08", revisionDate: "2011-04-06" },
+  );
+
+  assert.equal(
+    validateParsedLaw(parsed).some((warning) => warning.startsWith("Unexpected article sequence")),
+    false,
+  );
+
+  parsed.articles.splice(9, 1);
+  assert.equal(
+    validateParsedLaw(parsed).some((warning) => warning.startsWith("Unexpected article sequence")),
+    true,
+  );
 });

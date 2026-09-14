@@ -340,6 +340,7 @@ export function parseLawHtml(
             type: "point",
             order: childOrder,
             parentStableId: currentPart?.stableId ?? currentArticle.stableId,
+            parentTitle: currentPart?.title,
           }),
         );
         continue;
@@ -354,7 +355,7 @@ export function parseLawHtml(
           type: "paragraph",
           order: childOrder,
           parentStableId: currentPart?.stableId ?? currentArticle.stableId,
-          title: `${currentArticle.title}. Абзац ${paragraphIndex}`,
+          parentTitle: currentPart?.title,
         }),
       );
     }
@@ -410,7 +411,7 @@ function createChildBlock({
   type,
   order,
   parentStableId,
-  title,
+  parentTitle,
 }: {
   article: ParsedBlock;
   marker: string;
@@ -418,34 +419,34 @@ function createChildBlock({
   type: Extract<FragmentType, "part" | "point" | "paragraph">;
   order: number;
   parentStableId?: string;
-  title?: string;
+  parentTitle?: string;
 }): ParsedBlock {
   const markerSlug = slugifyMarker(marker);
   const stableBase = parentStableId ?? article.stableId;
   const stableType = type === "paragraph" ? "paragraph" : type;
-  const defaultTitle = formatChildTitle(article.title, type, marker);
+  const title = formatChildTitle(parentTitle ?? article.title, type, marker);
 
   return {
     stableId: `${stableBase}.${stableType}_${markerSlug}`,
     parentStableId: stableBase,
     type,
     number: marker,
-    title: title ?? defaultTitle,
+    title,
     text,
     order,
   };
 }
 
-function formatChildTitle(articleTitle: string, type: FragmentType, marker: string) {
+function formatChildTitle(parentTitle: string, type: FragmentType, marker: string) {
   if (type === "part") {
-    return `${articleTitle}, часть ${trimMarker(marker)}`;
+    return `${parentTitle}, часть ${trimMarker(marker)}`;
   }
 
   if (type === "point") {
-    return `${articleTitle}, пункт ${trimMarker(marker)}`;
+    return `${parentTitle}, пункт ${trimMarker(marker)}`;
   }
 
-  return `${articleTitle}, абзац ${trimMarker(marker)}`;
+  return `${parentTitle}, абзац ${trimMarker(marker)}`;
 }
 
 function trimMarker(marker: string) {
@@ -540,9 +541,16 @@ export function validateParsedLaw(parsed: ParsedLaw) {
   ];
   const actualArticles = parsed.articles.map((article) => article.number ?? "");
 
-  if (actualArticles.join(",") !== expectedArticles.join(",")) {
+  const expectedHistoricalSequence = expectedArticles.filter((article) =>
+    actualArticles.includes(article),
+  );
+  const requiredBaseArticles = expectedArticles.filter((article) => !article.includes("."));
+  if (
+    actualArticles.join(",") !== expectedHistoricalSequence.join(",") ||
+    requiredBaseArticles.some((article) => !actualArticles.includes(article))
+  ) {
     warnings.push(
-      `Unexpected article sequence: expected ${expectedArticles.join(", ")}, got ${actualArticles.join(", ")}`,
+      `Unexpected article sequence: expected a historical subset of ${expectedArticles.join(", ")}, got ${actualArticles.join(", ")}`,
     );
   }
 
