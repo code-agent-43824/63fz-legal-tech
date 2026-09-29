@@ -102,6 +102,9 @@ future permanent production domain.
 
 Install dependencies:
 
+Use Node.js 24 and pnpm 11.5.0. The Node major is enforced by `package.json` and `.npmrc`;
+GitHub Actions reads the same requirement.
+
 ```bash
 pnpm install --frozen-lockfile
 ```

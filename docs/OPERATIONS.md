@@ -65,7 +65,8 @@ Production database credentials are deliberately split:
 1. CI on `master` must be green (prisma validate, typecheck, lint, tests incl. DB integration,
    build).
 2. Build the release (`pnpm install --frozen-lockfile && pnpm run build`) and place the standalone
-   output in `releases/<git-sha>`.
+   output in `releases/<git-sha>`. Use Node.js 24 for both build and the systemd runtime; verify
+   the unit's `ExecStart` resolves to Node 24 before switching the release.
 3. Preflight the candidate on a free local port before switching:
    - `GET /63fz` returns HTTP 200;
    - unauthenticated `GET /63fz/admin` and `/63fz/admin/export/markdown` redirect to

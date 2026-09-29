@@ -1,5 +1,19 @@
 # Progress Log
 
+## 2026-09-29. Node.js 24 Requirement
+
+- Declared Node.js 24 as the supported runtime in `package.json` and enabled strict engine checks
+  for pnpm. CI now reads the same Node requirement from `package.json` instead of carrying a
+  separate hardcoded version. Updated setup and deployment instructions accordingly.
+- Verified locally with Node.js 24.19.0 and pnpm 11.5.0: frozen install, Prisma validation,
+  typecheck, 110 passing tests (one database integration test skipped without a local database),
+  production build, and production dependency audit. ESLint passed with the ignored generated
+  `.import/` directory excluded; the plain local `pnpm run lint` traversed old generated release
+  artifacts there and failed, unrelated to tracked source files.
+- Production runtime has **not** been switched or verified: HTTPS responds, but SSH port 22 timed
+  out from the current host. The existing production release remains unchanged until server access
+  permits the Node 24 runtime preflight and controlled release switch.
+
 ## 2026-09-14. Complete Source History And Qualified Fragment Titles
 
 The public history previously started with the edition effective 15.08.2023, so it could not show
