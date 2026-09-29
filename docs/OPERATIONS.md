@@ -14,6 +14,10 @@ This runbook is reconstructed from the deployment records in `docs/PROGRESS.md`;
   confirmed on the host 2026-07-13).
 - Releases live in `/home/openclaw/services/63fz-legal-tech/releases/<git-sha>`; the unit runs the
   `/home/openclaw/services/63fz-legal-tech/current` symlink (*verify on host*).
+- The app's Node.js 24.19.0 binary lives at
+  `/home/openclaw/services/63fz-legal-tech/runtime/node-v24.19.0/bin/node`. A user-systemd drop-in
+  at `~/.config/systemd/user/63fz-legal-tech.service.d/node24.conf` overrides `ExecStart` and
+  `PATH`; the shared `/home/openclaw/runtime/node` remains unchanged.
 - Database: PostgreSQL 18 on the same host. Runtime and migration ownership are separated as
   described below.
 
@@ -84,6 +88,10 @@ Production database credentials are deliberately split:
 
 Switch the `current` symlink back to the previous release directory and restart the service. Do not
 delete old release directories until at least one newer release has been verified in production.
+For the Node 24 migration specifically, the previous release is `64057b4` on Node 22.23.3. To
+restore that runtime, remove the `node24.conf` drop-in, run `systemctl --user daemon-reload`, and
+restart the service after restoring the previous `current` symlink. Keep both runtime binaries until
+the newer release has been observed stable.
 
 ## Backups
 

@@ -10,9 +10,25 @@
   production build, and production dependency audit. ESLint passed with the ignored generated
   `.import/` directory excluded; the plain local `pnpm run lint` traversed old generated release
   artifacts there and failed, unrelated to tracked source files.
-- Production runtime has **not** been switched or verified: HTTPS responds, but SSH port 22 timed
-  out from the current host. The existing production release remains unchanged until server access
-  permits the Node 24 runtime preflight and controlled release switch.
+- CI run `36550815316` passed, including disposable-PostgreSQL integration checks. Intermittent
+  SSH timeouts delayed but did not block the production work.
+- Installed the official Node.js 24.19.0 Linux x64 archive in an app-specific runtime directory
+  after validating it against Node's published SHA256SUMS. The shared Node 22 runtime was untouched.
+  Candidate release `4fb7e74` matched the local build by rsync checksum comparison and passed
+  isolated preflight: reader 200 without `DEMO DATA`, admin redirect 307, static asset 200.
+- Before switching, created a non-empty PostgreSQL custom-format backup at
+  `/home/openclaw/backups/63fz-legal-tech/20260929T095047Z-before-node24/fz63_legal_tech.dump`
+  (1,451,750 bytes, SHA-256
+  `7c0631bd61b4c0a248127d79764198b3f262edef52ea5057d9c653d745ec205c`), and validated
+  its table-of-contents with `pg_restore --list`. No database schema or data was changed by this
+  runtime deployment.
+- Switched `current` from `64057b4` to `4fb7e74` and applied a user-systemd drop-in with the
+  app-specific Node 24 `ExecStart` and `PATH`. A detached deployment job included automatic code and
+  unit rollback on failure; it completed successfully. `/proc/<MainPID>/exe` confirms the process
+  runs Node 24.19.0; service active, `NRestarts=0`. Live `/63fz`, focused article 13, `/`, and
+  `/pdf-signing/` return 200; admin redirects to login; no `DEMO DATA`. Initial external
+  `/pdf-signing/` requests timed out intermittently, but its server-local and subsequent public
+  checks returned 200.
 
 ## 2026-09-14. Complete Source History And Qualified Fragment Titles
 
