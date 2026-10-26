@@ -14,10 +14,9 @@ This runbook is reconstructed from the deployment records in `docs/PROGRESS.md`;
   confirmed on the host 2026-07-13).
 - Releases live in `/home/openclaw/services/63fz-legal-tech/releases/<git-sha>`; the unit runs the
   `/home/openclaw/services/63fz-legal-tech/current` symlink (*verify on host*).
-- The app's Node.js 24.19.0 binary lives at
-  `/home/openclaw/services/63fz-legal-tech/runtime/node-v24.19.0/bin/node`. A user-systemd drop-in
-  at `~/.config/systemd/user/63fz-legal-tech.service.d/node24.conf` overrides `ExecStart` and
-  `PATH`; the shared `/home/openclaw/runtime/node` remains unchanged.
+- The unit uses the shared `/home/openclaw/runtime/node/bin/node` and sets `PATH` to the same
+  runtime's `bin` directory. On 2026-10-26 the shared link resolved to `/opt/nodejs/v24.22.1`.
+  Check the live target and `/proc/<MainPID>/exe` before changing the shared runtime.
 - Database: PostgreSQL 18 on the same host. Runtime and migration ownership are separated as
   described below.
 
@@ -88,10 +87,10 @@ Production database credentials are deliberately split:
 
 Switch the `current` symlink back to the previous release directory and restart the service. Do not
 delete old release directories until at least one newer release has been verified in production.
-For the Node 24 migration specifically, the previous release is `64057b4` on Node 22.23.3. To
-restore that runtime, remove the `node24.conf` drop-in, run `systemctl --user daemon-reload`, and
-restart the service after restoring the previous `current` symlink. Keep both runtime binaries until
-the newer release has been observed stable.
+Release `64057b4` remains available, but its former Node 22 runtime was retired. The current
+release `4fb7e74` uses the shared Node 24 runtime. The app-specific Node 24.19.0 tree and its
+`node24.conf` override were removed on 2026-10-26. A code rollback must use a release compatible
+with the shared runtime; do not rely on either removed binary or the removed override.
 
 ## Backups
 

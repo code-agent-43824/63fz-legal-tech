@@ -1,5 +1,16 @@
 # Progress Log
 
+## 2026-10-26. Shared Node.js runtime
+
+- Removed the user-systemd `node24.conf` override so the existing base unit uses the shared
+  `/home/openclaw/runtime/node/bin/node` for both `ExecStart` and `PATH`. The shared link resolves
+  to `/opt/nodejs/v24.22.1`; the live process executable matched it and `NRestarts=0`.
+- Confirmed `/63fz`, a static JavaScript asset, `/`, and `/pdf-signing/` return 200; unauthenticated
+  `/63fz/admin` redirects with 307. The reader contains no `DEMO DATA`.
+- Checked unit references, external symlinks, and live executables, then removed only the unused
+  app-specific `runtime/node-v24.19.0` tree and the obsolete override backup. Recovered about
+  204 MiB on the root filesystem. The current release and database were unchanged.
+
 ## 2026-09-29. Node.js 24 Requirement
 
 - Declared Node.js 24 as the supported runtime in `package.json` and enabled strict engine checks
